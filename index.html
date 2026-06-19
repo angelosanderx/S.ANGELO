@@ -992,6 +992,12 @@
             <option value="Presencial">Presencial</option>
             <option value="Telefone">Telefone</option>
           </select>
+          
+          <select id="tent-filtro-pendentes" onchange="filtrarTentativas()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
+            <option value="">Todos os domicílios</option>
+            <option value="pendentes">Ocultar concluídos (Focar pendentes)</option>
+          </select>
+
           <input type="text" id="tent-busca" placeholder="Buscar endereço ou morador..." style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);flex:1;min-width:160px" oninput="filtrarTentativas()">
         </div>
       </div>
@@ -2273,6 +2279,7 @@ async function carregarTentativas() {
           morador: d.morador,
           semana: d.semana,
           entrevistador_nome: t.entrevistador || d.entrevistador_nome || '',
+          status_atual_domicilio: d.status_atual || 'nao_visitado',
         });
       });
     });
@@ -2297,12 +2304,14 @@ window.filtrarTentativas = () => {
   const entr = (document.getElementById('tent-filtro-entrevistador')?.value || '').toLowerCase();
   const sem = document.getElementById('tent-filtro-semana')?.value || '';
   const orig = document.getElementById('tent-filtro-origem')?.value || '';
+  const pendentes = document.getElementById('tent-filtro-pendentes')?.value || '';
   const q = (document.getElementById('tent-busca')?.value || '').toLowerCase();
 
   const filtradas = todasTentativas.filter(t => {
     if (entr && !(t.entrevistador_nome || '').toLowerCase().includes(entr)) return false;
     if (sem && t.semana !== sem) return false;
     if (orig && (t.origem || '') !== orig) return false;
+    if (pendentes === 'pendentes' && t.status_atual_domicilio === 'realizada') return false;
     if (q && !(t.endereco || '').toLowerCase().includes(q) && !(t.morador || '').toLowerCase().includes(q)) return false;
     return true;
   });
