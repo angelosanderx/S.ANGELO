@@ -830,7 +830,6 @@
     <div class="pagina ativa" id="pag-dashboard">
       <div class="titulo-pagina">📊 Dashboard</div>
 
-      <!-- Cards principais -->
       <div class="grid-cards" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin-bottom:1.25rem">
         <div class="card-stat" style="border-left:4px solid var(--azul-medio)">
           <div class="numero" id="stat-total">—</div>
@@ -854,25 +853,21 @@
         </div>
       </div>
 
-      <!-- Alerta etapa 5 -->
       <div id="alerta-etapa5" style="display:none;background:var(--vermelho-claro);border:1px solid var(--vermelho);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1.25rem;font-size:0.87rem;color:var(--vermelho)">
         🔴 <strong id="alerta-etapa5-txt"></strong> — esses domicílios devem ser substituídos no próximo trimestre.
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem">
-        <!-- Pendentes por semana -->
         <div class="card-tabela">
           <div class="card-tabela-header"><h3>Pendentes por semana</h3></div>
           <div id="tabela-semanas"><div class="loader">Carregando...</div></div>
         </div>
-        <!-- Alertas rápidos -->
         <div class="card-tabela">
           <div class="card-tabela-header"><h3>Situação geral</h3></div>
           <div id="tabela-situacao"><div class="loader">Carregando...</div></div>
         </div>
       </div>
 
-      <!-- Produtividade por entrevistador -->
       <div class="card-tabela">
         <div class="card-tabela-header">
           <h3>Produtividade por entrevistador</h3>
@@ -978,7 +973,6 @@
       </div>
     </div>
 
-    <!-- TENTATIVAS -->
     <div class="pagina" id="pag-tentativas">
       <div class="titulo-pagina">🔁 Tentativas</div>
       <div class="card-tabela" style="margin-bottom:0.75rem">
@@ -1349,7 +1343,6 @@
   </div>
 </div>
 
-<!-- MODAL CAPTURAR DADOS SIGC -->
 <div class="modal-overlay" id="modal-sigc">
   <div class="modal" style="max-width:620px">
     <div class="modal-header">
@@ -1794,14 +1787,14 @@ window.abrirFicha = (id) => {
   const dom = todosdomicilios.find(d => d.id === id);
   if (!dom) return;
 
-  domicilioAtualId = id; 
+  domicilioAtualId = id;
   carregarMoradores(id);
 
   // Atualizar cabeçalho
   const identificador = dom.domicilio_num || dom.numero_sequencial || 'S/N';
   document.getElementById('ficha-titulo').textContent = `Ficha do Domicílio: ${identificador}`;
 
-  // Preencher Dados Gerais (com fallbacks para campos que ainda serão criados)
+  // Preencher Dados Gerais
   const setor = dom.controle ? dom.controle.slice(0,-1) : (dom.upa || '-');
   document.getElementById('ficha-upa').textContent = dom.upa || '—';
   document.getElementById('ficha-setor').textContent = setor;
@@ -1812,6 +1805,39 @@ window.abrirFicha = (id) => {
   document.getElementById('ficha-morador-cnefe').textContent = dom.morador_cnefe || dom.morador || '—';
   document.getElementById('ficha-entrevistador').textContent = dom.entrevistador_nome || 'Não atribuído';
   document.getElementById('ficha-supervisor').textContent = dom.supervisor_nome || 'Não atribuído';
+
+  // --- NOVO: Preencher a aba de Histórico de Espécies ---
+  const divEsp = document.getElementById('historico-especies-ficha');
+  if (dom.historico_especies && dom.historico_especies.length > 0) {
+    let htmlEsp = '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem">';
+    dom.historico_especies.forEach(h => {
+      htmlEsp += `<div style="background:var(--cinza-claro);padding:0.75rem 1rem;border-radius:8px;min-width:140px;border:1px solid var(--borda)">
+        <div style="font-size:0.72rem;color:var(--cinza);font-weight:700;text-transform:uppercase">Entrevista ${h.entrevista}</div>
+        <div style="font-size:0.85rem;color:var(--azul);font-weight:700;margin-top:4px">${h.resultado || '-'}</div>
+      </div>`;
+    });
+    htmlEsp += '</div>';
+    divEsp.innerHTML = htmlEsp;
+  } else {
+    divEsp.innerHTML = '<div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📈</div>Nenhum histórico de espécies encontrado para este domicílio.</div>';
+  }
+
+  // --- NOVO: Preencher a aba de Telefones ---
+  const divTel = document.getElementById('historico-telefones-ficha');
+  if (dom.historico_telefones && dom.historico_telefones.length > 0) {
+    let htmlTel = '<table style="width:100%;border-collapse:collapse;margin-top:0.5rem"><thead><tr><th style="width:80px;text-align:center">Entrevista</th><th>Telefone</th><th>Observação</th></tr></thead><tbody>';
+    dom.historico_telefones.forEach(t => {
+      htmlTel += `<tr>
+        <td style="text-align:center"><span class="badge badge-cinza">${t.entrevista}ª</span></td>
+        <td style="font-weight:600;color:var(--azul-medio)">${t.telefone || '-'}</td>
+        <td style="font-size:0.8rem;color:var(--cinza-escuro)">${t.observacao || '-'}</td>
+      </tr>`;
+    });
+    htmlTel += '</tbody></table>';
+    divTel.innerHTML = htmlTel;
+  } else {
+    divTel.innerHTML = '<div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📞</div>Nenhum telefone registrado no histórico.</div>';
+  }
 
   // Resetar visualização para a primeira aba
   document.querySelectorAll('.tab-btn')[0].click();
