@@ -2639,7 +2639,7 @@ window.processarSIGC = () => {
 
   let idxTabela = -1;
   for (let i = 0; i < linhasBruto.length; i++) {
-    if (linhasBruto[i].includes('Ordem') && linesBruto[i].includes('Morador')) {
+    if (linhasBruto[i].includes('Ordem') && linhasBruto[i].includes('Morador')) {
       idxTabela = i + 1;
       if (idxTabela < linhasBruto.length &&
          (linhasBruto[idxTabela].includes('Nascimento') || linhasBruto[idxTabela].includes('Idade'))) {
@@ -2807,35 +2807,65 @@ window.processarCentralSIGC = async () => {
   let controle = extrairCampo(texto, 'Controle');
   let domicilio_num = extrairCampo(texto, 'Domicílio');
 
-  if (!controle) {
+  // 1. LIMPEZA GARANTIDA DO CONTROLE (Remove sujeiras como " Domicílio: 2" que vem na mesma linha)
+  if (controle) {
+    const matchClean = controle.match(/^([A-Z0-9]+)/i);
+    if (matchClean) controle = matchClean[1];
+  } else {
     const matchControle = texto.match(/Controle\s*:\s*([A-Z0-9]+)/i);
     if (matchControle) controle = matchControle[1].trim();
   }
+
+  // 2. LIMPEZA DO DOMICÍLIO (Garante que pegará apenas o número, ignorando letras ou formatações soltas)
   if (!domicilio_num) {
     const matchDom = texto.match(/Domicílio\s*:\s*(\d+)/i);
     if (matchDom) domicilio_num = matchDom[1].trim();
+  } else {
+    const matchDomNum = domicilio_num.match(/(\d+)/);
+    if (matchDomNum) domicilio_num = matchDomNum[1];
   }
 
   // Fallback caso venha com formatações de tabulação ocultas do SIGC
   if (!controle || !domicilio_num) {
-    statusConteudo.innerHTML = `<div style="color:var(--vermelho);font-weight:600;padding:0.5rem 0;">❌ Erro: Não foi possível extrair o 'Controle' ou o número do 'Domicílio' do texto fornecido. Verifique se copiou a tela inteira.</div>`;
+    statusConteudo.innerHTML = `<div style="color:var(--vermelho);font-weight:600;padding:0.5rem 0;">❌ Erro: Não foi possível extrair o 'Controle' ou o número do 'Domicílio' do texto fornecido. Verifique se copiou a tela inteira (Ctrl+A).</div>`;
     return;
   }
 
   try {
-    // Procura o domicílio que possua esse Controle e Dom. exato
-    const qDom = query(collection(db, 'domicilios'), where('controle', '==', controle), where('domicilio_num', '==', domicilio_num));
+    // 3. BUSCA SUPER FLEXÍVEL NO FIREBASE
+    // Primeiro busca apenas os domicílios que possuem o mesmo código de controle exato
+    const qDom = query(collection(db, 'domicilios'), where('controle', '==', controle));
     const snapDom = await getDocs(qDom);
 
-    if (snapDom.empty) {
-      statusConteudo.innerHTML = `<div style="color:var(--laranja);font-weight:600;padding:0.5rem 0;">⚠️ O Domicílio com Controle <strong>${controle}</strong> e Número <strong>${domicilio_num}</strong> não está cadastrado na base local do sistema.</div>`;
+    let targetDoc = null;
+
+    if (!snapDom.empty) {
+      // Converte o número colado do SIGC para inteiro (ex: a string "02" vira o número 2, ignorando zeros)
+      const numProcurado = parseInt(domicilio_num);
+
+      // Procura na lista retornada o domicílio exato
+      targetDoc = snapDom.docs.find(d => {
+        const dados = d.data();
+        // Permite encontrar o registro seja pelo campo "domicilio_num" ou "numero_sequencial"
+        const nDom = parseInt(dados.domicilio_num || dados.numero_sequencial || '-1');
+        return nDom === numProcurado;
+      });
+
+      // Fallback: Se não encontrou o número exato, mas existe apenas 1 domicílio no banco vinculado àquele Controle,
+      // ele assume que é aquele por dedução lógica.
+      if (!targetDoc && snapDom.docs.length === 1) {
+         targetDoc = snapDom.docs[0];
+      }
+    }
+
+    if (!targetDoc) {
+      statusConteudo.innerHTML = `<div style="color:var(--laranja);font-weight:600;padding:0.5rem 0;">⚠️ O Domicílio com Controle <strong>${controle}</strong> e Número <strong>${domicilio_num}</strong> não foi encontrado na base local do sistema. Ele já foi cadastrado/importado na tela de Domicílios?</div>`;
       return;
     }
 
-    const targetDoc = snapDom.docs[0];
     const targetId = targetDoc.id;
 
-    // Estrutura metadados da entrevista igual ao fluxo individual
+    // Estrutura metadados da entrevista
     const entrevista = {
       numero:         extrairCampo(texto, 'Nº da Entrevista'),
       tipo:           extrairCampo(texto, 'Tipo da Entrevista'),
@@ -2849,12 +2879,12 @@ window.processarCentralSIGC = async () => {
 
     // Mapeia o status dinâmico com base no tipo retornado
     let status_atual = 'nao_visitado';
-    const tipoLower = entrevista.tipo.toLowerCase();
+    const tipoLower = (entrevista.tipo || '').toLowerCase();
     if (tipoLower.includes('realizada')) status_atual = 'realizada';
     else if (tipoLower.includes('recusa')) status_atual = 'recusa';
     else if (tipoLower.includes('ausente')) status_atual = 'ausente';
 
-    // Salva metadados da entrevista
+    // Salva metadados da entrevista na ficha geral
     await updateDoc(doc(db, 'domicilios', targetId), {
       entrevista_numero:   entrevista.numero || null,
       entrevista_tipo:     entrevista.tipo || null,
@@ -2974,7 +3004,7 @@ window.processarCentralSIGC = async () => {
 
   } catch (error) {
     console.error(error);
-    statusConteudo.innerHTML = `<div style="color:var(--vermelho);font-weight:600;padding:0.5rem 0;">❌ Ocorreu um erro crítico de gravação no banco de dados. Verifique a consola do programador.</div>`;
+    statusConteudo.innerHTML = `<div style="color:var(--vermelho);font-weight:600;padding:0.5rem 0;">❌ Ocorreu um erro crítico de gravação no banco de dados. Verifique o console do desenvolvedor.</div>`;
   }
 };
 </script>
