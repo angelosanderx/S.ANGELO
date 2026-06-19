@@ -2581,15 +2581,47 @@ window.importarKML = (input) => {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async e => {
     kmlDados = parseKML(e.target.result);
     const total = Object.values(kmlDados).reduce((s, v) => s + v.length, 0);
     const setores = Object.keys(kmlDados).length;
+    
+    document.getElementById('kml-status').textContent = `⏳ Salvando coordenadas no banco...`;
+    document.getElementById('kml-status').style.color = 'var(--cinza)';
+
+    // Salva coordenadas no Firestore para cada domicílio
+    let salvos = 0, erros = 0;
+    for (const [setor, doms] of Object.entries(kmlDados)) {
+      for (const d of doms) {
+        if (!d.lat || !d.lng) continue;
+        // Busca o domicílio pelo UPA/setor e número
+        const domObj = todosdomicilios.find(td =>
+          (td.upa === setor || (td.controle && td.controle.slice(0,-1) === setor)) &&
+          (td.domicilio_num === d.dom || td.numero_sequencial === d.dom)
+        );
+        if (domObj) {
+          try {
+            await updateDoc(doc(db, 'domicilios', domObj.id), {
+              latitude_kml: String(d.lat),
+              longitude_kml: String(d.lng),
+              logradouro_kml: d.logradouro || '',
+              numero_kml: d.numero || '',
+              complemento_kml: d.complemento || '',
+            });
+            // Atualiza também na memória
+            domObj.latitude_kml = String(d.lat);
+            domObj.longitude_kml = String(d.lng);
+            salvos++;
+          } catch(err) { erros++; }
+        }
+      }
+    }
+
     document.getElementById('kml-status').textContent = 
-      `✅ ${setores} setores, ${total} domicílios carregados`;
+      `✅ ${setores} setores, ${total} domicílios — ${salvos} coordenadas salvas no banco`;
     document.getElementById('kml-status').style.color = 'var(--verde)';
     renderizarMapaSetores();
-    mostrarToast(`KML carregado: ${setores} setores`, 'sucesso');
+    mostrarToast(`KML importado: ${salvos} coordenadas salvas!`, 'sucesso');
   };
   reader.readAsText(file, 'UTF-8');
 };
@@ -2750,48 +2782,79 @@ function renderizarRoteiro(lista, domAtual, setor) {
   document.getElementById('roteiro-lista').innerHTML = html;
 }
 
+let _mapaRoteiroInstance = null;
+
 function renderizarMapaRoteiro(alvo, anteriores, posteriores, setor, corAlvo, domAtual) {
   const mapaDiv = document.getElementById('roteiro-mapa');
   if (!mapaDiv) return;
+
+  // Destroi mapa anterior se existir
+  if (_mapaRoteiroInstance) {
+    try { _mapaRoteiroInstance.remove(); } catch(e) {}
+    _mapaRoteiroInstance = null;
+  }
   
-  // Pega coordenadas do KML
+  // Pega coordenadas — primeiro do KML em memória, depois do Firestore
   const kmlSetor = kmlDados[setor] || [];
   const domNum = domAtual ? (domAtual.domicilio_num || domAtual.numero_sequencial) : '';
   const pinAlvo = kmlSetor.find(k => k.dom === String(domNum));
-  
-  if (!pinAlvo && (!alvo?.latitude)) {
-    mapaDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--cinza);font-size:0.85rem">🗺️ Carregue o KML para ver o mapa</div>';
+
+  // Coordenadas do alvo: KML memória > Firestore > nenhum
+  const latAlvo = pinAlvo?.lat || parseFloat(domAtual?.latitude_kml || '0');
+  const lngAlvo = pinAlvo?.lng || parseFloat(domAtual?.longitude_kml || '0');
+
+  if (!latAlvo || !lngAlvo) {
+    mapaDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--cinza);font-size:0.85rem;flex-direction:column;gap:0.5rem"><div style="font-size:1.5rem">🗺️</div><div>Carregue o KML em Setores para ver o mapa</div></div>';
     return;
   }
-  
+
   mapaDiv.innerHTML = '<div id="leaflet-roteiro" style="width:100%;height:320px"></div>';
-  
+
+  // Monta lista de vizinhos: KML memória + domicílios do Firestore com coordenadas
+  const vizinhosKML = kmlSetor.filter(k => k.dom !== String(domNum));
+  const vizinhosFirestore = todosdomicilios.filter(td =>
+    (td.upa === setor || (td.controle && td.controle.slice(0,-1) === setor)) &&
+    td.domicilio_num !== String(domNum) &&
+    td.latitude_kml && td.longitude_kml &&
+    !vizinhosKML.find(k => k.dom === td.domicilio_num)
+  ).map(td => ({
+    dom: td.domicilio_num,
+    lat: parseFloat(td.latitude_kml),
+    lng: parseFloat(td.longitude_kml),
+    logradouro: td.endereco || '',
+    numero: '',
+    entrevistador_nome: td.entrevistador_nome || ''
+  }));
+
+  const todosVizinhos = [...vizinhosKML, ...vizinhosFirestore];
+
   const iniciar = () => {
-    const lat = pinAlvo?.lat || parseFloat(alvo?.latitude);
-    const lng = pinAlvo?.lng || parseFloat(alvo?.longitude);
-    
-    const map = window.L.map('leaflet-roteiro').setView([lat, lng], 16);
+    _mapaRoteiroInstance = window.L.map('leaflet-roteiro').setView([latAlvo, lngAlvo], 16);
     window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap'
-    }).addTo(map);
-    
+    }).addTo(_mapaRoteiroInstance);
+
     // Pin do alvo
     const iconAlvo = window.L.divIcon({
       html: '<div style="background:' + corAlvo + ';color:white;border:3px solid white;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;box-shadow:0 3px 6px rgba(0,0,0,0.5)">🎯</div>',
       className: '', iconSize: [36, 36], iconAnchor: [18, 18]
     });
-    window.L.marker([lat, lng], { icon: iconAlvo }).addTo(map)
+    window.L.marker([latAlvo, lngAlvo], { icon: iconAlvo }).addTo(_mapaRoteiroInstance)
       .bindPopup('<strong>🎯 ALVO — Dom. ' + domNum + '</strong><br>' + (domAtual?.endereco || ''));
-    
-    // Pins dos vizinhos do KML no mesmo setor
-    kmlSetor.forEach(k => {
-      if (k.dom === String(domNum)) return;
+
+    // Pins dos vizinhos com cor por entrevistador
+    todosVizinhos.forEach(k => {
+      if (!k.lat || !k.lng) return;
+      const domViz = todosdomicilios.find(td => td.domicilio_num === k.dom &&
+        (td.upa === setor || (td.controle && td.controle.slice(0,-1) === setor)));
+      const corViz = corEntrevistador(domViz?.entrevistador_nome || k.entrevistador_nome || '');
       const icon = window.L.divIcon({
-        html: '<div style="background:#94A3B8;color:white;border:2px solid white;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;box-shadow:0 2px 4px rgba(0,0,0,0.3)">' + k.dom + '</div>',
+        html: '<div style="background:' + corViz + ';color:white;border:2px solid white;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;box-shadow:0 2px 4px rgba(0,0,0,0.3)">' + k.dom + '</div>',
         className: '', iconSize: [26, 26], iconAnchor: [13, 13]
       });
-      window.L.marker([k.lat, k.lng], { icon }).addTo(map)
-        .bindPopup('Dom. ' + k.dom + '<br>' + k.logradouro + ' ' + k.numero);
+      window.L.marker([k.lat, k.lng], { icon }).addTo(_mapaRoteiroInstance)
+        .bindPopup('Dom. ' + k.dom + '<br>' + (k.logradouro || '') + ' ' + (k.numero || '') +
+          (domViz?.entrevistador_nome ? '<br><small>' + domViz.entrevistador_nome + '</small>' : ''));
     });
   };
   
