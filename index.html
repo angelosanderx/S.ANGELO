@@ -93,7 +93,8 @@
     letter-spacing: 0.5px;
   }
 
-  .campo-form input {
+  .campo-form input,
+  .campo-form select {
     width: 100%;
     padding: 0.7rem 0.9rem;
     border: 1.5px solid var(--borda);
@@ -104,7 +105,8 @@
     background: var(--cinza-claro);
   }
 
-  .campo-form input:focus {
+  .campo-form input:focus,
+  .campo-form select:focus {
     outline: none;
     border-color: var(--azul-medio);
     background: var(--branco);
@@ -688,11 +690,68 @@
     border-radius: 3px;
     transition: width 0.4s;
   }
+
+  /* ── FICHA DO DOMICÍLIO ── */
+  .tabs-ficha {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid var(--borda);
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+  }
+
+  .tab-btn {
+    padding: 0.75rem 1rem;
+    border: none;
+    background: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--cinza);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    white-space: nowrap;
+    transition: 0.2s;
+  }
+
+  .tab-btn:hover { color: var(--azul-medio); }
+  .tab-btn.ativo {
+    color: var(--azul);
+    border-bottom-color: var(--azul);
+  }
+
+  .tab-content { display: none; }
+  .tab-content.ativo { display: block; }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .info-item label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--cinza);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .info-item span {
+    font-size: 0.95rem;
+    color: var(--cinza-escuro);
+    font-weight: 500;
+  }
 </style>
 </head>
 <body>
 
-<!-- TELA DE LOGIN -->
 <div id="tela-auth">
   <div class="auth-card">
     <div class="auth-logo">
@@ -713,10 +772,8 @@
   </div>
 </div>
 
-<!-- APP PRINCIPAL -->
 <div id="app">
 
-  <!-- TOPBAR -->
   <div class="topbar">
     <div class="topbar-esquerda">
       <button class="btn-menu" onclick="toggleSidebar()">
@@ -731,7 +788,6 @@
     </div>
   </div>
 
-  <!-- SIDEBAR -->
   <div class="sidebar" id="sidebar">
     <div class="nav-secao">Principal</div>
     <div class="nav-item ativo" onclick="irPara('dashboard')">
@@ -763,10 +819,8 @@
 
   <div class="overlay" id="overlay" onclick="fecharSidebar()"></div>
 
-  <!-- CONTEÚDO -->
   <div class="conteudo">
 
-    <!-- DASHBOARD -->
     <div class="pagina ativa" id="pag-dashboard">
       <div class="titulo-pagina">📊 Dashboard</div>
       <div class="grid-cards" id="cards-dashboard">
@@ -784,22 +838,60 @@
       </div>
     </div>
 
-    <!-- DOMICÍLIOS -->
     <div class="pagina" id="pag-domicilios">
       <div class="titulo-pagina">🏠 Domicílios</div>
+      <div class="card-tabela" style="margin-bottom:0.75rem">
+        <div style="padding:0.85rem 1.25rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+          <select id="filtro-upa" onchange="filtrarPorUpa()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:200px">
+            <option value="">Todas as UPAs</option>
+          </select>
+          <select id="filtro-setor" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:200px">
+            <option value="">Todos os setores</option>
+          </select>
+          <select id="filtro-semana" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
+            <option value="">Todas as semanas</option>
+            <option value="1">Semana 1</option>
+            <option value="2">Semana 2</option>
+            <option value="3">Semana 3</option>
+            <option value="4">Semana 4</option>
+          </select>
+          <select id="filtro-status" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
+            <option value="">Todos os status</option>
+            <option value="nao_visitado">Não visitado</option>
+            <option value="ausente">Ausente</option>
+            <option value="agendado">Agendado</option>
+            <option value="realizada">Realizada</option>
+            <option value="recusa">Recusa</option>
+            <option value="carta_solicitada">Carta solicitada</option>
+            <option value="supervisao">Supervisão necessária</option>
+          </select>
+          <input type="text" id="busca-domicilio" placeholder="Buscar endereço ou morador..." style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);flex:1;min-width:160px" oninput="filtrarDomicilios()">
+          <select id="filtro-ordem" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
+            <option value="padrao">Ordem padrão (UPA/Dom)</option>
+            <option value="status">Agrupar por status</option>
+            <option value="semana">Agrupar por semana</option>
+            <option value="entrevistador">Agrupar por entrevistador</option>
+          </select>
+          <button class="btn-acao secundario" onclick="limparFiltros()">Limpar</button>
+          <button class="btn-acao" onclick="abrirModalDomicilio()">+ Novo</button>
+        </div>
+      </div>
       <div class="card-tabela">
         <div class="card-tabela-header">
-          <h3>Lista de domicílios</h3>
-          <div style="display:flex;gap:0.5rem">
-            <input type="text" id="busca-domicilio" placeholder="Buscar endereço..." style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.85rem;font-family:var(--fonte);background:var(--cinza-claro)" oninput="filtrarDomicilios()">
-            <button class="btn-acao" onclick="abrirModalDomicilio()">+ Novo</button>
-          </div>
+          <h3 id="dom-contador">Lista de domicílios</h3>
+        </div>
+        <div id="barra-atribuicao" style="display:none;padding:0.75rem 1.25rem;background:var(--azul-claro);border-bottom:1px solid var(--borda);display:none;align-items:center;gap:0.75rem;flex-wrap:wrap">
+          <span id="sel-contador" style="font-size:0.85rem;font-weight:600;color:var(--azul)">0 selecionados</span>
+          <select id="sel-entrevistador" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.85rem;font-family:var(--fonte);flex:1;min-width:180px">
+            <option value="">Selecione o entrevistador...</option>
+          </select>
+          <button class="btn-acao" onclick="atribuirSelecionados()">Atribuir</button>
+          <button class="btn-acao secundario" onclick="desmarcarTodos()">Desmarcar todos</button>
         </div>
         <div id="tabela-domicilios"><div class="loader">Carregando...</div></div>
       </div>
     </div>
 
-    <!-- VISITAS -->
     <div class="pagina" id="pag-visitas">
       <div class="titulo-pagina">📋 Histórico de Visitas</div>
       <div class="card-tabela">
@@ -810,7 +902,6 @@
       </div>
     </div>
 
-    <!-- SETORES -->
     <div class="pagina" id="pag-setores">
       <div class="titulo-pagina">🗺️ Setores</div>
       <div class="card-tabela">
@@ -822,7 +913,6 @@
       </div>
     </div>
 
-    <!-- USUÁRIOS -->
     <div class="pagina" id="pag-usuarios">
       <div class="titulo-pagina">👥 Usuários</div>
       <div class="card-tabela">
@@ -834,7 +924,6 @@
       </div>
     </div>
 
-    <!-- AVISOS -->
     <div class="pagina" id="pag-avisos">
       <div class="titulo-pagina">📢 Avisos</div>
       <div class="card-tabela">
@@ -846,7 +935,6 @@
       </div>
     </div>
 
-    <!-- CHAT -->
     <div class="pagina" id="pag-chat">
       <div class="titulo-pagina">💬 Chat Geral</div>
       <div class="chat-container">
@@ -858,11 +946,85 @@
       </div>
     </div>
 
-  </div><!-- /conteudo -->
-</div><!-- /app -->
+    <div class="pagina" id="pag-ficha-domicilio">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
+        <button class="btn-acao secundario" onclick="irPara('domicilios')">← Voltar</button>
+        <div class="titulo-pagina" style="margin-bottom:0" id="ficha-titulo">Ficha do Domicílio</div>
+      </div>
 
-<!-- MODAL DOMICÍLIO -->
-<div class="modal-overlay" id="modal-domicilio">
+      <div class="card-tabela" style="padding:1.5rem">
+        <div class="tabs-ficha">
+          <button class="tab-btn ativo" onclick="mudarAbaFicha('dados-gerais')">Dados Gerais</button>
+          <button class="tab-btn" onclick="mudarAbaFicha('moradores')">Moradores PNAD</button>
+          <button class="tab-btn" onclick="mudarAbaFicha('historico')">Histórico</button>
+          <button class="tab-btn" onclick="mudarAbaFicha('observacoes')">Observações</button>
+          <button class="tab-btn" onclick="mudarAbaFicha('links')">Links</button>
+          <button class="tab-btn" onclick="mudarAbaFicha('controle')">Controle de Campo</button>
+        </div>
+
+        <div id="aba-dados-gerais" class="tab-content ativo">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:1rem">
+            <button class="btn-acao" style="background:var(--verde)" onclick="abrirModalSIGC()">📋 Capturar dados do SIGC</button>
+          </div>
+          <div class="info-grid">
+            <div class="info-item"><label>UPA</label><span id="ficha-upa">—</span></div>
+            <div class="info-item"><label>Setor</label><span id="ficha-setor">—</span></div>
+            <div class="info-item"><label>Controle</label><span id="ficha-controle">—</span></div>
+            <div class="info-item"><label>Endereço</label><span id="ficha-endereco">—</span></div>
+            <div class="info-item"><label>Complemento</label><span id="ficha-complemento">—</span></div>
+            <div class="info-item"><label>Coordenadas (Lat/Long)</label><span id="ficha-coordenadas">—</span></div>
+            <div class="info-item"><label>Morador CNEFE</label><span id="ficha-morador-cnefe">—</span></div>
+            <div class="info-item"><label>Entrevistador Responsável</label><span id="ficha-entrevistador">—</span></div>
+            <div class="info-item"><label>Supervisor Responsável</label><span id="ficha-supervisor">—</span></div>
+          </div>
+        </div>
+
+        <div id="aba-moradores" class="tab-content">
+          <div class="card-tabela-header" style="padding-left:0; padding-right:0; border-bottom:none; margin-bottom: 0.5rem;">
+            <h3 id="contador-moradores" style="color:var(--azul);">Total de moradores PNAD: 0</h3>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+              <button class="btn-acao" style="background:var(--verde)" onclick="abrirModalSIGC()">📋 Capturar dados do SIGC</button>
+              <button class="btn-acao" onclick="abrirModalMorador()">+ Novo morador</button>
+            </div>
+          </div>
+          
+          <div style="overflow-x:auto; border: 1px solid var(--borda); border-radius: 8px;">
+            <table style="min-width:700px; margin-bottom: 0;">
+              <thead>
+                <tr>
+                  <th>Cód.</th>
+                  <th>Nome</th>
+                  <th>Sexo</th>
+                  <th>Nascimento</th>
+                  <th>Idade</th>
+                  <th>Condição no Domicílio</th>
+                  <th>Cor/Raça</th>
+                  <th style="text-align: right;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabela-moradores">
+                <tr><td colspan="8" style="text-align:center; padding: 2rem; color:var(--cinza);">Carregando moradores...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <div id="aba-historico" class="tab-content">
+          <div class="vazio"><div class="icone-vazio">📋</div>Linha do tempo de visitas e tentativas em desenvolvimento.</div>
+        </div>
+        <div id="aba-observacoes" class="tab-content">
+          <div class="vazio"><div class="icone-vazio">📝</div>Quadro de observações da equipe em desenvolvimento.</div>
+        </div>
+        <div id="aba-links" class="tab-content">
+          <div class="vazio"><div class="icone-vazio">🔗</div>Links e atalhos operacionais em desenvolvimento.</div>
+        </div>
+        <div id="aba-controle" class="tab-content">
+          <div class="vazio"><div class="icone-vazio">📊</div>Métricas e auditoria de campo em desenvolvimento.</div>
+        </div>
+      </div>
+    </div>
+
+  </div></div><div class="modal-overlay" id="modal-domicilio">
   <div class="modal">
     <div class="modal-header">
       <h3 id="modal-dom-titulo">Novo Domicílio</h3>
@@ -895,7 +1057,6 @@
   </div>
 </div>
 
-<!-- MODAL VISITA / STATUS -->
 <div class="modal-overlay" id="modal-visita">
   <div class="modal">
     <div class="modal-header">
@@ -918,7 +1079,6 @@
   </div>
 </div>
 
-<!-- MODAL SETOR -->
 <div class="modal-overlay" id="modal-setor">
   <div class="modal">
     <div class="modal-header">
@@ -956,7 +1116,6 @@
   </div>
 </div>
 
-<!-- MODAL USUÁRIO -->
 <div class="modal-overlay" id="modal-usuario">
   <div class="modal">
     <div class="modal-header">
@@ -999,7 +1158,6 @@
   </div>
 </div>
 
-<!-- MODAL AVISO -->
 <div class="modal-overlay" id="modal-aviso">
   <div class="modal">
     <div class="modal-header">
@@ -1025,10 +1183,128 @@
   </div>
 </div>
 
-<!-- TOAST -->
+<div class="modal-overlay" id="modal-morador">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-morador-titulo">Novo Morador</h3>
+      <button class="btn-fechar" onclick="fecharModal('modal-morador')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="morador-id">
+      <div class="form-grid">
+        <div class="form-grupo">
+          <label>Código do Morador</label>
+          <input type="text" id="morador-codigo" placeholder="ex: 01">
+        </div>
+        <div class="form-grupo full">
+          <label>Nome Completo</label>
+          <input type="text" id="morador-nome" placeholder="Nome do morador">
+        </div>
+        <div class="form-grupo">
+          <label>Sexo</label>
+          <select id="morador-sexo">
+            <option value="">Selecione...</option>
+            <option value="Masculino">Masculino</option>
+            <option value="Feminino">Feminino</option>
+          </select>
+        </div>
+        <div class="form-grupo">
+          <label>Data de Nascimento</label>
+          <input type="date" id="morador-nascimento" onchange="calcularIdadeMorador()">
+        </div>
+        <div class="form-grupo">
+          <label>Idade (anos)</label>
+          <input type="number" id="morador-idade" placeholder="Automático ou manual">
+        </div>
+        <div class="form-grupo">
+          <label>Cor/Raça</label>
+          <select id="morador-raca">
+            <option value="">Selecione...</option>
+            <option value="Branca">Branca</option>
+            <option value="Preta">Preta</option>
+            <option value="Amarela">Amarela</option>
+            <option value="Parda">Parda</option>
+            <option value="Indígena">Indígena</option>
+            <option value="Ignorado">Ignorado</option>
+          </select>
+        </div>
+        <div class="form-grupo full">
+          <label>Condição no domicílio</label>
+          <select id="morador-condicao">
+            <option value="">Selecione...</option>
+            <option value="Pessoa de referência">Pessoa de referência</option>
+            <option value="Cônjuge ou companheiro(a)">Cônjuge ou companheiro(a)</option>
+            <option value="Filho(a)">Filho(a)</option>
+            <option value="Enteado(a)">Enteado(a)</option>
+            <option value="Neto(a)">Neto(a)</option>
+            <option value="Bisneto(a)">Bisneto(a)</option>
+            <option value="Irmão ou irmã">Irmão ou irmã</option>
+            <option value="Avô ou avó">Avô ou avó</option>
+            <option value="Sogro(a)">Sogro(a)</option>
+            <option value="Outro parente">Outro parente</option>
+            <option value="Agregado(a) - Não parente">Agregado(a) - Não parente</option>
+            <option value="Pensionista">Pensionista</option>
+            <option value="Empregado(a) doméstico(a)">Empregado(a) doméstico(a)</option>
+            <option value="Parente do(a) empregado(a)">Parente do(a) empregado(a)</option>
+          </select>
+        </div>
+        <div class="form-grupo full">
+          <label>Origem dos Dados</label>
+          <select id="morador-origem">
+            <option value="Entrevista PNAD">Entrevista PNAD</option>
+            <option value="Registro Administrativo">Registro Administrativo</option>
+            <option value="CNEFE">CNEFE</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-acao secundario" onclick="fecharModal('modal-morador')">Cancelar</button>
+      <button class="btn-acao" onclick="salvarMorador()">Salvar Morador</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CAPTURAR DADOS SIGC -->
+<div class="modal-overlay" id="modal-sigc">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-header">
+      <h3>📋 Capturar Dados da Entrevista (SIGC)</h3>
+      <button class="btn-fechar" onclick="fecharModal('modal-sigc')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="sigc-passo-1">
+        <p style="font-size:0.85rem;color:var(--cinza);margin-bottom:0.75rem">
+          No SIGC, abra o questionário do domicílio, pressione <strong>Ctrl+A</strong> e depois <strong>Ctrl+C</strong>. Cole abaixo:
+        </p>
+        <textarea id="sigc-texto" style="width:100%;height:200px;padding:0.75rem;border:1.5px solid var(--borda);border-radius:8px;font-size:0.82rem;font-family:monospace;resize:vertical;background:var(--cinza-claro)" placeholder="Cole aqui o conteúdo copiado do SIGC..."></textarea>
+        <div style="margin-top:0.75rem;display:flex;justify-content:flex-end">
+          <button class="btn-acao" onclick="processarSIGC()">Processar →</button>
+        </div>
+      </div>
+      <div id="sigc-passo-2" style="display:none">
+        <div style="margin-bottom:1rem">
+          <div style="font-size:0.78rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem">✅ Dados encontrados</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem" id="sigc-preview-entrevista"></div>
+        </div>
+        <div>
+          <div style="font-size:0.78rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.5rem">👥 Moradores encontrados</div>
+          <div id="sigc-preview-moradores"></div>
+        </div>
+        <div style="margin-top:1rem;padding:0.75rem;background:var(--amarelo-claro);border-radius:8px;font-size:0.82rem;color:var(--amarelo)">
+          ⚠️ Confirmar irá <strong>substituir</strong> os dados da entrevista e <strong>adicionar</strong> os moradores não cadastrados.
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" id="sigc-footer-2" style="display:none">
+      <button class="btn-acao secundario" onclick="sigcVoltar()">← Voltar</button>
+      <button class="btn-acao" onclick="confirmarSIGC()">✅ Confirmar e salvar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
-<!-- FIREBASE SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
@@ -1229,34 +1505,258 @@ async function carregarDomicilios() {
     const snap = await getDocs(collection(db, 'domicilios'));
     todosdomicilios = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .filter(d => d.endereco);
-    renderizarDomicilios(todosdomicilios);
+    preencherFiltrosUpa();
+    filtrarDomicilios();
   } catch(e) { console.error(e); }
 }
 
-function renderizarDomicilios(lista) {
-  if (lista.length === 0) {
-    document.getElementById('tabela-domicilios').innerHTML =
-      '<div class="vazio"><div class="icone-vazio">🏠</div>Nenhum domicílio cadastrado ainda.</div>';
-    return;
-  }
-  let html = '<table><thead><tr><th>Endereço</th><th>Setor</th><th>Status</th><th>Ação</th></tr></thead><tbody>';
-  for (const d of lista) {
-    html += `<tr>
-      <td><strong>${d.endereco}</strong><br><span style="font-size:0.75rem;color:var(--cinza)">Seq: ${d.numero_sequencial || '—'}</span></td>
-      <td style="font-size:0.82rem">${d.setor_id || '—'}</td>
-      <td>${badgeStatus(d.status_atual || 'nao_visitado')}</td>
-      <td><button class="btn-acao" onclick="abrirVisita('${d.id}','${(d.endereco||'').replace(/'/g,"\\'")}')">Registrar</button></td>
-    </tr>`;
-  }
-  html += '</tbody></table>';
-  document.getElementById('tabela-domicilios').innerHTML = html;
+function preencherFiltrosUpa() {
+  const upas = [...new Set(todosdomicilios.map(d => d.upa).filter(Boolean))].sort();
+  const sel = document.getElementById('filtro-upa');
+  const val = sel.value;
+  sel.innerHTML = '<option value="">Todas as UPAs (' + upas.length + ')</option>';
+  upas.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u;
+    opt.textContent = 'UPA ' + u;
+    sel.appendChild(opt);
+  });
+  sel.value = val;
 }
 
+window.filtrarPorUpa = () => {
+  const upa = document.getElementById('filtro-upa').value;
+  const setores = [...new Set(
+    todosdomicilios
+      .filter(d => !upa || d.upa === upa)
+      .map(d => d.controle ? d.controle.slice(0,-1) : d.upa)
+      .filter(Boolean)
+  )].sort();
+  const sel = document.getElementById('filtro-setor');
+  sel.innerHTML = '<option value="">Todos os setores (' + setores.length + ')</option>';
+  setores.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = 'Setor ' + s;
+    sel.appendChild(opt);
+  });
+  filtrarDomicilios();
+};
+
 window.filtrarDomicilios = () => {
+  const upa = document.getElementById('filtro-upa').value;
+  const setor = document.getElementById('filtro-setor').value;
+  const semana = document.getElementById('filtro-semana').value;
   const q = document.getElementById('busca-domicilio').value.toLowerCase();
-  renderizarDomicilios(todosdomicilios.filter(d =>
-    (d.endereco || '').toLowerCase().includes(q)
-  ));
+  const filtrados = todosdomicilios.filter(d => {
+    const setorDom = d.controle ? d.controle.slice(0,-1) : d.upa;
+    if (upa && d.upa !== upa) return false;
+    if (setor && setorDom !== setor) return false;
+    if (semana && d.semana !== semana) return false;
+    const status = document.getElementById('filtro-status').value;
+    if (status && (d.status_atual || 'nao_visitado') !== status) return false;
+    if (q && !(d.endereco||'').toLowerCase().includes(q) && !(d.morador||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const ordem = document.getElementById('filtro-ordem').value;
+  const ordemStatus = ['realizada','agendado','ausente','nao_visitado','carta_solicitada','recusa','supervisao'];
+  filtrados.sort((a, b) => {
+    if (ordem === 'status') {
+      const ia = ordemStatus.indexOf(a.status_atual || 'nao_visitado');
+      const ib = ordemStatus.indexOf(b.status_atual || 'nao_visitado');
+      if (ia !== ib) return ia - ib;
+    } else if (ordem === 'semana') {
+      if (a.semana !== b.semana) return parseInt(a.semana||0) - parseInt(b.semana||0);
+    } else if (ordem === 'entrevistador') {
+      const ea = a.entrevistador_nome || 'ZZZ';
+      const eb = b.entrevistador_nome || 'ZZZ';
+      if (ea !== eb) return ea.localeCompare(eb);
+    }
+    // Ordem secundária: UPA → Setor → Dom
+    if (a.upa !== b.upa) return (a.upa||'').localeCompare(b.upa||'');
+    const sa = a.controle ? a.controle.slice(0,-1) : a.upa;
+    const sb = b.controle ? b.controle.slice(0,-1) : b.upa;
+    if (sa !== sb) return (sa||'').localeCompare(sb||'');
+    return parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0);
+  });
+  renderizarDomicilios(filtrados);
+};
+
+window.limparFiltros = () => {
+  document.getElementById('filtro-upa').value = '';
+  document.getElementById('filtro-setor').value = '';
+  document.getElementById('filtro-semana').value = '';
+  document.getElementById('filtro-status').value = '';
+  document.getElementById('filtro-ordem').value = 'padrao';
+  document.getElementById('busca-domicilio').value = '';
+  filtrarPorUpa();
+};
+
+function renderizarDomicilios(lista) {
+  const contador = document.getElementById('dom-contador');
+  if (contador) contador.textContent = lista.length + ' domicilio(s)';
+  if (lista.length === 0) {
+    document.getElementById('tabela-domicilios').innerHTML =
+      '<div class="vazio"><div class="icone-vazio">🏠</div>Nenhum domicilio encontrado.</div>';
+    return;
+  }
+  let html = '<div style="overflow-x:auto"><table style="min-width:700px"><thead><tr>' +
+    '<th style="width:36px"><input type="checkbox" id="chk-todos" onchange="toggleTodos(this)" title="Selecionar todos"></th>' +
+    '<th>UPA / Setor / Dom.</th><th>Sem.</th><th>Etapa</th><th>Entrevistador</th><th>Endereço / Morador</th><th>Status</th><th>Ação</th>' +
+    '</tr></thead><tbody>';
+  for (const d of lista) {
+    const setor = d.controle ? d.controle.slice(0,-1) : (d.upa || '-');
+    const nomeEntr = d.entrevistador_nome || (d.entrevistador_id ? '...' : '<span style="color:var(--cinza);font-style:italic;font-size:0.78rem">Não atribuído</span>');
+    html += `<tr id="row-${d.id}">
+      <td><input type="checkbox" class="chk-dom" value="${d.id}" onchange="atualizarSelecao()"></td>
+      <td>
+        <div style="font-size:0.7rem;color:var(--cinza)">UPA ${d.upa || '-'}</div>
+        <div style="font-size:0.7rem;color:var(--cinza)">Setor ${setor}</div>
+        <div style="font-weight:800;font-size:1rem;color:var(--azul)">Dom. ${d.domicilio_num || d.numero_sequencial || '-'}</div>
+      </td>
+      <td style="text-align:center;font-size:0.85rem">${d.semana || '-'}</td>
+      <td style="text-align:center"><span class="badge badge-cinza">${d.visita_etapa || '-'}ª</span></td>
+      <td style="font-size:0.82rem">${nomeEntr}</td>
+      <td>
+        <div style="font-size:0.85rem;font-weight:600">${d.endereco || '-'}</div>
+        <div style="font-size:0.75rem;color:var(--cinza)">${d.morador || ''}${d.telefone ? ' · ' + d.telefone : ''}</div>
+      </td>
+      <td>${badgeStatus(d.status_atual || 'nao_visitado')}</td>
+      <td>
+        <div style="display:flex;gap:0.5rem">
+          <button class="btn-acao secundario" onclick="abrirFicha('${d.id}')">Ficha</button>
+          <button class="btn-acao" onclick="abrirVisitaPorId('${d.id}')">Registrar</button>
+        </div>
+      </td>
+    </tr>`;
+  }
+  html += '</tbody></table></div>';
+  document.getElementById('tabela-domicilios').innerHTML = html;
+  preencherSelectAtribuicao();
+}
+
+// ── FICHA DO DOMICÍLIO ──
+window.mudarAbaFicha = (abaId) => {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('ativo'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('ativo'));
+  event.currentTarget.classList.add('ativo');
+  document.getElementById('aba-' + abaId).classList.add('ativo');
+};
+
+window.abrirFicha = (id) => {
+  const dom = todosdomicilios.find(d => d.id === id);
+  if (!dom) return;
+
+  domicilioAtualId = id; 
+  carregarMoradores(id);
+
+  // Atualizar cabeçalho
+  const identificador = dom.domicilio_num || dom.numero_sequencial || 'S/N';
+  document.getElementById('ficha-titulo').textContent = `Ficha do Domicílio: ${identificador}`;
+
+  // Preencher Dados Gerais (com fallbacks para campos que ainda serão criados)
+  const setor = dom.controle ? dom.controle.slice(0,-1) : (dom.upa || '-');
+  document.getElementById('ficha-upa').textContent = dom.upa || '—';
+  document.getElementById('ficha-setor').textContent = setor;
+  document.getElementById('ficha-controle').textContent = dom.controle || '—';
+  document.getElementById('ficha-endereco').textContent = dom.endereco || '—';
+  document.getElementById('ficha-complemento').textContent = dom.complemento || '—';
+  document.getElementById('ficha-coordenadas').textContent = dom.coordenadas || '—';
+  document.getElementById('ficha-morador-cnefe').textContent = dom.morador_cnefe || dom.morador || '—';
+  document.getElementById('ficha-entrevistador').textContent = dom.entrevistador_nome || 'Não atribuído';
+  document.getElementById('ficha-supervisor').textContent = dom.supervisor_nome || 'Não atribuído';
+
+  // Resetar visualização para a primeira aba
+  document.querySelectorAll('.tab-btn')[0].click();
+
+  // Navegar para a página
+  document.querySelectorAll('.pagina').forEach(p => p.classList.remove('ativa'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('ativo'));
+  document.getElementById('pag-ficha-domicilio').classList.add('ativa');
+};
+
+// ── ATRIBUIÇÃO DE ENTREVISTADORES ──
+async function preencherSelectAtribuicao() {
+  const sel = document.getElementById('sel-entrevistador');
+  if (!sel) return;
+  const snap = await getDocs(query(collection(db, 'usuarios'), where('perfil', '==', 'entrevistador')));
+  
+  sel.innerHTML = '<option value="">Selecione a ação ou entrevistador...</option>';
+  sel.innerHTML += '<option value="remover">❌ Remover atribuição</option>';
+  
+  snap.docs.forEach(d => {
+    const u = d.data();
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = u.nome;
+    sel.appendChild(opt);
+  });
+}
+
+window.toggleTodos = (chk) => {
+  document.querySelectorAll('.chk-dom').forEach(c => c.checked = chk.checked);
+  atualizarSelecao();
+};
+
+window.desmarcarTodos = () => {
+  document.querySelectorAll('.chk-dom').forEach(c => c.checked = false);
+  const chkTodos = document.getElementById('chk-todos');
+  if (chkTodos) chkTodos.checked = false;
+  atualizarSelecao();
+};
+
+window.atualizarSelecao = () => {
+  const selecionados = document.querySelectorAll('.chk-dom:checked');
+  const barra = document.getElementById('barra-atribuicao');
+  const contador = document.getElementById('sel-contador');
+  if (selecionados.length > 0) {
+    barra.style.display = 'flex';
+    contador.textContent = selecionados.length + ' selecionado(s)';
+  } else {
+    barra.style.display = 'none';
+  }
+};
+
+window.atribuirSelecionados = async () => {
+  const select = document.getElementById('sel-entrevistador');
+  const valorSelecionado = select.value;
+  const nomeSelecionado = select.selectedOptions[0]?.text;
+
+  if (!valorSelecionado) { mostrarToast('Selecione uma ação no menu', 'erro'); return; }
+
+  const selecionados = [...document.querySelectorAll('.chk-dom:checked')].map(c => c.value);
+  if (selecionados.length === 0) { mostrarToast('Nenhum domicílio selecionado', 'erro'); return; }
+
+  // Define se estamos atribuindo ou removendo
+  const isRemover = valorSelecionado === 'remover';
+  const novoId = isRemover ? null : valorSelecionado;
+  const novoNome = isRemover ? null : nomeSelecionado;
+
+  try {
+    for (const id of selecionados) {
+      await updateDoc(doc(db, 'domicilios', id), {
+        entrevistador_id: novoId,
+        entrevistador_nome: novoNome
+      });
+      
+      // Atualiza localmente no array
+      const dom = todosdomicilios.find(d => d.id === id);
+      if (dom) { dom.entrevistador_id = novoId; dom.entrevistador_nome = novoNome; }
+      
+      // Atualiza visual da linha na Coluna 5
+      const cel = document.querySelector(`#row-${id} td:nth-child(5)`);
+      if (cel) {
+        if (isRemover) {
+          cel.innerHTML = '<span style="color:var(--cinza);font-style:italic;font-size:0.78rem">Não atribuído</span>';
+        } else {
+          cel.textContent = novoNome;
+        }
+      }
+    }
+    desmarcarTodos();
+    select.value = ''; // Reseta o select para o padrão
+    mostrarToast(isRemover ? selecionados.length + ' domicílio(s) desvinculado(s)' : selecionados.length + ' domicílio(s) atribuídos a ' + novoNome, 'sucesso');
+  } catch(e) { mostrarToast('Erro ao atualizar', 'erro'); console.error(e); }
 };
 
 window.abrirModalDomicilio = async () => {
@@ -1291,6 +1791,11 @@ window.salvarDomicilio = async () => {
 // ── VISITAS ──
 let domicilioAtualId = null;
 let statusSelecionado = null;
+
+window.abrirVisitaPorId = (id) => {
+  const d = todosdomicilios.find(x => x.id === id);
+  if (d) abrirVisita(id, d.endereco || '');
+};
 
 window.abrirVisita = (id, endereco) => {
   domicilioAtualId = id;
@@ -1372,25 +1877,69 @@ async function carregarVisitas() {
 // ── SETORES ──
 async function carregarSetores() {
   try {
-    const snap = await getDocs(collection(db, 'setores'));
-    const setores = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.codigo);
+    // Deriva setores diretamente dos domicílios importados
+    const snap = await getDocs(collection(db, 'domicilios'));
+    const domicilios = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.endereco);
 
-    if (setores.length === 0) {
+    if (domicilios.length === 0) {
       document.getElementById('tabela-setores').innerHTML =
-        '<div class="vazio"><div class="icone-vazio">🗺️</div>Nenhum setor cadastrado ainda.</div>';
+        '<div class="vazio"><div class="icone-vazio">🗺️</div>Nenhum domicílio importado ainda.</div>';
       return;
     }
-    let html = '<table><thead><tr><th>Código</th><th>Município</th><th>Descrição</th><th>Domicílios</th><th>Status</th></tr></thead><tbody>';
-    for (const s of setores) {
-      html += `<tr>
-        <td><code style="font-size:0.8rem">${s.codigo}</code></td>
-        <td>${s.municipio || '—'}</td>
-        <td>${s.descricao || '—'}</td>
-        <td>${s.total_domicilios || '—'}</td>
-        <td>${s.ativo ? '<span class="badge badge-verde">Ativo</span>' : '<span class="badge badge-cinza">Inativo</span>'}</td>
+
+    // Agrupa por UPA → Setor
+    const upas = {};
+    domicilios.forEach(d => {
+      const upa = d.upa || '—';
+      const setor = d.controle ? d.controle.slice(0,-1) : upa;
+      if (!upas[upa]) upas[upa] = {};
+      if (!upas[upa][setor]) upas[upa][setor] = { municipio: d.municipio || '—', domicilios: [] };
+      upas[upa][setor].domicilios.push(d);
+    });
+
+    let html = '<div style="overflow-x:auto"><table style="min-width:600px"><thead><tr>' +
+      '<th>UPA / Setor</th><th>Município</th><th>Dom.</th><th>Realizadas</th><th>Progresso</th><th>Pendentes</th>' +
+      '</tr></thead><tbody>';
+
+    for (const [upa, setores] of Object.entries(upas).sort()) {
+      const totalUpa = Object.values(setores).reduce((s, v) => s + v.domicilios.length, 0);
+      const realizadasUpa = Object.values(setores).reduce((s, v) =>
+        s + v.domicilios.filter(d => d.status_atual === 'realizada').length, 0);
+      const pctUpa = totalUpa > 0 ? Math.round(realizadasUpa / totalUpa * 100) : 0;
+
+      // Linha da UPA
+      html += `<tr style="background:var(--azul-claro)">
+        <td colspan="6">
+          <strong style="color:var(--azul);font-size:0.85rem">UPA ${upa}</strong>
+          <span style="font-size:0.75rem;color:var(--cinza);margin-left:0.5rem">${Object.keys(setores).length} setor(es) · ${totalUpa} domicílios</span>
+        </td>
       </tr>`;
+
+      for (const [setor, dados] of Object.entries(setores).sort()) {
+        const total = dados.domicilios.length;
+        const realizadas = dados.domicilios.filter(d => d.status_atual === 'realizada').length;
+        const pendentes = dados.domicilios.filter(d => ['nao_visitado','ausente','agendado'].includes(d.status_atual || 'nao_visitado')).length;
+        const pct = total > 0 ? Math.round(realizadas / total * 100) : 0;
+        const isSameUpa = setor === upa;
+
+        html += `<tr>
+          <td>
+            <div style="font-size:0.72rem;color:var(--cinza)">${isSameUpa ? 'Setor único' : 'Setor'}</div>
+            <code style="font-size:0.78rem">${setor}</code>
+          </td>
+          <td style="font-size:0.82rem">${dados.municipio}</td>
+          <td style="text-align:center;font-weight:700">${total}</td>
+          <td style="text-align:center"><span class="badge badge-verde">${realizadas}</span></td>
+          <td style="min-width:100px">
+            <div style="font-size:0.72rem;color:var(--cinza);margin-bottom:2px">${pct}%</div>
+            <div class="barra-prog"><div class="barra-prog-fill" style="width:${pct}%"></div></div>
+          </td>
+          <td style="text-align:center"><span class="badge badge-amarelo">${pendentes}</span></td>
+        </tr>`;
+      }
     }
-    html += '</tbody></table>';
+
+    html += '</tbody></table></div>';
     document.getElementById('tabela-setores').innerHTML = html;
   } catch(e) { console.error(e); }
 }
@@ -1609,6 +2158,371 @@ document.getElementById('input-senha').addEventListener('keydown', e => {
   if (e.key === 'Enter') fazerLogin();
 });
 
+// ── GESTÃO DE MORADORES PNAD (SUBCOLEÇÃO) ──
+let moradoresAtuais = [];
+
+window.carregarMoradores = async (domId) => {
+  try {
+    const snap = await getDocs(collection(db, 'domicilios', domId, 'moradores'));
+    moradoresAtuais = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    
+    // Ordena por código
+    moradoresAtuais.sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''));
+    
+    renderizarMoradores();
+  } catch (e) {
+    console.error(e);
+    document.getElementById('tabela-moradores').innerHTML = 
+      '<tr><td colspan="8" style="text-align:center; color:var(--vermelho);">Erro ao carregar moradores.</td></tr>';
+  }
+};
+
+window.renderizarMoradores = () => {
+  document.getElementById('contador-moradores').textContent = `Total de moradores PNAD: ${moradoresAtuais.length}`;
+  
+  const tbody = document.getElementById('tabela-moradores');
+  
+  if (moradoresAtuais.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 2rem; color:var(--cinza);"><div style="font-size: 2rem; margin-bottom: 0.5rem;">👥</div>Nenhum morador cadastrado neste domicílio.</td></tr>';
+    return;
+  }
+
+  let html = '';
+  for (const m of moradoresAtuais) {
+    // Formata a data de nascimento (yyyy-mm-dd para dd/mm/yyyy)
+    let nascFormatado = '—';
+    if (m.nascimento) {
+      const partes = m.nascimento.split('-');
+      if (partes.length === 3) nascFormatado = `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+
+    html += `<tr>
+      <td><span class="badge badge-cinza">${m.codigo || '-'}</span></td>
+      <td><strong>${m.nome || '-'}</strong><div style="font-size:0.7rem; color:var(--cinza);">${m.origem || 'Entrevista PNAD'}</div></td>
+      <td>${m.sexo || '-'}</td>
+      <td>${nascFormatado}</td>
+      <td>${m.idade !== null && m.idade !== undefined ? m.idade + ' anos' : '-'}</td>
+      <td>${m.condicao || '-'}</td>
+      <td>${m.raca || '-'}</td>
+      <td style="text-align: right;">
+        <button class="btn-acao secundario" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="abrirModalMorador('${m.id}')">Editar</button>
+        <button class="btn-acao secundario" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; color: var(--vermelho); border-color: var(--vermelho-claro);" onclick="excluirMorador('${m.id}')">✕</button>
+      </td>
+    </tr>`;
+  }
+  tbody.innerHTML = html;
+};
+
+window.abrirModalMorador = (id = null) => {
+  const isEdicao = id !== null;
+  document.getElementById('modal-morador-titulo').textContent = isEdicao ? 'Editar Morador' : 'Novo Morador';
+  
+  if (isEdicao) {
+    const m = moradoresAtuais.find(x => x.id === id);
+    document.getElementById('morador-id').value = m.id;
+    document.getElementById('morador-codigo').value = m.codigo || '';
+    document.getElementById('morador-nome').value = m.nome || '';
+    document.getElementById('morador-sexo').value = m.sexo || '';
+    document.getElementById('morador-nascimento').value = m.nascimento || '';
+    document.getElementById('morador-idade').value = m.idade !== null ? m.idade : '';
+    document.getElementById('morador-condicao').value = m.condicao || '';
+    document.getElementById('morador-raca').value = m.raca || '';
+    document.getElementById('morador-origem').value = m.origem || 'Entrevista PNAD';
+  } else {
+    // Sugere o próximo código sequencial
+    const proximoCodigo = moradoresAtuais.length > 0 ? String(moradoresAtuais.length + 1).padStart(2, '0') : '01';
+    
+    document.getElementById('morador-id').value = '';
+    document.getElementById('morador-codigo').value = proximoCodigo;
+    document.getElementById('morador-nome').value = '';
+    document.getElementById('morador-sexo').value = '';
+    document.getElementById('morador-nascimento').value = '';
+    document.getElementById('morador-idade').value = '';
+    document.getElementById('morador-condicao').value = '';
+    document.getElementById('morador-raca').value = '';
+    document.getElementById('morador-origem').value = 'Entrevista PNAD';
+  }
+  
+  abrirModal('modal-morador');
+};
+
+window.salvarMorador = async () => {
+  if (!domicilioAtualId) {
+    mostrarToast('Erro: Domicílio não selecionado.', 'erro');
+    return;
+  }
+
+  const id = document.getElementById('morador-id').value;
+  const codigo = document.getElementById('morador-codigo').value.trim();
+  const nome = document.getElementById('morador-nome').value.trim();
+  const sexo = document.getElementById('morador-sexo').value;
+  const nascimento = document.getElementById('morador-nascimento').value;
+  const idadeInput = document.getElementById('morador-idade').value;
+  const idade = idadeInput === '' ? null : parseInt(idadeInput);
+  const condicao = document.getElementById('morador-condicao').value;
+  const raca = document.getElementById('morador-raca').value;
+  const origem = document.getElementById('morador-origem').value;
+
+  if (!nome || !codigo) {
+    mostrarToast('Preencha o código e o nome do morador', 'erro');
+    return;
+  }
+
+  const dados = { codigo, nome, sexo, nascimento, idade, condicao, raca, origem };
+
+  try {
+    const colRef = collection(db, 'domicilios', domicilioAtualId, 'moradores');
+    
+    if (id) {
+      await updateDoc(doc(colRef, id), dados);
+      mostrarToast('Morador atualizado!', 'sucesso');
+    } else {
+      dados.criado_em = serverTimestamp();
+      await addDoc(colRef, dados);
+      mostrarToast('Morador adicionado!', 'sucesso');
+    }
+    
+    fecharModal('modal-morador');
+    carregarMoradores(domicilioAtualId); // Recarrega a tabela atualizada
+  } catch (e) {
+    console.error(e);
+    mostrarToast('Erro ao salvar morador', 'erro');
+  }
+};
+
+window.excluirMorador = async (id) => {
+  if (!confirm('Tem certeza que deseja excluir permanentemente este morador?')) return;
+  
+  try {
+    await deleteDoc(doc(db, 'domicilios', domicilioAtualId, 'moradores', id));
+    mostrarToast('Morador excluído', 'sucesso');
+    carregarMoradores(domicilioAtualId);
+  } catch(e) {
+    console.error(e);
+    mostrarToast('Erro ao excluir', 'erro');
+  }
+};
+
+window.calcularIdadeMorador = () => {
+  const nasc = document.getElementById('morador-nascimento').value;
+  if (!nasc) return;
+  
+  const birthDate = new Date(nasc);
+  const today = new Date();
+  
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  
+  document.getElementById('morador-idade').value = age >= 0 ? age : 0;
+};
+
+// ── CAPTURAR DADOS SIGC ──
+let dadosSIGC = null;
+
+window.abrirModalSIGC = () => {
+  const el = document.getElementById('sigc-texto');
+  if (el) el.value = '';
+  document.getElementById('sigc-passo-1').style.display = '';
+  document.getElementById('sigc-passo-2').style.display = 'none';
+  document.getElementById('sigc-footer-2').style.display = 'none';
+  document.getElementById('modal-sigc').classList.add('visivel');
+};
+
+window.sigcVoltar = () => {
+  document.getElementById('sigc-passo-1').style.display = '';
+  document.getElementById('sigc-passo-2').style.display = 'none';
+  document.getElementById('sigc-footer-2').style.display = 'none';
+};
+
+function extrairCampo(texto, label) {
+  const linhas = texto.split('\n');
+  for (const linha of linhas) {
+    const idx = linha.toLowerCase().indexOf(label.toLowerCase());
+    if (idx >= 0) {
+      const pos = linha.indexOf(':', idx + label.length - 1);
+      if (pos >= 0) {
+        const valor = linha.substring(pos + 1).trim().replace(/\t.*$/, '').trim();
+        if (valor) return valor;
+      }
+    }
+  }
+  return '';
+}
+
+window.processarSIGC = () => {
+  const texto = document.getElementById('sigc-texto').value.trim();
+  if (!texto) { mostrarToast('Cole o conteúdo do SIGC primeiro', 'erro'); return; }
+
+  const entrevista = {
+    numero:         extrairCampo(texto, 'Nº da Entrevista'),
+    tipo:           extrairCampo(texto, 'Tipo da Entrevista'),
+    data:           extrairCampo(texto, 'Data da Entrevista (Início e Término)'),
+    telefone:       extrairCampo(texto, 'Telefone(s)'),
+    supervisor:     extrairCampo(texto, 'Supervisor'),
+    entrevistador:  extrairCampo(texto, 'Entrevistador'),
+    ultima_posicao: extrairCampo(texto, 'Última Posição'),
+    observacao:     extrairCampo(texto, 'Observação'),
+    controle:       extrairCampo(texto, 'Controle'),
+    domicilio_num:  extrairCampo(texto, 'Domicílio'),
+  };
+
+  const linhasBruto = texto.split('\n').map(l => l.trim());
+  const moradores = [];
+
+  let idxTabela = -1;
+  for (let i = 0; i < linhasBruto.length; i++) {
+    if (linhasBruto[i].includes('Ordem') && linhasBruto[i].includes('Morador')) {
+      idxTabela = i + 1;
+      if (idxTabela < linhasBruto.length &&
+         (linhasBruto[idxTabela].includes('Nascimento') || linhasBruto[idxTabela].includes('Idade'))) {
+        idxTabela++;
+      }
+      break;
+    }
+  }
+
+  if (idxTabela >= 0) {
+    let i = idxTabela;
+    while (i < linhasBruto.length) {
+      const linha = linhasBruto[i];
+      if (!linha) { i++; continue; }
+
+      const partesTab = linha.split(/\t+/).map(p => p.trim()).filter(p => p);
+      const partesSpc = linha.split(/\s{2,}/).map(p => p.trim()).filter(p => p);
+      const partes = partesTab.length >= 5 ? partesTab : partesSpc;
+
+      const primeiroNum = parseInt(partes[0]);
+      if (isNaN(primeiroNum) || primeiroNum < 1 || primeiroNum > 30) { i++; continue; }
+
+      if (partes.length >= 7) {
+        const nome = partes[3] || partes[2] || '';
+        if (nome && /[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ]/.test(nome)) {
+          moradores.push({
+            ordem: partes[0], codigo: partes[1], nome: nome.trim(),
+            sexo: (partes[4]||'').includes('Feminino') ? 'Feminino' : (partes[4]||'').includes('Masculino') ? 'Masculino' : (partes[4]||''),
+            nascimento: partes[5] || '', idade: partes[6] || '',
+            condicao: (partes[7]||'').replace(/^\d+\s*-\s*/, '').trim(),
+            cor_raca: (partes[8]||'').replace(/^\d+\s*-\s*/, '').trim()
+          });
+        }
+        i++;
+      } else {
+        let nome = '', sexoRaw = '';
+        for (let k = 2; k < partes.length; k++) {
+          if (/^[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç\s]+$/.test(partes[k]) && partes[k].length > 2) nome = partes[k];
+          else if (partes[k].includes('Masculino') || partes[k].includes('Feminino')) sexoRaw = partes[k];
+        }
+        let nascimento = '', idade = '', condicao = '', corRaca = '';
+        if (i + 1 < linhasBruto.length) {
+          const prox = linhasBruto[i + 1];
+          const dataMatch = prox.match(/\d{2}\/\d{2}\/\d{4}/);
+          if (dataMatch) nascimento = dataMatch[0];
+          const partesProx = prox.split(/\s{2,}|\t+/).map(p => p.trim()).filter(p => p);
+          const nums = partesProx.filter(p => /^\d+$/.test(p));
+          if (nums.length > 0) idade = nums[nums.length - 1];
+          const comDash = partesProx.filter(p => /^\d+\s*-/.test(p));
+          if (comDash.length > 0) condicao = comDash[0];
+          if (comDash.length > 1) corRaca = comDash[comDash.length - 1];
+          i++;
+        }
+        if (nome) {
+          moradores.push({
+            ordem: partes[0], codigo: partes[1], nome: nome.trim(),
+            sexo: sexoRaw.includes('Feminino') ? 'Feminino' : sexoRaw.includes('Masculino') ? 'Masculino' : sexoRaw,
+            nascimento, idade,
+            condicao: condicao.replace(/^\d+\s*-\s*/, '').trim(),
+            cor_raca: corRaca.replace(/^\d+\s*-\s*/, '').trim()
+          });
+        }
+        i++;
+      }
+    }
+  }
+
+  if (!entrevista.numero && moradores.length === 0) {
+    mostrarToast('Não foi possível identificar dados. Verifique o conteúdo colado.', 'erro'); return;
+  }
+
+  dadosSIGC = { entrevista, moradores };
+
+  const campos = [
+    ['Nº Entrevista', entrevista.numero], ['Tipo', entrevista.tipo],
+    ['Data', entrevista.data], ['Telefone', entrevista.telefone],
+    ['Supervisor', entrevista.supervisor], ['Entrevistador', entrevista.entrevistador],
+    ['Última Posição', entrevista.ultima_posicao], ['Observação', entrevista.observacao],
+  ];
+
+  document.getElementById('sigc-preview-entrevista').innerHTML = campos
+    .filter(([, v]) => v)
+    .map(([k, v]) => `<div style="background:var(--cinza-claro);border-radius:6px;padding:0.5rem 0.75rem">
+      <div style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase">${k}</div>
+      <div style="font-size:0.85rem;color:var(--cinza-escuro);margin-top:2px">${v}</div></div>`).join('');
+
+  if (moradores.length > 0) {
+    let tbl = '<table style="width:100%;border-collapse:collapse;font-size:0.82rem"><thead><tr style="background:var(--cinza-claro)">' +
+      '<th style="padding:0.4rem 0.5rem;text-align:left">#</th><th style="padding:0.4rem 0.5rem;text-align:left">Nome</th>' +
+      '<th style="padding:0.4rem 0.5rem;text-align:left">Sexo</th><th style="padding:0.4rem 0.5rem;text-align:left">Nasc.</th>' +
+      '<th style="padding:0.4rem 0.5rem;text-align:left">Idade</th><th style="padding:0.4rem 0.5rem;text-align:left">Condição</th>' +
+      '<th style="padding:0.4rem 0.5rem;text-align:left">Cor/Raça</th></tr></thead><tbody>';
+    moradores.forEach(m => {
+      tbl += `<tr><td style="padding:0.4rem 0.5rem">${m.ordem}</td><td style="padding:0.4rem 0.5rem;font-weight:600">✓ ${m.nome}</td>
+        <td style="padding:0.4rem 0.5rem">${m.sexo}</td><td style="padding:0.4rem 0.5rem">${m.nascimento}</td>
+        <td style="padding:0.4rem 0.5rem">${m.idade}</td><td style="padding:0.4rem 0.5rem;font-size:0.78rem">${m.condicao}</td>
+        <td style="padding:0.4rem 0.5rem">${m.cor_raca}</td></tr>`;
+    });
+    tbl += '</tbody></table>';
+    document.getElementById('sigc-preview-moradores').innerHTML = tbl;
+  } else {
+    document.getElementById('sigc-preview-moradores').innerHTML =
+      '<p style="color:var(--cinza);font-size:0.85rem">Nenhum morador identificado.</p>';
+  }
+
+  document.getElementById('sigc-passo-1').style.display = 'none';
+  document.getElementById('sigc-passo-2').style.display = '';
+  document.getElementById('sigc-footer-2').style.display = '';
+};
+
+window.confirmarSIGC = async () => {
+  if (!dadosSIGC || !domicilioAtualId) return;
+  const { entrevista, moradores } = dadosSIGC;
+  try {
+    await updateDoc(doc(db, 'domicilios', domicilioAtualId), {
+      entrevista_numero:   entrevista.numero,
+      entrevista_tipo:     entrevista.tipo,
+      entrevista_data:     entrevista.data,
+      telefone:            entrevista.telefone,
+      supervisor_sigc:     entrevista.supervisor,
+      entrevistador_sigc:  entrevista.entrevistador,
+      ultima_posicao:      entrevista.ultima_posicao,
+      observacao_sigc:     entrevista.observacao,
+    });
+    for (const m of moradores) {
+      const existentes = await getDocs(
+        query(collection(db, 'domicilios', domicilioAtualId, 'moradores'), where('codigo', '==', m.codigo))
+      );
+      if (existentes.empty) {
+        await addDoc(collection(db, 'domicilios', domicilioAtualId, 'moradores'), {
+          ...m, origem: 'sigc', criado_em: serverTimestamp()
+        });
+      } else {
+        await updateDoc(existentes.docs[0].ref, {
+          nome: m.nome, sexo: m.sexo, nascimento: m.nascimento,
+          idade: m.idade, condicao: m.condicao, cor_raca: m.cor_raca
+        });
+      }
+    }
+    fecharModal('modal-sigc');
+    mostrarToast('Dados capturados com sucesso!', 'sucesso');
+    carregarMoradores(domicilioAtualId);
+  } catch(e) {
+    console.error(e);
+    mostrarToast('Erro ao salvar dados', 'erro');
+  }
+};
 </script>
 </body>
 </html>
