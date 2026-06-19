@@ -563,7 +563,7 @@ function processarDados() {
 
 // ── Importar para Firestore ──
 async function importarFirestore() {
-  // ALTERAÇÃO: Agora busca o token diretamente da variável de sessão
+  // Busca o token diretamente da variável de sessão
   const token = window.firebaseAuthToken;
   const projectId = document.getElementById('cfg-projectid').value.trim();
   
@@ -619,10 +619,23 @@ async function importarFirestore() {
       painel:            toStr(d.painel),
       trimestre:         toStr(d.trimestre),
       status_atual:      toStr(d.status_atual),
-      entrevistador_nome:toStr(d.entrevistador_nome),
-      entrevistador_id:  toStr(''),
       tentativas_count:  toInt(d.tentativas_count),
     };
+
+    // LÓGICA DE PROTEÇÃO DE DADOS
+    const modoImportacao = document.getElementById('cfg-modo').value;
+    
+    if (modoImportacao === 'novo') {
+      // Se for novo trimestre, limpa quem era o responsável para começar do zero
+      fields.entrevistador_id = toStr('');
+      fields.entrevistador_nome = toStr(d.entrevistador_nome);
+    } else {
+      // MODO ATUALIZAR (Dia a Dia)
+      // Preserva as atribuições já feitas. Só atualiza se vier preenchido do CSV.
+      if (d.entrevistador_nome) {
+        fields.entrevistador_nome = toStr(d.entrevistador_nome);
+      }
+    }
 
     // Adiciona histórico de espécies e telefones como arrays
     if (d.historico_especies.length > 0) fields.historico_especies = toArr(d.historico_especies);
