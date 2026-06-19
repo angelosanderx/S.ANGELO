@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PNAD-C Campos — Gestão de Campo</title>
+<style>
+  :root {
+    --azul: #1a3a5c;
+    --azul-medio: #2563a8;
+    --azul-claro: #e8f0fb;
+    --verde: #1a7a4a;
+    --verde-claro: #e6f4ed;
+    --laranja: #c45c1a;
+    --laranja-claro: #fdf0e6;
+    --vermelho: #b91c1c;
+    --vermelho-claro: #fef2f2;
+    --amarelo: #b45309;
+    --amarelo-claro: #fffbeb;
+    --cinza-escuro: #1e293b;
+    --cinza: #64748b;
+    --cinza-claro: #f1f5f9;
+    --branco: #ffffff;
+    --borda: #cbd5e1;
+    --fonte: 'Segoe UI', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--fonte);
+    background: var(--cinza-claro);
+    color: var(--cinza-escuro);
+    min-height: 100vh;
+  }
+
+  /* ── AUTH ── */
+  #tela-auth {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--azul) 0%, var(--azul-medio) 100%);
+    padding: 1rem;
+  }
+
+  .auth-card {
+    background: var(--branco);
+    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+
+  .auth-logo {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .auth-logo .sigla {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--azul);
+    letter-spacing: -1px;
+  }
+
+  .auth-logo .subtitulo {
+    font-size: 0.8rem;
+    color: var(--cinza);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .auth-card h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--cinza-escuro);
+    margin-bottom: 1.5rem;
+    text-align: center;
+  }
+
+  .campo-form { margin-bottom: 1rem; }
+
+  .campo-form label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--cinza);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .campo-form input {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 1.5px solid var(--borda);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: var(--fonte);
+    transition: border-color 0.2s;
+    background: var(--cinza-claro);
+  }
+
+  .campo-form input:focus {
+    outline: none;
+    border-color: var(--azul-medio);
+    background: var(--branco);
+  }
+
+  .btn-primario {
+    width: 100%;
+    padding: 0.85rem;
+    background: var(--azul-medio);
+    color: var(--branco);
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 0.5rem;
+    transition: background 0.2s;
+  }
+
+  .btn-primario:hover { background: var(--azul); }
+  .btn-primario:disabled { background: var(--cinza); cursor: not-allowed; }
+
+  .erro-auth {
+    background: var(--vermelho-claro);
+    color: var(--vermelho);
+    border-radius: 8px;
+    padding: 0.7rem 1rem;
+    font-size: 0.85rem;
+    margin-top: 0.75rem;
+    display: none;
+  }
+
+  /* ── APP PRINCIPAL ── */
+  #app { display: none; }
+
+  /* Topbar */
+  .topbar {
+    background: var(--azul);
+    color: var(--branco);
+    padding: 0 1rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+
+  .topbar-esquerda {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .btn-menu {
+    background: none;
+    border: none;
+    color: var(--branco);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .btn-menu span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: var(--branco);
+    border-radius: 2px;
+    transition: 0.3s;
+  }
+
+  .topbar-titulo {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .topbar-direita {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .btn-sair {
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: var(--branco);
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-family: var(--fonte);
+  }
+
+  /* Sidebar */
+  .sidebar {
+    position: fixed;
+    top: 56px;
+    left: -260px;
+    width: 260px;
+    height: calc(100vh - 56px);
+    background: var(--branco);
+    box-shadow: 2px 0 12px rgba(0,0,0,0.12);
+    z-index: 90;
+    transition: left 0.3s ease;
+    overflow-y: auto;
+  }
+
+  .sidebar.aberta { left: 0; }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 89;
+    display: none;
+    top: 56px;
+  }
+
+  .overlay.visivel { display: block; }
+
+  .nav-secao {
+    padding: 1rem 1rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--cinza);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-radius: 0;
+    transition: background 0.15s;
+    font-size: 0.9rem;
+    color: var(--cinza-escuro);
+    border-left: 3px solid transparent;
+  }
+
+  .nav-item:hover { background: var(--cinza-claro); }
+
+  .nav-item.ativo {
+    background: var(--azul-claro);
+    color: var(--azul-medio);
+    border-left-color: var(--azul-medio);
+    font-weight: 600;
+  }
+
+  .nav-item .icone { font-size: 1.1rem; width: 20px; text-align: center; }
+
+  /* Conteúdo */
+  .conteudo {
+    padding: 1.25rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .pagina { display: none; }
+  .pagina.ativa { display: block; }
+
+  /* Cards dashboard */
+  .titulo-pagina {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--azul);
+    margin-bottom: 1.25rem;
+  }
+
+  .grid-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .card-stat {
+    background: var(--branco);
+    border-radius: 10px;
+    padding: 1.1rem 1rem;
+    border: 1px solid var(--borda);
+  }
+
+  .card-stat .numero {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--azul);
+  }
+
+  .card-stat .rotulo {
+    font-size: 0.78rem;
+    color: var(--cinza);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .card-stat.verde .numero { color: var(--verde); }
+  .card-stat.laranja .numero { color: var(--laranja); }
+  .card-stat.vermelho .numero { color: var(--vermelho); }
+  .card-stat.amarelo .numero { color: var(--amarelo); }
+
+  /* Tabelas */
+  .card-tabela {
+    background: var(--branco);
+    border-radius: 10px;
+    border: 1px solid var(--borda);
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+  }
+
+  .card-tabela-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--borda);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .card-tabela-header h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--cinza-escuro);
+  }
+
+  .btn-acao {
+    background: var(--azul-medio);
+    color: var(--branco);
+    border: none;
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--fonte);
+    white-space: nowrap;
+  }
+
+  .btn-acao:hover { background: var(--azul); }
+
+  .btn-acao.secundario {
+    background: var(--cinza-claro);
+    color: var(--cinza-escuro);
+    border: 1px solid var(--borda);
+  }
+
+  .btn-acao.secundario:hover { background: var(--borda); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.87rem;
+  }
+
+  th {
+    padding: 0.6rem 1rem;
+    text-align: left;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--cinza);
+    background: var(--cinza-claro);
+    border-bottom: 1px solid var(--borda);
+  }
+
+  td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--cinza-claro);
+    color: var(--cinza-escuro);
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--cinza-claro); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .badge-verde { background: var(--verde-claro); color: var(--verde); }
+  .badge-laranja { background: var(--laranja-claro); color: var(--laranja); }
+  .badge-vermelho { background: var(--vermelho-claro); color: var(--vermelho); }
+  .badge-amarelo { background: var(--amarelo-claro); color: var(--amarelo); }
+  .badge-cinza { background: var(--cinza-claro); color: var(--cinza); }
+  .badge-azul { background: var(--azul-claro); color: var(--azul-medio); }
+
+  /* Formulários */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  @media (max-width: 500px) { .form-grid { grid-template-columns: 1fr; } }
+
+  .form-grupo { display: flex; flex-direction: column; gap: 4px; }
+  .form-grupo.full { grid-column: 1 / -1; }
+
+  .form-grupo label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--cinza);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .form-grupo input,
+  .form-grupo select,
+  .form-grupo textarea {
+    padding: 0.65rem 0.85rem;
+    border: 1.5px solid var(--borda);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: var(--fonte);
+    background: var(--cinza-claro);
+    transition: border-color 0.2s;
+  }
+
+  .form-grupo input:focus,
+  .form-grupo select:focus,
+  .form-grupo textarea:focus {
+    outline: none;
+    border-color: var(--azul-medio);
+    background: var(--branco);
+  }
+
+  .form-grupo textarea { resize: vertical; min-height: 80px; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .modal-overlay.visivel { display: flex; }
+
+  .modal {
+    background: var(--branco);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+
+  .modal-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--borda);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .modal-header h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--azul);
+  }
+
+  .btn-fechar {
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    cursor: pointer;
+    color: var(--cinza);
+    line-height: 1;
+  }
+
+  .modal-body { padding: 1.5rem; }
+
+  .modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--borda);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
+
+  /* Status selector */
+  .status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .status-btn {
+    padding: 0.6rem 0.5rem;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--fonte);
+    transition: 0.15s;
+    text-align: center;
+  }
+
+  .status-btn:hover { filter: brightness(0.95); }
+  .status-btn.selecionado { border-color: var(--azul-medio); }
+
+  /* Vazio */
+  .vazio {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--cinza);
+    font-size: 0.9rem;
+  }
+
+  .vazio .icone-vazio { font-size: 2.5rem; margin-bottom: 0.5rem; }
+
+  /* Loader */
+  .loader {
+    text-align: center;
+    padding: 2rem;
+    color: var(--cinza);
+    font-size: 0.9rem;
+  }
+
+  /* Notificação toast */
+  #toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--cinza-escuro);
+    color: var(--branco);
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    z-index: 999;
+    transition: transform 0.3s;
+    white-space: nowrap;
+    max-width: 90vw;
+    text-align: center;
+  }
+
+  #toast.visivel { transform: translateX(-50%) translateY(0); }
+  #toast.sucesso { background: var(--verde); }
+  #toast.erro { background: var(--vermelho); }
+
+  /* Chat */
+  .chat-container {
+    background: var(--branco);
+    border-radius: 10px;
+    border: 1px solid var(--borda);
+    display: flex;
+    flex-direction: column;
+    height: 420px;
+  }
+
+  .chat-mensagens {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .msg {
+    max-width: 75%;
+    padding: 0.6rem 0.85rem;
+    border-radius: 10px;
+    font-size: 0.87rem;
+    line-height: 1.4;
+  }
+
+  .msg-propria {
+    background: var(--azul-medio);
+    color: var(--branco);
+    align-self: flex-end;
+    border-bottom-right-radius: 3px;
+  }
+
+  .msg-outra {
+    background: var(--cinza-claro);
+    color: var(--cinza-escuro);
+    align-self: flex-start;
+    border-bottom-left-radius: 3px;
+  }
+
+  .msg-autor {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--cinza);
+    margin-bottom: 2px;
+  }
+
+  .msg-hora {
+    font-size: 0.68rem;
+    opacity: 0.7;
+    margin-top: 3px;
+    text-align: right;
+  }
+
+  .chat-input {
+    padding: 0.75rem;
+    border-top: 1px solid var(--borda);
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .chat-input input {
+    flex: 1;
+    padding: 0.6rem 0.85rem;
+    border: 1.5px solid var(--borda);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: var(--fonte);
+  }
+
+  .chat-input input:focus { outline: none; border-color: var(--azul-medio); }
+
+  .btn-enviar {
+    background: var(--azul-medio);
+    color: var(--branco);
+    border: none;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+
+  /* Perfil badge admin */
+  .perfil-chip {
+    font-size: 0.72rem;
+    background: rgba(255,255,255,0.2);
+    padding: 2px 8px;
+    border-radius: 10px;
+    color: var(--branco);
+  }
+
+  /* Barra de progresso */
+  .barra-prog {
+    height: 6px;
+    background: var(--cinza-claro);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+
+  .barra-prog-fill {
+    height: 100%;
+    background: var(--azul-medio);
+    border-radius: 3px;
+    transition: width 0.4s;
+  }
+</style>
+</head>
+<body>
+
+<!-- TELA DE LOGIN -->
+<div id="tela-auth">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="sigla">PNAD-C</div>
+      <div class="subtitulo">Sistema de Gestão de Campo</div>
+    </div>
+    <h2>Acesso ao sistema</h2>
+    <div class="campo-form">
+      <label>E-mail</label>
+      <input type="email" id="input-email" placeholder="seu@email.com" autocomplete="email">
+    </div>
+    <div class="campo-form">
+      <label>Senha</label>
+      <input type="password" id="input-senha" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-primario" id="btn-entrar" onclick="fazerLogin()">Entrar</button>
+    <div class="erro-auth" id="erro-login"></div>
+  </div>
+</div>
+
+<!-- APP PRINCIPAL -->
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-esquerda">
+      <button class="btn-menu" onclick="toggleSidebar()">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="topbar-titulo">PNAD-C Campos</div>
+    </div>
+    <div class="topbar-direita">
+      <span class="perfil-chip" id="chip-perfil"></span>
+      <div class="avatar" id="avatar-inicial"></div>
+      <button class="btn-sair" onclick="fazerLogout()">Sair</button>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="nav-secao">Principal</div>
+    <div class="nav-item ativo" onclick="irPara('dashboard')">
+      <span class="icone">📊</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="irPara('domicilios')">
+      <span class="icone">🏠</span> Domicílios
+    </div>
+    <div class="nav-item" onclick="irPara('visitas')">
+      <span class="icone">📋</span> Visitas
+    </div>
+
+    <div class="nav-secao">Gestão</div>
+    <div class="nav-item" id="nav-setores" onclick="irPara('setores')">
+      <span class="icone">🗺️</span> Setores
+    </div>
+    <div class="nav-item" id="nav-usuarios" onclick="irPara('usuarios')">
+      <span class="icone">👥</span> Usuários
+    </div>
+    <div class="nav-item" id="nav-avisos" onclick="irPara('avisos')">
+      <span class="icone">📢</span> Avisos
+    </div>
+
+    <div class="nav-secao">Comunicação</div>
+    <div class="nav-item" onclick="irPara('chat')">
+      <span class="icone">💬</span> Chat
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay" onclick="fecharSidebar()"></div>
+
+  <!-- CONTEÚDO -->
+  <div class="conteudo">
+
+    <!-- DASHBOARD -->
+    <div class="pagina ativa" id="pag-dashboard">
+      <div class="titulo-pagina">📊 Dashboard</div>
+      <div class="grid-cards" id="cards-dashboard">
+        <div class="card-stat"><div class="numero" id="stat-total">—</div><div class="rotulo">Total domicílios</div></div>
+        <div class="card-stat verde"><div class="numero" id="stat-realizadas">—</div><div class="rotulo">Realizadas</div></div>
+        <div class="card-stat laranja"><div class="numero" id="stat-pendentes">—</div><div class="rotulo">Pendentes</div></div>
+        <div class="card-stat vermelho"><div class="numero" id="stat-recusas">—</div><div class="rotulo">Recusas</div></div>
+      </div>
+
+      <div class="card-tabela">
+        <div class="card-tabela-header">
+          <h3>Produtividade por entrevistador</h3>
+        </div>
+        <div id="tabela-produtividade"><div class="loader">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- DOMICÍLIOS -->
+    <div class="pagina" id="pag-domicilios">
+      <div class="titulo-pagina">🏠 Domicílios</div>
+      <div class="card-tabela">
+        <div class="card-tabela-header">
+          <h3>Lista de domicílios</h3>
+          <div style="display:flex;gap:0.5rem">
+            <input type="text" id="busca-domicilio" placeholder="Buscar endereço..." style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.85rem;font-family:var(--fonte);background:var(--cinza-claro)" oninput="filtrarDomicilios()">
+            <button class="btn-acao" onclick="abrirModalDomicilio()">+ Novo</button>
+          </div>
+        </div>
+        <div id="tabela-domicilios"><div class="loader">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- VISITAS -->
+    <div class="pagina" id="pag-visitas">
+      <div class="titulo-pagina">📋 Histórico de Visitas</div>
+      <div class="card-tabela">
+        <div class="card-tabela-header">
+          <h3>Últimas visitas registradas</h3>
+        </div>
+        <div id="tabela-visitas"><div class="loader">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- SETORES -->
+    <div class="pagina" id="pag-setores">
+      <div class="titulo-pagina">🗺️ Setores</div>
+      <div class="card-tabela">
+        <div class="card-tabela-header">
+          <h3>Setores cadastrados</h3>
+          <button class="btn-acao" id="btn-novo-setor" onclick="abrirModalSetor()">+ Novo setor</button>
+        </div>
+        <div id="tabela-setores"><div class="loader">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- USUÁRIOS -->
+    <div class="pagina" id="pag-usuarios">
+      <div class="titulo-pagina">👥 Usuários</div>
+      <div class="card-tabela">
+        <div class="card-tabela-header">
+          <h3>Usuários do sistema</h3>
+          <button class="btn-acao" id="btn-novo-usuario" onclick="abrirModalUsuario()">+ Novo usuário</button>
+        </div>
+        <div id="tabela-usuarios"><div class="loader">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- AVISOS -->
+    <div class="pagina" id="pag-avisos">
+      <div class="titulo-pagina">📢 Avisos</div>
+      <div class="card-tabela">
+        <div class="card-tabela-header">
+          <h3>Avisos da supervisão</h3>
+          <button class="btn-acao" id="btn-novo-aviso" onclick="abrirModalAviso()">+ Novo aviso</button>
+        </div>
+        <div id="lista-avisos"><div class="loader">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- CHAT -->
+    <div class="pagina" id="pag-chat">
+      <div class="titulo-pagina">💬 Chat Geral</div>
+      <div class="chat-container">
+        <div class="chat-mensagens" id="chat-msgs"></div>
+        <div class="chat-input">
+          <input type="text" id="chat-input" placeholder="Digite uma mensagem..." onkeydown="if(event.key==='Enter')enviarMensagem()">
+          <button class="btn-enviar" onclick="enviarMensagem()">➤</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /conteudo -->
+</div><!-- /app -->
+
+<!-- MODAL DOMICÍLIO -->
+<div class="modal-overlay" id="modal-domicilio">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-dom-titulo">Novo Domicílio</h3>
+      <button class="btn-fechar" onclick="fecharModal('modal-domicilio')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-grupo full">
+          <label>Endereço</label>
+          <input type="text" id="dom-endereco" placeholder="Rua, número, complemento">
+        </div>
+        <div class="form-grupo">
+          <label>Nº Sequencial no setor</label>
+          <input type="text" id="dom-seq" placeholder="ex: 001">
+        </div>
+        <div class="form-grupo">
+          <label>Setor</label>
+          <select id="dom-setor"><option value="">Selecione...</option></select>
+        </div>
+        <div class="form-grupo full">
+          <label>Entrevistador</label>
+          <select id="dom-entrevistador"><option value="">Selecione...</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-acao secundario" onclick="fecharModal('modal-domicilio')">Cancelar</button>
+      <button class="btn-acao" onclick="salvarDomicilio()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL VISITA / STATUS -->
+<div class="modal-overlay" id="modal-visita">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Registrar Visita</h3>
+      <button class="btn-fechar" onclick="fecharModal('modal-visita')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.85rem;color:var(--cinza);margin-bottom:1rem" id="visita-domicilio-info"></p>
+      <label style="font-size:0.78rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:0.6rem">Status da visita</label>
+      <div class="status-grid" id="status-grid"></div>
+      <div class="form-grupo" style="margin-top:1rem">
+        <label>Observação</label>
+        <textarea id="visita-obs" placeholder="Notas da visita..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-acao secundario" onclick="fecharModal('modal-visita')">Cancelar</button>
+      <button class="btn-acao" onclick="salvarVisita()">Registrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SETOR -->
+<div class="modal-overlay" id="modal-setor">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Novo Setor</h3>
+      <button class="btn-fechar" onclick="fecharModal('modal-setor')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-grupo">
+          <label>Código do setor</label>
+          <input type="text" id="setor-codigo" placeholder="ex: 310620205000001">
+        </div>
+        <div class="form-grupo">
+          <label>Município</label>
+          <input type="text" id="setor-municipio" placeholder="ex: Campos dos Goytacazes">
+        </div>
+        <div class="form-grupo full">
+          <label>Descrição</label>
+          <input type="text" id="setor-descricao" placeholder="ex: Setor urbano - Centro">
+        </div>
+        <div class="form-grupo">
+          <label>Total de domicílios</label>
+          <input type="number" id="setor-total" placeholder="ex: 60">
+        </div>
+        <div class="form-grupo">
+          <label>Entrevistador responsável</label>
+          <select id="setor-entrevistador"><option value="">Selecione...</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-acao secundario" onclick="fecharModal('modal-setor')">Cancelar</button>
+      <button class="btn-acao" onclick="salvarSetor()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL USUÁRIO -->
+<div class="modal-overlay" id="modal-usuario">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Novo Usuário</h3>
+      <button class="btn-fechar" onclick="fecharModal('modal-usuario')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-grupo full">
+          <label>Nome completo</label>
+          <input type="text" id="usr-nome" placeholder="Nome do usuário">
+        </div>
+        <div class="form-grupo full">
+          <label>E-mail</label>
+          <input type="email" id="usr-email" placeholder="email@exemplo.com">
+        </div>
+        <div class="form-grupo">
+          <label>Perfil</label>
+          <select id="usr-perfil">
+            <option value="entrevistador">Entrevistador</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="administrador">Administrador</option>
+          </select>
+        </div>
+        <div class="form-grupo">
+          <label>Setor (opcional)</label>
+          <select id="usr-setor"><option value="">Nenhum</option></select>
+        </div>
+      </div>
+      <p style="font-size:0.8rem;color:var(--cinza);margin-top:0.5rem">⚠️ O usuário precisa ser criado primeiro no Firebase Authentication e depois ter o UID adicionado aqui.</p>
+      <div class="form-grupo" style="margin-top:0.75rem">
+        <label>UID do Firebase Auth</label>
+        <input type="text" id="usr-uid" placeholder="Cole o UID aqui">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-acao secundario" onclick="fecharModal('modal-usuario')">Cancelar</button>
+      <button class="btn-acao" onclick="salvarUsuario()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AVISO -->
+<div class="modal-overlay" id="modal-aviso">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Novo Aviso</h3>
+      <button class="btn-fechar" onclick="fecharModal('modal-aviso')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-grupo full">
+          <label>Título</label>
+          <input type="text" id="aviso-titulo" placeholder="Título do aviso">
+        </div>
+        <div class="form-grupo full">
+          <label>Mensagem</label>
+          <textarea id="aviso-msg" placeholder="Digite o aviso..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-acao secundario" onclick="fecharModal('modal-aviso')">Cancelar</button>
+      <button class="btn-acao" onclick="salvarAviso()">Publicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- FIREBASE SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc,
+  updateDoc, deleteDoc, query, where, orderBy, limit, onSnapshot, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyABWwa6Y0SCBK8jXTNNB_zhQeIOVvfLHrI",
+  authDomain: "pnad-c-campos.firebaseapp.com",
+  projectId: "pnad-c-campos",
+  storageBucket: "pnad-c-campos.firebasestorage.app",
+  messagingSenderId: "816527372751",
+  appId: "1:816527372751:web:b7b251d0060663a384e2ba",
+  measurementId: "G-XPH45VH7YC"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ── Estado global ──
+let usuarioLogado = null;
+let perfilLogado = null;
+let todosdomicilios = [];
+let unsubs = [];
+
+// ── MAPA DE STATUS ──
+const STATUS = {
+  nao_visitado: { label: "Não visitado", cor: "badge-cinza", bg: "#f1f5f9", fg: "#64748b" },
+  ausente:      { label: "Ausente",       cor: "badge-amarelo", bg: "#fffbeb", fg: "#b45309" },
+  agendado:     { label: "Agendado",      cor: "badge-azul", bg: "#e8f0fb", fg: "#2563a8" },
+  realizada:    { label: "Realizada",     cor: "badge-verde", bg: "#e6f4ed", fg: "#1a7a4a" },
+  recusa:       { label: "Recusa",        cor: "badge-vermelho", bg: "#fef2f2", fg: "#b91c1c" },
+  carta_solicitada: { label: "Carta",     cor: "badge-laranja", bg: "#fdf0e6", fg: "#c45c1a" },
+  supervisao:   { label: "Supervisão",    cor: "badge-laranja", bg: "#fdf0e6", fg: "#c45c1a" },
+};
+
+function badgeStatus(s) {
+  const st = STATUS[s] || STATUS.nao_visitado;
+  return `<span class="badge ${st.cor}">${st.label}</span>`;
+}
+
+// ── AUTH ──
+window.fazerLogin = async () => {
+  const email = document.getElementById('input-email').value.trim();
+  const senha = document.getElementById('input-senha').value;
+  const btn = document.getElementById('btn-entrar');
+  const erro = document.getElementById('erro-login');
+  erro.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Entrando...';
+  try {
+    await signInWithEmailAndPassword(auth, email, senha);
+  } catch(e) {
+    erro.style.display = 'block';
+    erro.textContent = 'E-mail ou senha incorretos.';
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+  }
+};
+
+window.fazerLogout = async () => {
+  unsubs.forEach(u => u());
+  unsubs = [];
+  await signOut(auth);
+};
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    usuarioLogado = user;
+    const snap = await getDoc(doc(db, 'usuarios', user.uid));
+    if (snap.exists()) {
+      perfilLogado = snap.data();
+      iniciarApp();
+    } else {
+      mostrarToast('Perfil não encontrado no sistema.', 'erro');
+      await signOut(auth);
+    }
+  } else {
+    usuarioLogado = null;
+    perfilLogado = null;
+    document.getElementById('tela-auth').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  }
+});
+
+function iniciarApp() {
+  document.getElementById('tela-auth').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('chip-perfil').textContent = perfilLogado.perfil;
+  document.getElementById('avatar-inicial').textContent =
+    (perfilLogado.nome || 'U')[0].toUpperCase();
+
+  // Esconde itens de gestão para entrevistadores
+  if (perfilLogado.perfil === 'entrevistador') {
+    document.getElementById('nav-usuarios').style.display = 'none';
+  }
+
+  carregarDashboard();
+  carregarDomicilios();
+  carregarVisitas();
+  carregarSetores();
+  carregarUsuarios();
+  carregarAvisos();
+  iniciarChat();
+}
+
+// ── NAVEGAÇÃO ──
+window.irPara = (pag) => {
+  document.querySelectorAll('.pagina').forEach(p => p.classList.remove('ativa'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('ativo'));
+  document.getElementById('pag-' + pag).classList.add('ativa');
+  event.currentTarget.classList.add('ativo');
+  fecharSidebar();
+};
+
+window.toggleSidebar = () => {
+  document.getElementById('sidebar').classList.toggle('aberta');
+  document.getElementById('overlay').classList.toggle('visivel');
+};
+
+window.fecharSidebar = () => {
+  document.getElementById('sidebar').classList.remove('aberta');
+  document.getElementById('overlay').classList.remove('visivel');
+};
+
+// ── MODAIS ──
+window.fecharModal = (id) => {
+  document.getElementById(id).classList.remove('visivel');
+};
+
+function abrirModal(id) {
+  document.getElementById(id).classList.add('visivel');
+}
+
+// ── TOAST ──
+window.mostrarToast = (msg, tipo = '') => {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'visivel ' + tipo;
+  setTimeout(() => { t.className = ''; }, 3000);
+};
+
+// ── DASHBOARD ──
+async function carregarDashboard() {
+  try {
+    const snap = await getDocs(collection(db, 'domicilios'));
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(d => d.setor_id !== undefined); // ignora placeholder
+
+    document.getElementById('stat-total').textContent = docs.length;
+    document.getElementById('stat-realizadas').textContent =
+      docs.filter(d => d.status_atual === 'realizada').length;
+    document.getElementById('stat-pendentes').textContent =
+      docs.filter(d => ['nao_visitado','ausente','agendado'].includes(d.status_atual)).length;
+    document.getElementById('stat-recusas').textContent =
+      docs.filter(d => d.status_atual === 'recusa').length;
+
+    // Produtividade por entrevistador
+    const usrSnap = await getDocs(
+      query(collection(db, 'usuarios'), where('perfil', '==', 'entrevistador'))
+    );
+    const entrevistadores = usrSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+
+    if (entrevistadores.length === 0) {
+      document.getElementById('tabela-produtividade').innerHTML =
+        '<div class="vazio"><div class="icone-vazio">👤</div>Nenhum entrevistador cadastrado ainda.</div>';
+      return;
+    }
+
+    let html = '<table><thead><tr><th>Entrevistador</th><th>Total</th><th>Realizadas</th><th>Progresso</th></tr></thead><tbody>';
+    for (const e of entrevistadores) {
+      const meus = docs.filter(d => d.entrevistador_id === e.uid);
+      const realizadas = meus.filter(d => d.status_atual === 'realizada').length;
+      const pct = meus.length > 0 ? Math.round(realizadas / meus.length * 100) : 0;
+      html += `<tr>
+        <td><strong>${e.nome}</strong></td>
+        <td>${meus.length}</td>
+        <td>${realizadas}</td>
+        <td style="min-width:100px">
+          <div style="font-size:0.75rem;color:var(--cinza);margin-bottom:2px">${pct}%</div>
+          <div class="barra-prog"><div class="barra-prog-fill" style="width:${pct}%"></div></div>
+        </td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    document.getElementById('tabela-produtividade').innerHTML = html;
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+// ── DOMICÍLIOS ──
+async function carregarDomicilios() {
+  try {
+    const snap = await getDocs(collection(db, 'domicilios'));
+    todosdomicilios = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(d => d.endereco);
+    renderizarDomicilios(todosdomicilios);
+  } catch(e) { console.error(e); }
+}
+
+function renderizarDomicilios(lista) {
+  if (lista.length === 0) {
+    document.getElementById('tabela-domicilios').innerHTML =
+      '<div class="vazio"><div class="icone-vazio">🏠</div>Nenhum domicílio cadastrado ainda.</div>';
+    return;
+  }
+  let html = '<table><thead><tr><th>Endereço</th><th>Setor</th><th>Status</th><th>Ação</th></tr></thead><tbody>';
+  for (const d of lista) {
+    html += `<tr>
+      <td><strong>${d.endereco}</strong><br><span style="font-size:0.75rem;color:var(--cinza)">Seq: ${d.numero_sequencial || '—'}</span></td>
+      <td style="font-size:0.82rem">${d.setor_id || '—'}</td>
+      <td>${badgeStatus(d.status_atual || 'nao_visitado')}</td>
+      <td><button class="btn-acao" onclick="abrirVisita('${d.id}','${(d.endereco||'').replace(/'/g,"\\'")}')">Registrar</button></td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('tabela-domicilios').innerHTML = html;
+}
+
+window.filtrarDomicilios = () => {
+  const q = document.getElementById('busca-domicilio').value.toLowerCase();
+  renderizarDomicilios(todosdomicilios.filter(d =>
+    (d.endereco || '').toLowerCase().includes(q)
+  ));
+};
+
+window.abrirModalDomicilio = async () => {
+  document.getElementById('dom-endereco').value = '';
+  document.getElementById('dom-seq').value = '';
+  await preencherSelectSetores('dom-setor');
+  await preencherSelectEntrevistadores('dom-entrevistador');
+  abrirModal('modal-domicilio');
+};
+
+window.salvarDomicilio = async () => {
+  const endereco = document.getElementById('dom-endereco').value.trim();
+  if (!endereco) { mostrarToast('Preencha o endereço', 'erro'); return; }
+  try {
+    await addDoc(collection(db, 'domicilios'), {
+      endereco,
+      numero_sequencial: document.getElementById('dom-seq').value.trim(),
+      setor_id: document.getElementById('dom-setor').value,
+      entrevistador_id: document.getElementById('dom-entrevistador').value,
+      status_atual: 'nao_visitado',
+      tentativas: 0,
+      ultima_visita: null,
+      criado_em: serverTimestamp()
+    });
+    fecharModal('modal-domicilio');
+    mostrarToast('Domicílio salvo!', 'sucesso');
+    carregarDomicilios();
+    carregarDashboard();
+  } catch(e) { mostrarToast('Erro ao salvar', 'erro'); console.error(e); }
+};
+
+// ── VISITAS ──
+let domicilioAtualId = null;
+let statusSelecionado = null;
+
+window.abrirVisita = (id, endereco) => {
+  domicilioAtualId = id;
+  statusSelecionado = null;
+  document.getElementById('visita-domicilio-info').textContent = '📍 ' + endereco;
+  document.getElementById('visita-obs').value = '';
+
+  const grid = document.getElementById('status-grid');
+  grid.innerHTML = '';
+  for (const [key, val] of Object.entries(STATUS)) {
+    const btn = document.createElement('button');
+    btn.className = 'status-btn';
+    btn.textContent = val.label;
+    btn.style.background = val.bg;
+    btn.style.color = val.fg;
+    btn.onclick = () => {
+      grid.querySelectorAll('.status-btn').forEach(b => b.classList.remove('selecionado'));
+      btn.classList.add('selecionado');
+      statusSelecionado = key;
+    };
+    grid.appendChild(btn);
+  }
+  abrirModal('modal-visita');
+};
+
+window.salvarVisita = async () => {
+  if (!statusSelecionado) { mostrarToast('Selecione um status', 'erro'); return; }
+  try {
+    await addDoc(collection(db, 'visitas'), {
+      domicilio_id: domicilioAtualId,
+      entrevistador_id: usuarioLogado.uid,
+      data_visita: serverTimestamp(),
+      status: statusSelecionado,
+      observacao: document.getElementById('visita-obs').value.trim(),
+      carta_solicitada: statusSelecionado === 'carta_solicitada'
+    });
+    await updateDoc(doc(db, 'domicilios', domicilioAtualId), {
+      status_atual: statusSelecionado,
+      ultima_visita: serverTimestamp(),
+      tentativas: (todosdomicilios.find(d => d.id === domicilioAtualId)?.tentativas || 0) + 1
+    });
+    fecharModal('modal-visita');
+    mostrarToast('Visita registrada!', 'sucesso');
+    carregarDomicilios();
+    carregarVisitas();
+    carregarDashboard();
+  } catch(e) { mostrarToast('Erro ao registrar', 'erro'); console.error(e); }
+};
+
+async function carregarVisitas() {
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'visitas'), orderBy('data_visita', 'desc'), limit(50))
+    );
+    const visitas = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(d => d.domicilio_id);
+
+    if (visitas.length === 0) {
+      document.getElementById('tabela-visitas').innerHTML =
+        '<div class="vazio"><div class="icone-vazio">📋</div>Nenhuma visita registrada ainda.</div>';
+      return;
+    }
+
+    let html = '<table><thead><tr><th>Data</th><th>Domicílio</th><th>Status</th><th>Obs.</th></tr></thead><tbody>';
+    for (const v of visitas) {
+      const data = v.data_visita?.toDate?.()?.toLocaleDateString('pt-BR') || '—';
+      html += `<tr>
+        <td style="white-space:nowrap;font-size:0.82rem">${data}</td>
+        <td style="font-size:0.82rem">${v.domicilio_id.substring(0,8)}...</td>
+        <td>${badgeStatus(v.status)}</td>
+        <td style="font-size:0.82rem;color:var(--cinza)">${v.observacao || '—'}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    document.getElementById('tabela-visitas').innerHTML = html;
+  } catch(e) { console.error(e); }
+}
+
+// ── SETORES ──
+async function carregarSetores() {
+  try {
+    const snap = await getDocs(collection(db, 'setores'));
+    const setores = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.codigo);
+
+    if (setores.length === 0) {
+      document.getElementById('tabela-setores').innerHTML =
+        '<div class="vazio"><div class="icone-vazio">🗺️</div>Nenhum setor cadastrado ainda.</div>';
+      return;
+    }
+    let html = '<table><thead><tr><th>Código</th><th>Município</th><th>Descrição</th><th>Domicílios</th><th>Status</th></tr></thead><tbody>';
+    for (const s of setores) {
+      html += `<tr>
+        <td><code style="font-size:0.8rem">${s.codigo}</code></td>
+        <td>${s.municipio || '—'}</td>
+        <td>${s.descricao || '—'}</td>
+        <td>${s.total_domicilios || '—'}</td>
+        <td>${s.ativo ? '<span class="badge badge-verde">Ativo</span>' : '<span class="badge badge-cinza">Inativo</span>'}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    document.getElementById('tabela-setores').innerHTML = html;
+  } catch(e) { console.error(e); }
+}
+
+window.abrirModalSetor = async () => {
+  document.getElementById('setor-codigo').value = '';
+  document.getElementById('setor-municipio').value = 'Campos dos Goytacazes';
+  document.getElementById('setor-descricao').value = '';
+  document.getElementById('setor-total').value = '';
+  await preencherSelectEntrevistadores('setor-entrevistador');
+  abrirModal('modal-setor');
+};
+
+window.salvarSetor = async () => {
+  const codigo = document.getElementById('setor-codigo').value.trim();
+  if (!codigo) { mostrarToast('Informe o código do setor', 'erro'); return; }
+  try {
+    await addDoc(collection(db, 'setores'), {
+      codigo,
+      municipio: document.getElementById('setor-municipio').value.trim(),
+      descricao: document.getElementById('setor-descricao').value.trim(),
+      total_domicilios: parseInt(document.getElementById('setor-total').value) || 0,
+      entrevistador_id: document.getElementById('setor-entrevistador').value,
+      ativo: true
+    });
+    fecharModal('modal-setor');
+    mostrarToast('Setor salvo!', 'sucesso');
+    carregarSetores();
+  } catch(e) { mostrarToast('Erro ao salvar', 'erro'); console.error(e); }
+};
+
+// ── USUÁRIOS ──
+async function carregarUsuarios() {
+  try {
+    const snap = await getDocs(collection(db, 'usuarios'));
+    const usuarios = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+
+    let html = '<table><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th></tr></thead><tbody>';
+    for (const u of usuarios) {
+      const perfilCor = u.perfil === 'administrador' ? 'badge-azul' :
+                        u.perfil === 'supervisor' ? 'badge-amarelo' : 'badge-cinza';
+      html += `<tr>
+        <td><strong>${u.nome || '—'}</strong></td>
+        <td style="font-size:0.82rem">${u.email || '—'}</td>
+        <td><span class="badge ${perfilCor}">${u.perfil}</span></td>
+        <td>${u.ativo ? '<span class="badge badge-verde">Ativo</span>' : '<span class="badge badge-vermelho">Inativo</span>'}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    document.getElementById('tabela-usuarios').innerHTML = html;
+  } catch(e) { console.error(e); }
+}
+
+window.abrirModalUsuario = async () => {
+  if (perfilLogado.perfil !== 'administrador') {
+    mostrarToast('Apenas administradores podem criar usuários', 'erro'); return;
+  }
+  await preencherSelectSetores('usr-setor');
+  abrirModal('modal-usuario');
+};
+
+window.salvarUsuario = async () => {
+  const uid = document.getElementById('usr-uid').value.trim();
+  const nome = document.getElementById('usr-nome').value.trim();
+  const email = document.getElementById('usr-email').value.trim();
+  if (!uid || !nome || !email) {
+    mostrarToast('Preencha todos os campos obrigatórios', 'erro'); return;
+  }
+  try {
+    await setDoc(doc(db, 'usuarios', uid), {
+      nome, email,
+      perfil: document.getElementById('usr-perfil').value,
+      setor_id: document.getElementById('usr-setor').value,
+      ativo: true,
+      criado_em: serverTimestamp()
+    });
+    fecharModal('modal-usuario');
+    mostrarToast('Usuário salvo!', 'sucesso');
+    carregarUsuarios();
+  } catch(e) { mostrarToast('Erro ao salvar', 'erro'); console.error(e); }
+};
+
+// ── AVISOS ──
+async function carregarAvisos() {
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'avisos'), orderBy('criado_em', 'desc'), limit(20))
+    );
+    const avisos = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.titulo);
+
+    if (avisos.length === 0) {
+      document.getElementById('lista-avisos').innerHTML =
+        '<div class="vazio"><div class="icone-vazio">📢</div>Nenhum aviso publicado ainda.</div>';
+      return;
+    }
+    let html = '<div style="padding:0.75rem 1.25rem;display:flex;flex-direction:column;gap:0.75rem">';
+    for (const a of avisos) {
+      const data = a.criado_em?.toDate?.()?.toLocaleDateString('pt-BR') || '—';
+      html += `<div style="background:var(--azul-claro);border-radius:8px;padding:1rem;border-left:4px solid var(--azul-medio)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <strong style="color:var(--azul)">${a.titulo}</strong>
+          <span style="font-size:0.75rem;color:var(--cinza)">${data}</span>
+        </div>
+        <p style="font-size:0.87rem;color:var(--cinza-escuro)">${a.mensagem}</p>
+      </div>`;
+    }
+    html += '</div>';
+    document.getElementById('lista-avisos').innerHTML = html;
+  } catch(e) { console.error(e); }
+}
+
+window.abrirModalAviso = () => {
+  if (!['administrador','supervisor'].includes(perfilLogado.perfil)) {
+    mostrarToast('Sem permissão para publicar avisos', 'erro'); return;
+  }
+  abrirModal('modal-aviso');
+};
+
+window.salvarAviso = async () => {
+  const titulo = document.getElementById('aviso-titulo').value.trim();
+  const mensagem = document.getElementById('aviso-msg').value.trim();
+  if (!titulo || !mensagem) { mostrarToast('Preencha todos os campos', 'erro'); return; }
+  try {
+    await addDoc(collection(db, 'avisos'), {
+      titulo, mensagem,
+      autor_id: usuarioLogado.uid,
+      destinatarios: ['todos'],
+      criado_em: serverTimestamp(),
+      lido_por: []
+    });
+    fecharModal('modal-aviso');
+    mostrarToast('Aviso publicado!', 'sucesso');
+    carregarAvisos();
+  } catch(e) { mostrarToast('Erro ao publicar', 'erro'); console.error(e); }
+};
+
+// ── CHAT ──
+function iniciarChat() {
+  const q = query(
+    collection(db, 'chat'),
+    where('canal', '==', 'geral'),
+    orderBy('criado_em', 'asc'),
+    limit(50)
+  );
+  const unsub = onSnapshot(q, (snap) => {
+    const container = document.getElementById('chat-msgs');
+    container.innerHTML = '';
+    if (snap.empty) {
+      container.innerHTML = '<div class="vazio" style="padding:1rem">Nenhuma mensagem ainda. Diga olá! 👋</div>';
+      return;
+    }
+    snap.forEach(d => {
+      const msg = d.data();
+      const propria = msg.autor_id === usuarioLogado.uid;
+      const hora = msg.criado_em?.toDate?.()?.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) || '';
+      const div = document.createElement('div');
+      div.className = 'msg ' + (propria ? 'msg-propria' : 'msg-outra');
+      div.innerHTML = (!propria ? `<div class="msg-autor">${msg.autor_nome}</div>` : '') +
+        `<div>${msg.texto}</div><div class="msg-hora">${hora}</div>`;
+      container.appendChild(div);
+    });
+    container.scrollTop = container.scrollHeight;
+  });
+  unsubs.push(unsub);
+}
+
+window.enviarMensagem = async () => {
+  const input = document.getElementById('chat-input');
+  const texto = input.value.trim();
+  if (!texto) return;
+  input.value = '';
+  try {
+    await addDoc(collection(db, 'chat'), {
+      texto,
+      autor_id: usuarioLogado.uid,
+      autor_nome: perfilLogado.nome,
+      canal: 'geral',
+      criado_em: serverTimestamp()
+    });
+  } catch(e) { mostrarToast('Erro ao enviar', 'erro'); }
+};
+
+// ── HELPERS SELECTS ──
+async function preencherSelectSetores(idSelect) {
+  const sel = document.getElementById(idSelect);
+  sel.innerHTML = '<option value="">Selecione...</option>';
+  const snap = await getDocs(collection(db, 'setores'));
+  snap.docs.forEach(d => {
+    const s = d.data();
+    if (s.codigo) {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = s.codigo + (s.descricao ? ' — ' + s.descricao : '');
+      sel.appendChild(opt);
+    }
+  });
+}
+
+async function preencherSelectEntrevistadores(idSelect) {
+  const sel = document.getElementById(idSelect);
+  sel.innerHTML = '<option value="">Selecione...</option>';
+  const snap = await getDocs(
+    query(collection(db, 'usuarios'), where('perfil', '==', 'entrevistador'))
+  );
+  snap.docs.forEach(d => {
+    const u = d.data();
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = u.nome;
+    sel.appendChild(opt);
+  });
+}
+
+// Enter no login
+document.getElementById('input-senha').addEventListener('keydown', e => {
+  if (e.key === 'Enter') fazerLogin();
+});
+
+</script>
+</body>
+</html>
