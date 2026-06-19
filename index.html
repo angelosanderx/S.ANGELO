@@ -1560,6 +1560,7 @@ function iniciarApp() {
   carregarDomicilios();
   carregarVisitas();
   carregarSetores();
+  renderizarMapaSetores();
   carregarUsuarios();
   carregarAvisos();
   carregarTentativas();
@@ -2654,67 +2655,93 @@ window.importarKML = (input) => {
   reader.readAsText(file, 'UTF-8');
 };
 
-function renderizarMapaSetores() {
+async function renderizarMapaSetores() {
   const mapaDiv = document.getElementById('mapa-setores');
-  if (!mapaDiv || Object.keys(kmlDados).length === 0) return;
-  
-  // Monta iframe do Google Maps com todos os pins
-  // Usa a API de Static Maps ou iframe embed
-  // Como não temos chave API, usa OpenStreetMap via leaflet
-  
+  if (!mapaDiv) return;
+
+  // Se não tem KML em memória, usa coordenadas do Firestore
+  let pinsParaMapa = [];
+
+  if (Object.keys(kmlDados).length > 0) {
+    // Usa KML em memória
+    Object.entries(kmlDados).forEach(([setor, doms]) => {
+      doms.forEach(d => {
+        if (!d.lat || !d.lng) return;
+        const domObj = todosdomicilios.find(td =>
+          (td.upa === setor || (td.controle && td.controle.slice(0,-1) === setor)) &&
+          (td.domicilio_num === d.dom || td.numero_sequencial === d.dom)
+        );
+        pinsParaMapa.push({
+          lat: d.lat, lng: d.lng, dom: d.dom,
+          logradouro: d.logradouro, numero: d.numero, complemento: d.complemento,
+          cor: corEntrevistador(domObj?.entrevistador_nome || ''),
+          entrevistador: domObj?.entrevistador_nome || ''
+        });
+      });
+    });
+  } else {
+    // Usa coordenadas do Firestore (salvas pelo KML anterior)
+    const domComCoords = todosdomicilios.filter(d => d.latitude_kml && d.longitude_kml);
+    if (domComCoords.length === 0) {
+      mapaDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:400px;color:var(--cinza);flex-direction:column;gap:0.5rem"><div style="font-size:2rem">🗺️</div><div>Carregue o KML para ver o mapa</div></div>';
+      return;
+    }
+    domComCoords.forEach(d => {
+      pinsParaMapa.push({
+        lat: parseFloat(d.latitude_kml), lng: parseFloat(d.longitude_kml),
+        dom: d.domicilio_num, logradouro: d.endereco || '', numero: '', complemento: d.complemento || '',
+        cor: corEntrevistador(d.entrevistador_nome || ''),
+        entrevistador: d.entrevistador_nome || ''
+      });
+    });
+  }
+
   mapaDiv.innerHTML = '<div id="leaflet-setores" style="width:100%;height:400px"></div>';
-  
-  // Carrega Leaflet dinamicamente
+
+  const iniciar = () => iniciarMapaSetores(pinsParaMapa);
+
   if (!window.L) {
     const css = document.createElement('link');
     css.rel = 'stylesheet';
     css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
     document.head.appendChild(css);
-    
     const script = document.createElement('script');
     script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    script.onload = () => iniciarMapaSetores();
+    script.onload = iniciar;
     document.head.appendChild(script);
   } else {
-    iniciarMapaSetores();
+    iniciar();
   }
 }
 
-function iniciarMapaSetores() {
-  const map = window.L.map('leaflet-setores');
+let _mapaSetoresInstance = null;
+
+function iniciarMapaSetores(pins) {
+  // Destroi mapa anterior se existir
+  if (_mapaSetoresInstance) {
+    try { _mapaSetoresInstance.remove(); } catch(e) {}
+    _mapaSetoresInstance = null;
+  }
+
+  _mapaSetoresInstance = window.L.map('leaflet-setores');
   window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
-  }).addTo(map);
-  
-  const bounds = [];
-  
-  // Coleta todos os pins para aplicar offset
-  const todosPins = [];
-  Object.entries(kmlDados).forEach(([setor, doms]) => {
-    doms.forEach(d => {
-      if (!d.lat || !d.lng) return;
-      const domObj = todosdomicilios.find(td =>
-        td.upa === setor && (td.domicilio_num === d.dom || td.numero_sequencial === d.dom)
-      );
-      todosPins.push({ ...d, setor, cor: corEntrevistador(domObj?.entrevistador_nome || '') });
-    });
-  });
+  }).addTo(_mapaSetoresInstance);
 
-  const pinsComOffset = offsetEspiral(todosPins);
+  const bounds = [];
+  const pinsComOffset = offsetEspiral(pins);
 
   pinsComOffset.forEach(d => {
     const icon = window.L.divIcon({
       html: '<div style="background:' + d.cor + ';color:white;border:2px solid white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;box-shadow:0 2px 4px rgba(0,0,0,0.4)">' + d.dom + '</div>',
-      className: '',
-      iconSize: [28, 28],
-      iconAnchor: [14, 14]
+      className: '', iconSize: [28, 28], iconAnchor: [14, 14]
     });
-    const marker = window.L.marker([d.lat, d.lng], { icon }).addTo(map);
-    marker.bindPopup('<strong>Dom. ' + d.dom + '</strong><br>' + d.logradouro + ' ' + d.numero + '<br>' + d.complemento);
+    const marker = window.L.marker([d.lat, d.lng], { icon }).addTo(_mapaSetoresInstance);
+    marker.bindPopup('<strong>Dom. ' + d.dom + '</strong><br>' + (d.logradouro||'') + ' ' + (d.numero||'') + '<br>' + (d.complemento||'') + (d.entrevistador ? '<br><small>' + d.entrevistador + '</small>' : ''));
     bounds.push([d.lat, d.lng]);
   });
-  
-  if (bounds.length > 0) map.fitBounds(bounds, { padding: [20, 20] });
+
+  if (bounds.length > 0) _mapaSetoresInstance.fitBounds(bounds, { padding: [20, 20] });
 }
 
 // ── ROTEIRO DE CAMPO NA FICHA ──
