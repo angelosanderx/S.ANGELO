@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PNAD-C — Importador v2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f1f5f9; color: #1e293b; }
+  .topo { background: #1a3a5c; color: white; padding: 1rem 1.5rem; display: flex; align-items: center; gap: 1rem; }
+  .topo h1 { font-size: 1.1rem; font-weight: 700; }
+  .topo p { font-size: 0.8rem; opacity: 0.7; margin-top: 2px; }
+  .container { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem; }
+  .card { background: white; border-radius: 10px; border: 1px solid #cbd5e1; margin-bottom: 1.25rem; overflow: hidden; }
+  .card-header { padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0; background: #f8fafc; display: flex; align-items: center; justify-content: space-between; }
+  .card-header h2 { font-size: 0.95rem; font-weight: 700; color: #1a3a5c; }
+  .card-body { padding: 1.25rem; }
+  .grid-5 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  @media(max-width:600px) { .grid-5 { grid-template-columns: 1fr; } }
+  .drop-zone { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 1.25rem; text-align: center; cursor: pointer; transition: 0.2s; background: #f8fafc; }
+  .drop-zone:hover, .drop-zone.over { border-color: #2563a8; background: #e8f0fb; }
+  .drop-zone .icone { font-size: 1.8rem; margin-bottom: 0.4rem; }
+  .drop-zone .nome { font-size: 0.78rem; color: #64748b; margin-top: 4px; }
+  .drop-zone strong { color: #2563a8; font-size: 0.85rem; }
+  input[type=file] { display: none; }
+  .status-arquivo { margin-top: 6px; padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.78rem; }
+  .status-arquivo.pendente { background: #f1f5f9; color: #64748b; }
+  .status-arquivo.ok { background: #e6f4ed; color: #1a7a4a; font-weight: 600; }
+  .status-arquivo.opcional { background: #fffbeb; color: #b45309; }
+  .btn { padding: 0.6rem 1.2rem; border-radius: 7px; border: none; font-size: 0.88rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: 0.15s; }
+  .btn-primario { background: #2563a8; color: white; }
+  .btn-primario:hover { background: #1a3a5c; }
+  .btn-primario:disabled { background: #94a3b8; cursor: not-allowed; }
+  .btn-secundario { background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; }
+  .form-grupo { display: flex; flex-direction: column; gap: 4px; }
+  .form-grupo label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+  .form-grupo input, .form-grupo select { padding: 0.55rem 0.75rem; border: 1.5px solid #cbd5e1; border-radius: 7px; font-size: 0.88rem; font-family: inherit; background: #f8fafc; }
+  .resumo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+  .resumo-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem; text-align: center; }
+  .resumo-card .num { font-size: 1.8rem; font-weight: 800; color: #1a3a5c; line-height: 1; }
+  .resumo-card .rot { font-size: 0.7rem; color: #64748b; text-transform: uppercase; margin-top: 4px; }
+  .resumo-card.vermelho .num { color: #b91c1c; }
+  .resumo-card.verde .num { color: #1a7a4a; }
+  .resumo-card.amarelo .num { color: #b45309; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { padding: 0.5rem 0.75rem; text-align: left; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+  td { padding: 0.6rem 0.75rem; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+  .badge-5 { background: #fef2f2; color: #b91c1c; }
+  .badge-4 { background: #fffbeb; color: #b45309; }
+  .badge-3 { background: #f0fdf4; color: #166534; }
+  .badge-2 { background: #eff6ff; color: #1d4ed8; }
+  .badge-1 { background: #f5f3ff; color: #6d28d9; }
+  .progress-bar { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin: 0.5rem 0; }
+  .progress-fill { height: 100%; background: #2563a8; border-radius: 4px; transition: width 0.3s; width: 0%; }
+  .log { background: #1e293b; color: #94a3b8; border-radius: 8px; padding: 1rem; font-family: monospace; font-size: 0.78rem; max-height: 220px; overflow-y: auto; margin-top: 1rem; }
+  .log .ok { color: #4ade80; }
+  .log .erro { color: #f87171; }
+  .log .info { color: #60a5fa; }
+  .log .warn { color: #fbbf24; }
+  .aviso { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.83rem; color: #92400e; margin-bottom: 1rem; }
+  .tag-obrigatorio { font-size: 0.65rem; background: #fef2f2; color: #b91c1c; padding: 1px 5px; border-radius: 4px; margin-left: 4px; font-weight: 700; }
+  .tag-opcional { font-size: 0.65rem; background: #fffbeb; color: #b45309; padding: 1px 5px; border-radius: 4px; margin-left: 4px; font-weight: 700; }
+  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+  @media(max-width:600px) { .config-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <div>
+    <h1>📥 PNAD-C — Importador de Domicílios v2</h1>
+    <p>Importe e cruze as 5 tabelas do sistema IBGE de uma só vez</p>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="card">
+    <div class="card-header">
+      <h2>Passo 1 — Carregar os arquivos CSV</h2>
+      <span style="font-size:0.78rem;color:#64748b">2 obrigatórios · 3 opcionais</span>
+    </div>
+    <div class="card-body">
+      <div class="grid-5">
+
+        <div>
+          <div style="font-size:0.78rem;font-weight:700;color:#1e293b;margin-bottom:6px">
+            Relatório Último Movimento <span class="tag-obrigatorio">OBRIGATÓRIO</span>
+          </div>
+          <div class="drop-zone" id="drop-movimento" onclick="document.getElementById('f-movimento').click()">
+            <div class="icone">📊</div>
+            <strong>Clique ou arraste</strong>
+            <div class="nome">PNAD_Contínua_Relatório_Último_Movimento.csv</div>
+          </div>
+          <input type="file" id="f-movimento" accept=".csv" onchange="carregarArquivo('movimento',this)">
+          <div class="status-arquivo pendente" id="st-movimento">⏳ Aguardando...</div>
+        </div>
+
+        <div>
+          <div style="font-size:0.78rem;font-weight:700;color:#1e293b;margin-bottom:6px">
+            Endereços <span class="tag-obrigatorio">OBRIGATÓRIO</span>
+          </div>
+          <div class="drop-zone" id="drop-endereco" onclick="document.getElementById('f-endereco').click()">
+            <div class="icone">📍</div>
+            <strong>Clique ou arraste</strong>
+            <div class="nome">Endereco.csv</div>
+          </div>
+          <input type="file" id="f-endereco" accept=".csv" onchange="carregarArquivo('endereco',this)">
+          <div class="status-arquivo pendente" id="st-endereco">⏳ Aguardando...</div>
+        </div>
+
+        <div>
+          <div style="font-size:0.78rem;font-weight:700;color:#1e293b;margin-bottom:6px">
+            Relatório de Tentativas <span class="tag-opcional">OPCIONAL</span>
+          </div>
+          <div class="drop-zone" id="drop-tentativas" onclick="document.getElementById('f-tentativas').click()">
+            <div class="icone">🔁</div>
+            <strong>Clique ou arraste</strong>
+            <div class="nome">Relatório_de_Tentativas.csv</div>
+          </div>
+          <input type="file" id="f-tentativas" accept=".csv" onchange="carregarArquivo('tentativas',this)">
+          <div class="status-arquivo opcional" id="st-tentativas">➕ Opcional</div>
+        </div>
+
+        <div>
+          <div style="font-size:0.78rem;font-weight:700;color:#1e293b;margin-bottom:6px">
+            Acompanhar Espécies <span class="tag-opcional">OPCIONAL</span>
+          </div>
+          <div class="drop-zone" id="drop-especies" onclick="document.getElementById('f-especies').click()">
+            <div class="icone">📈</div>
+            <strong>Clique ou arraste</strong>
+            <div class="nome">PNAD_Contínua_Acompanhar_Espécies.csv</div>
+          </div>
+          <input type="file" id="f-especies" accept=".csv" onchange="carregarArquivo('especies',this)">
+          <div class="status-arquivo opcional" id="st-especies">➕ Opcional</div>
+        </div>
+
+        <div>
+          <div style="font-size:0.78rem;font-weight:700;color:#1e293b;margin-bottom:6px">
+            Telefones por Entrevista <span class="tag-opcional">OPCIONAL</span>
+          </div>
+          <div class="drop-zone" id="drop-telefones" onclick="document.getElementById('f-telefones').click()">
+            <div class="icone">📞</div>
+            <strong>Clique ou arraste</strong>
+            <div class="nome">TelefoneEntrevista.csv</div>
+          </div>
+          <input type="file" id="f-telefones" accept=".csv" onchange="carregarArquivo('telefones',this)">
+          <div class="status-arquivo opcional" id="st-telefones">➕ Opcional</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="card-config" style="display:none">
+    <div class="card-header"><h2>Passo 2 — Configurar</h2></div>
+    <div class="card-body">
+      <div class="config-grid">
+        <div class="form-grupo">
+          <label>Trimestre</label>
+          <select id="cfg-trimestre">
+            <option value="2026T1">2026 — T1 (Jan-Mar)</option>
+            <option value="2026T2" selected>2026 — T2 (Abr-Jun)</option>
+            <option value="2026T3">2026 — T3 (Jul-Set)</option>
+            <option value="2026T4">2026 — T4 (Out-Dez)</option>
+            <option value="2027T1">2027 — T1 (Jan-Mar)</option>
+          </select>
+        </div>
+        <div class="form-grupo">
+          <label>Project ID Firebase</label>
+          <input type="text" id="cfg-projectid" value="pnad-c-campos">
+        </div>
+        
+        <div class="form-grupo">
+          <label>Status de Autenticação</label>
+          <div id="st-auth" style="padding: 0.55rem 0.75rem; border: 1.5px solid #cbd5e1; border-radius: 7px; background: #f8fafc; font-size: 0.88rem; color: #64748b;">
+            ⏳ Verificando sessão...
+          </div>
+        </div>
+
+        <div class="form-grupo">
+          <label>Semana atual da coleta</label>
+          <select id="cfg-semana-atual">
+            <option value="1">Semana 1</option>
+            <option value="2" selected>Semana 2</option>
+            <option value="3">Semana 3</option>
+            <option value="4">Semana 4</option>
+          </select>
+        </div>
+        <div class="form-grupo">
+          <label>Modo de importação</label>
+          <select id="cfg-modo">
+            <option value="novo">Novo trimestre (limpa domicílios antigos)</option>
+            <option value="atualizar">Atualizar trimestre atual</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primario" onclick="processarDados()">Processar dados →</button>
+    </div>
+  </div>
+
+  <div class="card" id="card-previa" style="display:none">
+    <div class="card-header">
+      <h2>Passo 3 — Prévia</h2>
+      <button class="btn btn-secundario" style="font-size:0.78rem" onclick="toggleTabela()">Mostrar/ocultar tabela</button>
+    </div>
+    <div class="card-body">
+      <div class="resumo-grid" id="resumo-grid"></div>
+
+      <div class="aviso" id="aviso-5a" style="display:none">
+        ⚠️ <strong id="qtd-5a">0</strong> domicílios estão na <strong>5ª entrevista</strong> e sairão da amostra no próximo trimestre.
+      </div>
+
+      <div id="tabela-previa" style="overflow-x:auto;display:none">
+        <table id="tabela-dados">
+          <thead>
+            <tr>
+              <th>UPA/Setor/Dom.</th>
+              <th>Sem.</th>
+              <th>Etapa</th>
+              <th>Entrevistador</th>
+              <th>Endereço / Morador</th>
+              <th>Status Atual</th>
+              <th>Tentativas</th>
+              <th>Histórico</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-previa"></tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:1rem;display:flex;gap:0.75rem;flex-wrap:wrap">
+        <button class="btn btn-primario" id="btn-importar" onclick="importarFirestore()">🚀 Importar para o Firestore</button>
+        <button class="btn btn-secundario" onclick="exportarJSON()">💾 Exportar JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="card-progresso" style="display:none">
+    <div class="card-header"><h2>Passo 4 — Importando...</h2></div>
+    <div class="card-body">
+      <div id="prog-texto" style="font-size:0.85rem;color:#64748b;margin-bottom:4px">Preparando...</div>
+      <div class="progress-bar"><div class="progress-fill" id="prog-fill"></div></div>
+      <div class="log" id="log-importacao"></div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyABWwa6Y0SCBK8jXTNNB_zhQeIOVvfLHrI",
+    authDomain: "pnad-c-campos.firebaseapp.com",
+    projectId: "pnad-c-campos",
+    storageBucket: "pnad-c-campos.firebasestorage.app",
+    messagingSenderId: "816527372751",
+    appId: "1:816527372751:web:b7b251d0060663a384e2ba",
+    measurementId: "G-XPH45VH7YC"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  // Variável global para ser lida pelo script original
+  window.firebaseAuthToken = null;
+
+  onAuthStateChanged(auth, async (user) => {
+    const stAuth = document.getElementById('st-auth');
+    if (!stAuth) return;
+    if (user) {
+      window.firebaseAuthToken = await user.getIdToken();
+      stAuth.innerHTML = `✅ Autenticado via Painel (${user.email})`;
+      stAuth.style.color = '#1a7a4a';
+      stAuth.style.borderColor = '#1a7a4a';
+      stAuth.style.background = '#e6f4ed';
+    } else {
+      window.firebaseAuthToken = null;
+      stAuth.innerHTML = `❌ Faça login no <a href="index.html" style="color:#b91c1c;text-decoration:underline;font-weight:bold">Painel Principal</a> primeiro.`;
+      stAuth.style.color = '#b91c1c';
+      stAuth.style.borderColor = '#f87171';
+      stAuth.style.background = '#fef2f2';
+    }
+  });
+</script>
+
+<script>
+// ── Estado ──
+const dados = { movimento: [], endereco: {}, tentativas: {}, especies: {}, telefones: {} };
+let dadosProcessados = [];
+
+const PROJECT_ID = 'pnad-c-campos';
+
+// ── Parser CSV ──
+function parseCSV(text) {
+  text = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const linhas = text.trim().split('\n');
+  if (linhas.length < 2) throw new Error('Arquivo vazio');
+  const sep = linhas[0].includes(';') ? ';' : ',';
+  const cab = linhas[0].split(sep).map(c => c.trim().replace(/^"|"$/g, ''));
+  return linhas.slice(1).map(linha => {
+    const cols = linha.split(sep);
+    const obj = {};
+    cab.forEach((c, i) => obj[c] = (cols[i] || '').trim().replace(/^"|"$/g, ''));
+    return obj;
+  }).filter(r => Object.values(r).some(v => v));
+}
+
+function chave(controle, dom) {
+  return `${controle}_${dom}`;
+}
+function chaveSemLetra(controleComLetra, dom) {
+  return `${controleComLetra.slice(0,-1)}_${dom}`;
+}
+
+// ── Drag & drop ──
+['movimento','endereco','tentativas','especies','telefones'].forEach(id => {
+  const el = document.getElementById('drop-' + id);
+  if (!el) return;
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('over'); });
+  el.addEventListener('dragleave', () => el.classList.remove('over'));
+  el.addEventListener('drop', e => {
+    e.preventDefault(); el.classList.remove('over');
+    processarFile(id, e.dataTransfer.files[0]);
+  });
+});
+
+function carregarArquivo(id, input) { processarFile(id, input.files[0]); }
+
+function processarFile(id, file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const rows = parseCSV(e.target.result);
+      const st = document.getElementById('st-' + id);
+
+      if (id === 'movimento') {
+        dados.movimento = rows;
+        st.className = 'status-arquivo ok';
+        st.textContent = `✅ ${file.name} — ${rows.length} linhas`;
+      }
+      else if (id === 'endereco') {
+        dados.endereco = {};
+        rows.forEach(r => {
+          const k = chave(r['Controle'], r['Dom.']);
+          dados.endereco[k] = r;
+        });
+        st.className = 'status-arquivo ok';
+        st.textContent = `✅ ${file.name} — ${rows.length} endereços`;
+      }
+      else if (id === 'tentativas') {
+        dados.tentativas = {};
+        let tentativasReais = 0;
+        rows.forEach(r => {
+          // Só conta tentativas reais (coluna Origem preenchida = Presencial ou Telefone)
+          if (!(r['Origem'] || '').trim()) return;
+          const k = chave(r['Controle'], r['Domicílio']);
+          if (!dados.tentativas[k]) dados.tentativas[k] = [];
+          dados.tentativas[k].push(r);
+          tentativasReais++;
+        });
+        const domsUnicos = Object.keys(dados.tentativas).length;
+        st.className = 'status-arquivo ok';
+        st.textContent = `✅ ${file.name} — ${tentativasReais} tentativas reais em ${domsUnicos} domicílios`;
+      }
+      else if (id === 'especies') {
+        dados.especies = {};
+        rows.forEach(r => {
+          const k = chave(r['Controle'], r['Domicílio']);
+          dados.especies[k] = r;
+        });
+        st.className = 'status-arquivo ok';
+        st.textContent = `✅ ${file.name} — ${rows.length} registros`;
+      }
+      else if (id === 'telefones') {
+        dados.telefones = {};
+        rows.forEach(r => {
+          const k = chave(r['Controle'], r['Domic.']);
+          dados.telefones[k] = r;
+        });
+        st.className = 'status-arquivo ok';
+        st.textContent = `✅ ${file.name} — ${rows.length} registros`;
+      }
+
+      verificarPronto();
+    } catch(err) {
+      document.getElementById('st-' + id).className = 'status-arquivo erro';
+      document.getElementById('st-' + id).textContent = '❌ Erro: ' + err.message;
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function verificarPronto() {
+  if (dados.movimento.length > 0 && Object.keys(dados.endereco).length > 0) {
+    document.getElementById('card-config').style.display = '';
+  }
+}
+
+function toggleTabela() {
+  const t = document.getElementById('tabela-previa');
+  t.style.display = t.style.display === 'none' ? '' : 'none';
+}
+
+// ── Processar e cruzar dados ──
+function processarDados() {
+  const trimestre = document.getElementById('cfg-trimestre').value;
+  dadosProcessados = [];
+
+  dados.movimento.forEach(row => {
+    const controleComLetra = row['Controle'];
+    const controleSemLetra = controleComLetra.slice(0, -1);
+    const domNum = row['Domicilio'];
+    const keyEnd = `${controleSemLetra}_${domNum}`;
+    const keyTent = chave(controleComLetra, domNum);
+    const keyEsp = chave(controleComLetra, domNum);
+    const keyTel = chave(controleComLetra, domNum);
+
+    const end = dados.endereco[keyEnd] || {};
+    const tentativasList = dados.tentativas[keyTent] || [];
+    const especies = dados.especies[keyEsp] || null;
+    const telefone = dados.telefones[keyTel] || null;
+
+    // Determina entrevistador pela tentativa real mais recente
+    let entrevistadorNome = '';
+    if (tentativasList.length > 0) {
+      // Já estão filtradas como tentativas reais, pega a mais recente com entrevistador
+      for (let ti = tentativasList.length - 1; ti >= 0; ti--) {
+        const nome = tentativasList[ti]['Entrevistador'] || '';
+        if (nome.trim()) { entrevistadorNome = nome.trim(); break; }
+      }
+    }
+
+    // Status
+    const posicao = (row['ÚltimaPosição'] || '').toLowerCase();
+    let status = 'nao_visitado';
+    if (posicao.includes('codificado')) status = 'realizada';
+    else if (posicao.includes('reentrevista')) status = 'agendado';
+    else if (posicao.includes('parcialmente')) status = 'ausente';
+    else if (posicao.includes('recusa')) status = 'recusa';
+    else if (posicao.includes('carta')) status = 'carta_solicitada';
+
+    // Monta histórico de espécies
+    const historicoEspecies = [];
+    if (especies) {
+      for (let i = 1; i <= 5; i++) {
+        const val = especies[`Entrevista ${i}`] || '';
+        if (val) historicoEspecies.push({ entrevista: i, resultado: val });
+      }
+    }
+
+    // Monta histórico de telefones
+    const historicoTelefones = [];
+    if (telefone) {
+      for (let i = 1; i <= 5; i++) {
+        const tel = telefone[`Entrevista ${i} Telefone`] || '';
+        const obs = telefone[`Entrevista ${i} Observação`] || '';
+        if (tel || obs) historicoTelefones.push({ entrevista: i, telefone: tel, observacao: obs });
+      }
+    }
+
+    dadosProcessados.push({
+      upa: row['UPA'],
+      controle: controleComLetra,
+      municipio: row['Município'],
+      domicilio_num: domNum,
+      semana: row['Sem.'],
+      visita_etapa: row['Entr.'],
+      tipo_entrevista: row['TipoEntrevista'] || '',
+      ultima_posicao: row['ÚltimaPosição'] || '',
+      observacao_ibge: row['Observação Entrevista'] || '',
+      data_ibge: row['Data'] || '',
+      endereco: end['Endereço'] || '',
+      complemento: end['Complemento'] || '',
+      localidade: end['Localidade'] || '',
+      cep: end['CEP'] || '',
+      morador: end['Morador'] || '',
+      telefone: end['Tel.'] || end['Tel. PNADC'] || '',
+      latitude: end['Latitude'] || '',
+      longitude: end['Longitude'] || '',
+      painel: end['Painel'] || '',
+      trimestre,
+      status_atual: status,
+      entrevistador_nome: entrevistadorNome,
+      entrevistador_id: '',
+      tentativas_count: tentativasList.length,
+      tentativas: tentativasList.map(t => ({
+        data: t['Data Hora Capturada'] || t['Data Hora Inserida'] || '',
+        tipo: t['Tipo de Entrevista'] || '',
+        resultado: t['Tentativa'] || '',
+        observacao: t['Observação Tentativa'] || '',
+        origem: t['Origem'] || '',
+        entrevistador: t['Entrevistador'] || '',
+        latitude: t['Latitude'] || '',
+        longitude: t['Longitude'] || '',
+      })),
+      historico_especies: historicoEspecies,
+      historico_telefones: historicoTelefones,
+    });
+  });
+
+  // Resumo
+  const semanaAtual = parseInt(document.getElementById('cfg-semana-atual').value) || 2;
+  const upas = new Set(dadosProcessados.map(d => d.upa));
+  const etapa5 = dadosProcessados.filter(d => d.visita_etapa === '5').length;
+  const realizadas = dadosProcessados.filter(d => d.status_atual === 'realizada').length;
+  // Pendentes = semanas já trabalhadas (até semana atual) que não foram realizadas
+  const pendentes = dadosProcessados.filter(d =>
+    parseInt(d.semana) <= semanaAtual && d.status_atual !== 'realizada'
+  ).length;
+  // Com tentativas = domicílios únicos que têm ao menos 1 tentativa
+  const comTentativas = dadosProcessados.filter(d => d.tentativas_count > 0).length;
+  // Com entrevistador = domicílios únicos que têm entrevistador identificado
+  const comEntrevistador = dadosProcessados.filter(d => d.entrevistador_nome).length;
+
+  document.getElementById('resumo-grid').innerHTML = `
+    <div class="resumo-card"><div class="num">${dadosProcessados.length}</div><div class="rot">Total domicílios</div></div>
+    <div class="resumo-card"><div class="num">${upas.size}</div><div class="rot">UPAs</div></div>
+    <div class="resumo-card verde"><div class="num">${realizadas}</div><div class="rot">Realizadas</div></div>
+    <div class="resumo-card amarelo"><div class="num">${pendentes}</div><div class="rot">Pendentes (sem.1-${semanaAtual})</div></div>
+    <div class="resumo-card vermelho"><div class="num">${etapa5}</div><div class="rot">Etapa 5 (saindo)</div></div>
+    <div class="resumo-card"><div class="num">${comTentativas}</div><div class="rot">Dom. com tentativas</div></div>
+    <div class="resumo-card"><div class="num">${comEntrevistador}</div><div class="rot">Dom. com entrevistador</div></div>
+  `;
+
+  if (etapa5 > 0) {
+    document.getElementById('qtd-5a').textContent = etapa5;
+    document.getElementById('aviso-5a').style.display = '';
+  }
+
+  // Tabela prévia
+  const tbody = document.getElementById('tbody-previa');
+  tbody.innerHTML = dadosProcessados.map(d => {
+    const setor = d.controle ? d.controle.slice(0,-1) : d.upa;
+    const hist = d.historico_especies.map(h =>
+      `<span style="font-size:0.7rem;color:#64748b">E${h.entrevista}: ${h.resultado.split(' ')[0]}</span>`
+    ).join('<br>');
+    return `<tr>
+      <td>
+        <div style="font-size:0.7rem;color:#94a3b8">UPA ${d.upa}</div>
+        <div style="font-size:0.7rem;color:#94a3b8">Setor ${setor}</div>
+        <div style="font-weight:800;color:#1a3a5c">Dom. ${d.domicilio_num}</div>
+      </td>
+      <td style="text-align:center">${d.semana}</td>
+      <td style="text-align:center"><span class="badge badge-${d.visita_etapa}">${d.visita_etapa}ª</span></td>
+      <td style="font-size:0.8rem">${d.entrevistador_nome || '<span style="color:#94a3b8">—</span>'}</td>
+      <td>
+        <div style="font-weight:600;font-size:0.83rem">${d.endereco}</div>
+        <div style="font-size:0.75rem;color:#64748b">${d.morador}</div>
+      </td>
+      <td style="font-size:0.8rem">${d.ultima_posicao || '—'}</td>
+      <td style="text-align:center;font-weight:700">${d.tentativas_count}</td>
+      <td>${hist || '<span style="color:#94a3b8;font-size:0.75rem">—</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('card-previa').style.display = '';
+}
+
+// ── Importar para Firestore ──
+async function importarFirestore() {
+  // ALTERAÇÃO: Agora busca o token diretamente da variável de sessão
+  const token = window.firebaseAuthToken;
+  const projectId = document.getElementById('cfg-projectid').value.trim();
+  
+  if (!token) { 
+    alert('Sessão não encontrada. Abra o Painel (index.html), faça login e tente novamente.'); 
+    return; 
+  }
+
+  document.getElementById('card-progresso').style.display = '';
+  document.getElementById('btn-importar').disabled = true;
+  const log = document.getElementById('log-importacao');
+  const fill = document.getElementById('prog-fill');
+  const progTexto = document.getElementById('prog-texto');
+  log.innerHTML = '';
+
+  const addLog = (msg, tipo = '') => {
+    const span = document.createElement('span');
+    span.className = tipo;
+    span.textContent = msg + '\n';
+    log.appendChild(span);
+    log.scrollTop = log.scrollHeight;
+  };
+
+  addLog(`Iniciando importação de ${dadosProcessados.length} domicílios...`, 'info');
+  let ok = 0, erros = 0;
+
+  for (let i = 0; i < dadosProcessados.length; i++) {
+    const d = dadosProcessados[i];
+    const docId = `${d.controle}_${d.domicilio_num}`;
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/domicilios/${docId}`;
+
+    const toStr = v => ({ stringValue: String(v || '') });
+    const toInt = v => ({ integerValue: parseInt(v) || 0 });
+    const toArr = v => ({ arrayValue: { values: v.map(item => ({ mapValue: { fields: Object.fromEntries(Object.entries(item).map(([k,val]) => [k, toStr(val)])) } })) } });
+
+    const fields = {
+      upa:               toStr(d.upa),
+      controle:          toStr(d.controle),
+      municipio:         toStr(d.municipio),
+      domicilio_num:     toStr(d.domicilio_num),
+      semana:            toStr(d.semana),
+      visita_etapa:      toStr(d.visita_etapa),
+      tipo_entrevista:   toStr(d.tipo_entrevista),
+      ultima_posicao:    toStr(d.ultima_posicao),
+      observacao_ibge:   toStr(d.observacao_ibge),
+      endereco:          toStr(d.endereco + (d.complemento ? ' — ' + d.complemento : '')),
+      localidade:        toStr(d.localidade),
+      cep:               toStr(d.cep),
+      morador:           toStr(d.morador),
+      telefone:          toStr(d.telefone),
+      latitude:          toStr(d.latitude),
+      longitude:         toStr(d.longitude),
+      painel:            toStr(d.painel),
+      trimestre:         toStr(d.trimestre),
+      status_atual:      toStr(d.status_atual),
+      entrevistador_nome:toStr(d.entrevistador_nome),
+      entrevistador_id:  toStr(''),
+      tentativas_count:  toInt(d.tentativas_count),
+    };
+
+    // Adiciona histórico de espécies e telefones como arrays
+    if (d.historico_especies.length > 0) fields.historico_especies = toArr(d.historico_especies);
+    if (d.historico_telefones.length > 0) fields.historico_telefones = toArr(d.historico_telefones);
+    if (d.tentativas.length > 0) fields.tentativas_recentes = toArr(d.tentativas.slice(-3)); // últimas 3
+
+    try {
+      const resp = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ fields })
+      });
+
+      if (resp.ok) {
+        ok++;
+        if (i % 20 === 0) addLog(`✓ ${ok} importados...`, 'ok');
+      } else {
+        erros++;
+        const err = await resp.json();
+        addLog(`✗ ${docId}: ${err.error?.message}`, 'erro');
+      }
+    } catch(e) {
+      erros++;
+      addLog(`✗ Falha de rede: ${docId}`, 'erro');
+    }
+
+    fill.style.width = `${Math.round((i+1)/dadosProcessados.length*100)}%`;
+    progTexto.textContent = `${i+1} de ${dadosProcessados.length} — ${Math.round((i+1)/dadosProcessados.length*100)}%`;
+    await new Promise(r => setTimeout(r, 40));
+  }
+
+  addLog(`\n✅ Concluído! ${ok} importados, ${erros} erros.`, 'ok');
+  if (erros === 0) addLog('Todos os dados foram salvos com sucesso!', 'ok');
+  progTexto.textContent = `Concluído — ${ok} importados, ${erros} erros`;
+  document.getElementById('btn-importar').disabled = false;
+}
+
+function exportarJSON() {
+  const blob = new Blob([JSON.stringify(dadosProcessados, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `pnad_${document.getElementById('cfg-trimestre').value}.json`;
+  a.click();
+}
+</script>
+</body>
+</html>
