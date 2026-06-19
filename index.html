@@ -2559,12 +2559,9 @@ function parseKML(kmlText) {
       
       // Parse description HTML
       const descHtml = desc ? desc.textContent : '';
-      const logMatch = descHtml.match(/Logradouro[^:]*:\s*([^<
-]+)/i);
-      const numMatch = descHtml.match(/Número[^:]*:\s*([^<
-]+)/i);
-      const compMatch = descHtml.match(/Complemento[^:]*:\s*([^<
-]+)/i);
+      const logMatch = descHtml.match(/Logradouro[^:]*:[^A-Z]*([A-Z][^<]+)/i);
+      const numMatch = descHtml.match(/N.mero[^:]*:[^0-9]*([0-9][^<]*)/i);
+      const compMatch = descHtml.match(/Complemento[^:]*:[^A-Za-z]*([A-Za-z][^<]+)/i);
       
       resultado[setor].push({
         dom: pmName ? pmName.textContent.trim() : '',
