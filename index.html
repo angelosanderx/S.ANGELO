@@ -331,7 +331,7 @@
   .card-stat.vermelho .numero { color: var(--vermelho); }
   .card-stat.amarelo .numero { color: var(--amarelo); }
 
-  /* Tables */
+  /* Tabelas */
   .card-tabela {
     background: var(--branco);
     border-radius: 10px;
@@ -691,38 +691,7 @@
     transition: width 0.4s;
   }
 
-  /* ── FICHA DO DOMICÍLIO ── */
-  .tabs-ficha {
-    display: flex;
-    gap: 0.5rem;
-    border-bottom: 2px solid var(--borda);
-    margin-bottom: 1.5rem;
-    overflow-x: auto;
-  }
-
-  .tab-btn {
-    padding: 0.75rem 1rem;
-    border: none;
-    background: none;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--cinza);
-    cursor: pointer;
-    border-bottom: 3px solid transparent;
-    margin-bottom: -2px;
-    white-space: nowrap;
-    transition: 0.2s;
-  }
-
-  .tab-btn:hover { color: var(--azul-medio); }
-  .tab-btn.ativo {
-    color: var(--azul);
-    border-bottom-color: var(--azul);
-  }
-
-  .tab-content { display: none; }
-  .tab-content.ativo { display: block; }
-
+  /* ── FICHA DO DOMICÍLIO (Atualizado para Single View) ── */
   .info-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -747,6 +716,22 @@
     font-size: 0.95rem;
     color: var(--cinza-escuro);
     font-weight: 500;
+  }
+
+  .secao-titulo {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--azul);
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .divisor-secao {
+    border: 0;
+    border-top: 1px solid var(--borda);
+    margin: 2.5rem 0;
   }
 </style>
 </head>
@@ -1015,12 +1000,10 @@
             <option value="Presencial">Presencial</option>
             <option value="Telefone">Telefone</option>
           </select>
-          
           <select id="tent-filtro-pendentes" onchange="filtrarTentativas()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
             <option value="">Todos os domicílios</option>
             <option value="pendentes">Ocultar concluídos (Focar pendentes)</option>
           </select>
-
           <input type="text" id="tent-busca" placeholder="Buscar endereço ou morador..." style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);flex:1;min-width:160px" oninput="filtrarTentativas()">
         </div>
       </div>
@@ -1041,25 +1024,19 @@
       </div>
     </div>
 
+
     <div class="pagina" id="pag-ficha-domicilio">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
         <button class="btn-acao secundario" onclick="irPara('domicilios')">← Voltar</button>
         <div class="titulo-pagina" style="margin-bottom:0" id="ficha-titulo">Ficha do Domicílio</div>
       </div>
 
-      <div class="card-tabela" style="padding:1.5rem">
-        <div class="tabs-ficha">
-          <button class="tab-btn ativo" onclick="mudarAbaFicha('dados-generais')">Dados Gerais</button>
-          <button class="tab-btn" onclick="mudarAbaFicha('moradores')">Moradores PNAD</button>
-          <button class="tab-btn" onclick="mudarAbaFicha('historico')">Histórico</button>
-          <button class="tab-btn" onclick="mudarAbaFicha('observacoes')">Observações</button>
-          <button class="tab-btn" onclick="mudarAbaFicha('links')">Links</button>
-          <button class="tab-btn" onclick="mudarAbaFicha('controle')">Controle de Campo</button>
-        </div>
-
-        <div id="aba-dados-generais" class="tab-content ativo">
-          <div style="display:flex;justify-content:flex-end;margin-bottom:1rem">
-            <button class="btn-acao" style="background:var(--verde)" onclick="abrirModalSIGC()">📋 Capturar dados do SIGC</button>
+      <div class="card-tabela" style="padding:2rem 1.5rem">
+        
+        <div id="secao-dados-gerais">
+          <div class="secao-titulo">
+            <span>Dados Gerais</span>
+            <button class="btn-acao" style="background:var(--verde); font-size:0.85rem;" onclick="abrirModalSIGC()">📋 Capturar dados do SIGC</button>
           </div>
           <div class="info-grid">
             <div class="info-item"><label>UPA</label><span id="ficha-upa">—</span></div>
@@ -1074,12 +1051,13 @@
           </div>
         </div>
 
-        <div id="aba-moradores" class="tab-content">
-          <div class="card-tabela-header" style="padding-left:0; padding-right:0; border-bottom:none; margin-bottom: 0.5rem;">
-            <h3 id="contador-moradores" style="color:var(--azul);">Total de moradores PNAD: 0</h3>
-            <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-              <button class="btn-acao" style="background:var(--verde)" onclick="abrirModalSIGC()">📋 Capturar dados do SIGC</button>
-              <button class="btn-acao" onclick="abrirModalMorador()">+ Novo morador</button>
+        <hr class="divisor-secao">
+
+        <div id="secao-moradores">
+          <div class="secao-titulo">
+            <span id="contador-moradores">Moradores PNAD (0)</span>
+            <div style="display:flex;gap:0.5rem;">
+              <button class="btn-acao" onclick="abrirModalMorador()" style="font-size:0.85rem;">+ Novo morador</button>
             </div>
           </div>
           
@@ -1104,9 +1082,14 @@
           </div>
         </div>
         
-        <div id="aba-historico" class="tab-content">
-          <div style="margin-bottom:1rem">
-            <div style="font-size:0.78rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem">Histórico das 5 entrevistas</div>
+        <hr class="divisor-secao">
+
+        <div id="secao-historico">
+          <div class="secao-titulo">
+            <span>Histórico de Entrevistas</span>
+          </div>
+          <div style="margin-bottom:1.5rem">
+            <div style="font-size:0.78rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem">Acompanhar Espécies (Últimas 5 entrevistas)</div>
             <div id="historico-especies-ficha">
               <div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📈</div>Importe os dados do CSV Acompanhar Espécies para ver o histórico.</div>
             </div>
@@ -1119,15 +1102,24 @@
           </div>
         </div>
 
-        <div id="aba-observacoes" class="tab-content">
-          <div class="vazio"><div class="icone-vazio">📝</div>Quadro de observações da equipe em desenvolvimento.</div>
+        <hr class="divisor-secao">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+          <div id="secao-observacoes">
+            <div class="secao-titulo" style="font-size: 1rem;"><span>Observações da Equipe</span></div>
+            <div style="background:var(--cinza-claro); border-radius:8px; padding: 1.5rem; text-align:center; color:var(--cinza); font-size:0.85rem;">
+              <div style="font-size: 2rem; margin-bottom: 0.5rem;">📝</div>Quadro de observações em desenvolvimento.
+            </div>
+          </div>
+          
+          <div id="secao-links">
+            <div class="secao-titulo" style="font-size: 1rem;"><span>Links e Controles</span></div>
+            <div style="background:var(--cinza-claro); border-radius:8px; padding: 1.5rem; text-align:center; color:var(--cinza); font-size:0.85rem;">
+               <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔗</div>Atalhos operacionais em desenvolvimento.
+            </div>
+          </div>
         </div>
-        <div id="aba-links" class="tab-content">
-          <div class="vazio"><div class="icone-vazio">🔗</div>Links e atalhos operacionais em desenvolvimento.</div>
-        </div>
-        <div id="aba-controle" class="tab-content">
-          <div class="vazio"><div class="icone-vazio">📊</div>Métricas e auditoria de campo em desenvolvimento.</div>
-        </div>
+
       </div>
     </div>
 
@@ -1735,6 +1727,7 @@ window.filtrarDomicilios = () => {
       const eb = b.entrevistador_nome || 'ZZZ';
       if (ea !== eb) return ea.localeCompare(eb);
     }
+    // Ordem secundária: UPA → Setor → Dom
     if (a.upa !== b.upa) return (a.upa||'').localeCompare(b.upa||'');
     const sa = a.controle ? a.controle.slice(0,-1) : a.upa;
     const sb = b.controle ? b.controle.slice(0,-1) : b.upa;
@@ -1797,14 +1790,7 @@ function renderizarDomicilios(lista) {
   preencherSelectAtribuicao();
 }
 
-// ── FICHA DO DOMICÍLIO ──
-window.mudarAbaFicha = (abaId) => {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('ativo'));
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('ativo'));
-  event.currentTarget.classList.add('ativo');
-  document.getElementById('aba-' + abaId).classList.add('ativo');
-};
-
+// ── FICHA DO DOMICÍLIO (Sem Abas) ──
 window.abrirFicha = (id) => {
   const dom = todosdomicilios.find(d => d.id === id);
   if (!dom) return;
@@ -1812,9 +1798,11 @@ window.abrirFicha = (id) => {
   domicilioAtualId = id;
   carregarMoradores(id);
 
+  // Atualizar cabeçalho
   const identificador = dom.domicilio_num || dom.numero_sequencial || 'S/N';
   document.getElementById('ficha-titulo').textContent = `Ficha do Domicílio: ${identificador}`;
 
+  // Preencher Dados Gerais
   const setor = dom.controle ? dom.controle.slice(0,-1) : (dom.upa || '-');
   document.getElementById('ficha-upa').textContent = dom.upa || '—';
   document.getElementById('ficha-setor').textContent = setor;
@@ -1826,6 +1814,7 @@ window.abrirFicha = (id) => {
   document.getElementById('ficha-entrevistador').textContent = dom.entrevistador_nome || 'Não atribuído';
   document.getElementById('ficha-supervisor').textContent = dom.supervisor_nome || 'Não atribuído';
 
+  // Preencher Histórico de Espécies
   const divEsp = document.getElementById('historico-especies-ficha');
   if (dom.historico_especies && dom.historico_especies.length > 0) {
     let htmlEsp = '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem">';
@@ -1841,6 +1830,7 @@ window.abrirFicha = (id) => {
     divEsp.innerHTML = '<div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📈</div>Nenhum histórico de espécies encontrado para este domicílio.</div>';
   }
 
+  // Preencher Histórico de Telefones
   const divTel = document.getElementById('historico-telefones-ficha');
   if (dom.historico_telefones && dom.historico_telefones.length > 0) {
     let htmlTel = '<table style="width:100%;border-collapse:collapse;margin-top:0.5rem"><thead><tr><th style="width:80px;text-align:center">Entrevista</th><th>Telefone</th><th>Observação</th></tr></thead><tbody>';
@@ -1857,8 +1847,7 @@ window.abrirFicha = (id) => {
     divTel.innerHTML = '<div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📞</div>Nenhum telefone registrado no histórico.</div>';
   }
 
-  document.querySelectorAll('.tab-btn')[0].click();
-
+  // Navegar para a página da ficha
   document.querySelectorAll('.pagina').forEach(p => p.classList.remove('ativa'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('ativo'));
   document.getElementById('pag-ficha-domicilio').classList.add('ativa');
@@ -1916,6 +1905,7 @@ window.atribuirSelecionados = async () => {
   const selecionados = [...document.querySelectorAll('.chk-dom:checked')].map(c => c.value);
   if (selecionados.length === 0) { mostrarToast('Nenhum domicílio selecionado', 'erro'); return; }
 
+  // Define se estamos atribuindo ou removendo
   const isRemover = valorSelecionado === 'remover';
   const novoId = isRemover ? null : valorSelecionado;
   const novoNome = isRemover ? null : nomeSelecionado;
@@ -1927,9 +1917,11 @@ window.atribuirSelecionados = async () => {
         entrevistador_nome: novoNome
       });
       
+      // Atualiza localmente no array
       const dom = todosdomicilios.find(d => d.id === id);
       if (dom) { dom.entrevistador_id = novoId; dom.entrevistador_nome = novoNome; }
       
+      // Atualiza visual da linha na Coluna 5
       const cel = document.querySelector(`#row-${id} td:nth-child(5)`);
       if (cel) {
         if (isRemover) {
@@ -1940,7 +1932,7 @@ window.atribuirSelecionados = async () => {
       }
     }
     desmarcarTodos();
-    select.value = '';
+    select.value = ''; // Reseta o select para o padrão
     mostrarToast(isRemover ? selecionados.length + ' domicílio(s) desvinculado(s)' : selecionados.length + ' domicílio(s) atribuídos a ' + novoNome, 'sucesso');
   } catch(e) { mostrarToast('Erro ao atualizar', 'erro'); console.error(e); }
 };
@@ -2063,6 +2055,7 @@ async function carregarVisitas() {
 // ── SETORES ──
 async function carregarSetores() {
   try {
+    // Deriva setores diretamente dos domicílios importados
     const snap = await getDocs(collection(db, 'domicilios'));
     const domicilios = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.endereco);
 
@@ -2072,6 +2065,7 @@ async function carregarSetores() {
       return;
     }
 
+    // Agrupa por UPA → Setor
     const upas = {};
     domicilios.forEach(d => {
       const upa = d.upa || '—';
@@ -2089,7 +2083,9 @@ async function carregarSetores() {
       const totalUpa = Object.values(setores).reduce((s, v) => s + v.domicilios.length, 0);
       const realizadasUpa = Object.values(setores).reduce((s, v) =>
         s + v.domicilios.filter(d => d.status_atual === 'realizada').length, 0);
+      const pctUpa = totalUpa > 0 ? Math.round(realizadasUpa / totalUpa * 100) : 0;
 
+      // Linha da UPA
       html += `<tr style="background:var(--azul-claro)">
         <td colspan="6">
           <strong style="color:var(--azul);font-size:0.85rem">UPA ${upa}</strong>
@@ -2266,11 +2262,12 @@ async function carregarTentativas() {
     const snap = await getDocs(collection(db, 'domicilios'));
     const domicilios = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.endereco);
 
+    // Extrai todas as tentativas de todos os domicílios
     todasTentativas = [];
     domicilios.forEach(d => {
       const tentativas = d.tentativas_recentes || [];
       tentativas.forEach(t => {
-        if (!t.origem) return;
+        if (!t.origem) return; // só tentativas reais
         todasTentativas.push({
           ...t,
           domicilio_id: d.id,
@@ -2286,6 +2283,7 @@ async function carregarTentativas() {
       });
     });
 
+    // Preenche filtro de entrevistadores
     const entrevistadores = [...new Set(todasTentativas.map(t => t.entrevistador_nome).filter(Boolean))].sort();
     const sel = document.getElementById('tent-filtro-entrevistador');
     if (sel) {
@@ -2432,6 +2430,7 @@ async function preencherSelectEntrevistadores(idSelect) {
   });
 }
 
+// Enter no login
 document.getElementById('input-senha').addEventListener('keydown', e => {
   if (e.key === 'Enter') fazerLogin();
 });
@@ -2443,7 +2442,10 @@ window.carregarMoradores = async (domId) => {
   try {
     const snap = await getDocs(collection(db, 'domicilios', domId, 'moradores'));
     moradoresAtuais = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    
+    // Ordena por código
     moradoresAtuais.sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''));
+    
     renderizarMoradores();
   } catch (e) {
     console.error(e);
@@ -2453,7 +2455,8 @@ window.carregarMoradores = async (domId) => {
 };
 
 window.renderizarMoradores = () => {
-  document.getElementById('contador-moradores').textContent = `Total de moradores PNAD: ${moradoresAtuais.length}`;
+  document.getElementById('contador-moradores').textContent = `Moradores PNAD (${moradoresAtuais.length})`;
+  
   const tbody = document.getElementById('tabela-moradores');
   
   if (moradoresAtuais.length === 0) {
@@ -2463,6 +2466,7 @@ window.renderizarMoradores = () => {
 
   let html = '';
   for (const m of moradoresAtuais) {
+    // Formata a data de nascimento (yyyy-mm-dd para dd/mm/yyyy)
     let nascFormatado = '—';
     if (m.nascimento) {
       const partes = m.nascimento.split('-');
@@ -2476,7 +2480,7 @@ window.renderizarMoradores = () => {
       <td>${nascFormatado}</td>
       <td>${m.idade !== null && m.idade !== undefined ? m.idade + ' anos' : '-'}</td>
       <td>${m.condicao || '-'}</td>
-      <td>${m.raca || m.cor_raca || '-'}</td>
+      <td>${m.raca || '-'}</td>
       <td style="text-align: right;">
         <button class="btn-acao secundario" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="abrirModalMorador('${m.id}')">Editar</button>
         <button class="btn-acao secundario" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; color: var(--vermelho); border-color: var(--vermelho-claro);" onclick="excluirMorador('${m.id}')">✕</button>
@@ -2499,9 +2503,10 @@ window.abrirModalMorador = (id = null) => {
     document.getElementById('morador-nascimento').value = m.nascimento || '';
     document.getElementById('morador-idade').value = m.idade !== null ? m.idade : '';
     document.getElementById('morador-condicao').value = m.condicao || '';
-    document.getElementById('morador-raca').value = m.raca || m.cor_raca || '';
+    document.getElementById('morador-raca').value = m.raca || '';
     document.getElementById('morador-origem').value = m.origem || 'Entrevista PNAD';
   } else {
+    // Sugere o próximo código sequencial
     const proximoCodigo = moradoresAtuais.length > 0 ? String(moradoresAtuais.length + 1).padStart(2, '0') : '01';
     
     document.getElementById('morador-id').value = '';
@@ -2514,6 +2519,7 @@ window.abrirModalMorador = (id = null) => {
     document.getElementById('morador-raca').value = '';
     document.getElementById('morador-origem').value = 'Entrevista PNAD';
   }
+  
   abrirModal('modal-morador');
 };
 
@@ -2543,16 +2549,18 @@ window.salvarMorador = async () => {
 
   try {
     const colRef = collection(db, 'domicilios', domicilioAtualId, 'moradores');
+    
     if (id) {
       await updateDoc(doc(colRef, id), dados);
-      mostrarToast('Morador updated!', 'sucesso');
+      mostrarToast('Morador atualizado!', 'sucesso');
     } else {
       dados.criado_em = serverTimestamp();
       await addDoc(colRef, dados);
       mostrarToast('Morador adicionado!', 'sucesso');
     }
+    
     fecharModal('modal-morador');
-    carregarMoradores(domicilioAtualId);
+    carregarMoradores(domicilioAtualId); // Recarrega a tabela atualizada
   } catch (e) {
     console.error(e);
     mostrarToast('Erro ao salvar morador', 'erro');
@@ -2561,6 +2569,7 @@ window.salvarMorador = async () => {
 
 window.excluirMorador = async (id) => {
   if (!confirm('Tem certeza que deseja excluir permanentemente este morador?')) return;
+  
   try {
     await deleteDoc(doc(db, 'domicilios', domicilioAtualId, 'moradores', id));
     mostrarToast('Morador excluído', 'sucesso');
@@ -2574,13 +2583,17 @@ window.excluirMorador = async (id) => {
 window.calcularIdadeMorador = () => {
   const nasc = document.getElementById('morador-nascimento').value;
   if (!nasc) return;
+  
   const birthDate = new Date(nasc);
   const today = new Date();
+  
   let age = today.getFullYear() - birthDate.getFullYear();
   const m = today.getMonth() - birthDate.getMonth();
+  
   if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
     age--;
   }
+  
   document.getElementById('morador-idade').value = age >= 0 ? age : 0;
 };
 
