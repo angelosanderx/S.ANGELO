@@ -1560,7 +1560,6 @@ function iniciarApp() {
   carregarDomicilios();
   carregarVisitas();
   carregarSetores();
-  renderizarMapaSetores();
   carregarUsuarios();
   carregarAvisos();
   carregarTentativas();
@@ -1719,6 +1718,8 @@ async function carregarDomicilios() {
       .filter(d => d.endereco);
     preencherFiltrosUpa();
     filtrarDomicilios();
+    // Renderiza mapa de setores após domicílios carregados (tem latitude_kml)
+    renderizarMapaSetores();
   } catch(e) { console.error(e); }
 }
 
