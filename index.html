@@ -331,7 +331,7 @@
   .card-stat.vermelho .numero { color: var(--vermelho); }
   .card-stat.amarelo .numero { color: var(--amarelo); }
 
-  /* Tabelas */
+  /* Tables */
   .card-tabela {
     background: var(--branco);
     border-radius: 10px;
@@ -799,6 +799,9 @@
     <div class="nav-item" onclick="irPara('visitas')">
       <span class="icone">📋</span> Visitas
     </div>
+    <div class="nav-item" onclick="irPara('importar-sigc')">
+      <span class="icone">📥</span> Importar SIGC
+    </div>
 
     <div class="nav-secao">Gestão</div>
     <div class="nav-item" id="nav-setores" onclick="irPara('setores')">
@@ -811,7 +814,6 @@
       <span class="icone">📢</span> Avisos
     </div>
 
-    <div class="nav-secao">Comunicação</div>
     <div class="nav-secao">Consultas</div>
     <div class="nav-item" onclick="irPara('tentativas')">
       <span class="icone">🔁</span> Tentativas
@@ -940,6 +942,27 @@
       </div>
     </div>
 
+    <div class="pagina" id="pag-importar-sigc">
+      <div class="titulo-pagina">📥 Central de Importação SIGC</div>
+      <div class="card-tabela" style="padding:1.5rem">
+        <p style="font-size:0.85rem;color:var(--cinza);margin-bottom:1rem">
+          Cole aqui o conteúdo copiado do SIGC (pressione <strong>Ctrl+A</strong> e depois <strong>Ctrl+C</strong> dentro do questionário). O sistema identificará automaticamente o <strong>Controle</strong> e o <strong>Domicílio</strong> para salvar as informações e atualizar os moradores no local correto, independentemente da ordem.
+        </p>
+        <div class="form-grupo full" style="margin-bottom:1rem">
+          <textarea id="central-sigc-texto" style="width:100%;height:250px;padding:0.75rem;border:1.5px solid var(--borda);border-radius:8px;font-size:0.82rem;font-family:monospace;resize:vertical;background:var(--cinza-claro)" placeholder="Cole aqui o conteúdo copiado do SIGC..."></textarea>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:0.75rem">
+          <button class="btn-acao secundario" onclick="limparCentralSIGC()">Limpar</button>
+          <button class="btn-acao" style="background:var(--verde)" onclick="processarCentralSIGC()">Processar e Salvar Automático</button>
+        </div>
+      </div>
+
+      <div class="card-tabela" id="central-sigc-resultado" style="display:none; padding:1.25rem;">
+        <h3 style="font-size:0.95rem;font-weight:700;color:var(--cinza-escuro);margin-bottom:0.75rem;">Status do Processamento</h3>
+        <div id="central-sigc-status-conteudo"></div>
+      </div>
+    </div>
+
     <div class="pagina" id="pag-setores">
       <div class="titulo-pagina">🗺️ Setores</div>
       <div class="card-tabela">
@@ -1026,7 +1049,7 @@
 
       <div class="card-tabela" style="padding:1.5rem">
         <div class="tabs-ficha">
-          <button class="tab-btn ativo" onclick="mudarAbaFicha('dados-gerais')">Dados Gerais</button>
+          <button class="tab-btn ativo" onclick="mudarAbaFicha('dados-generais')">Dados Gerais</button>
           <button class="tab-btn" onclick="mudarAbaFicha('moradores')">Moradores PNAD</button>
           <button class="tab-btn" onclick="mudarAbaFicha('historico')">Histórico</button>
           <button class="tab-btn" onclick="mudarAbaFicha('observacoes')">Observações</button>
@@ -1034,7 +1057,7 @@
           <button class="tab-btn" onclick="mudarAbaFicha('controle')">Controle de Campo</button>
         </div>
 
-        <div id="aba-dados-gerais" class="tab-content ativo">
+        <div id="aba-dados-generais" class="tab-content ativo">
           <div style="display:flex;justify-content:flex-end;margin-bottom:1rem">
             <button class="btn-acao" style="background:var(--verde)" onclick="abrirModalSIGC()">📋 Capturar dados do SIGC</button>
           </div>
@@ -1591,11 +1614,6 @@ async function carregarDashboard() {
       const s = d.status_atual || 'nao_visitado';
       status_count[s] = (status_count[s] || 0) + 1;
     });
-    const STATUS_LABELS = {
-      realizada: 'Realizada', ausente: 'Ausente', agendado: 'Agendado',
-      nao_visitado: 'Não visitado', recusa: 'Recusa',
-      carta_solicitada: 'Carta solicitada', supervisao: 'Supervisão'
-    };
     let htmlSit = '<table><thead><tr><th>Status</th><th>Qtd</th><th>%</th></tr></thead><tbody>';
     Object.entries(status_count).sort((a,b) => b[1]-a[1]).forEach(([k,v]) => {
       const pct = Math.round(v / docs.length * 100);
@@ -1619,7 +1637,6 @@ async function carregarDashboard() {
       '<th>Pendentes (sem.1-' + semanaAtual + ')</th><th>Recusas</th><th>Progresso</th>' +
       '</tr></thead><tbody>';
     for (const e of entrevistadores) {
-      // Cruza por nome (importador salva entrevistador_nome) OU por id
       const meus = docs.filter(d =>
         d.entrevistador_id === e.uid ||
         (d.entrevistador_nome || '').toUpperCase().includes((e.nome || '').toUpperCase().split(' ')[0])
@@ -1718,7 +1735,6 @@ window.filtrarDomicilios = () => {
       const eb = b.entrevistador_nome || 'ZZZ';
       if (ea !== eb) return ea.localeCompare(eb);
     }
-    // Ordem secundária: UPA → Setor → Dom
     if (a.upa !== b.upa) return (a.upa||'').localeCompare(b.upa||'');
     const sa = a.controle ? a.controle.slice(0,-1) : a.upa;
     const sb = b.controle ? b.controle.slice(0,-1) : b.upa;
@@ -1796,11 +1812,9 @@ window.abrirFicha = (id) => {
   domicilioAtualId = id;
   carregarMoradores(id);
 
-  // Atualizar cabeçalho
   const identificador = dom.domicilio_num || dom.numero_sequencial || 'S/N';
   document.getElementById('ficha-titulo').textContent = `Ficha do Domicílio: ${identificador}`;
 
-  // Preencher Dados Gerais
   const setor = dom.controle ? dom.controle.slice(0,-1) : (dom.upa || '-');
   document.getElementById('ficha-upa').textContent = dom.upa || '—';
   document.getElementById('ficha-setor').textContent = setor;
@@ -1812,7 +1826,6 @@ window.abrirFicha = (id) => {
   document.getElementById('ficha-entrevistador').textContent = dom.entrevistador_nome || 'Não atribuído';
   document.getElementById('ficha-supervisor').textContent = dom.supervisor_nome || 'Não atribuído';
 
-  // --- NOVO: Preencher a aba de Histórico de Espécies ---
   const divEsp = document.getElementById('historico-especies-ficha');
   if (dom.historico_especies && dom.historico_especies.length > 0) {
     let htmlEsp = '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem">';
@@ -1828,7 +1841,6 @@ window.abrirFicha = (id) => {
     divEsp.innerHTML = '<div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📈</div>Nenhum histórico de espécies encontrado para este domicílio.</div>';
   }
 
-  // --- NOVO: Preencher a aba de Telefones ---
   const divTel = document.getElementById('historico-telefones-ficha');
   if (dom.historico_telefones && dom.historico_telefones.length > 0) {
     let htmlTel = '<table style="width:100%;border-collapse:collapse;margin-top:0.5rem"><thead><tr><th style="width:80px;text-align:center">Entrevista</th><th>Telefone</th><th>Observação</th></tr></thead><tbody>';
@@ -1845,10 +1857,8 @@ window.abrirFicha = (id) => {
     divTel.innerHTML = '<div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📞</div>Nenhum telefone registrado no histórico.</div>';
   }
 
-  // Resetar visualização para a primeira aba
   document.querySelectorAll('.tab-btn')[0].click();
 
-  // Navegar para a página
   document.querySelectorAll('.pagina').forEach(p => p.classList.remove('ativa'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('ativo'));
   document.getElementById('pag-ficha-domicilio').classList.add('ativa');
@@ -1906,7 +1916,6 @@ window.atribuirSelecionados = async () => {
   const selecionados = [...document.querySelectorAll('.chk-dom:checked')].map(c => c.value);
   if (selecionados.length === 0) { mostrarToast('Nenhum domicílio selecionado', 'erro'); return; }
 
-  // Define se estamos atribuindo ou removendo
   const isRemover = valorSelecionado === 'remover';
   const novoId = isRemover ? null : valorSelecionado;
   const novoNome = isRemover ? null : nomeSelecionado;
@@ -1918,11 +1927,9 @@ window.atribuirSelecionados = async () => {
         entrevistador_nome: novoNome
       });
       
-      // Atualiza localmente no array
       const dom = todosdomicilios.find(d => d.id === id);
       if (dom) { dom.entrevistador_id = novoId; dom.entrevistador_nome = novoNome; }
       
-      // Atualiza visual da linha na Coluna 5
       const cel = document.querySelector(`#row-${id} td:nth-child(5)`);
       if (cel) {
         if (isRemover) {
@@ -1933,7 +1940,7 @@ window.atribuirSelecionados = async () => {
       }
     }
     desmarcarTodos();
-    select.value = ''; // Reseta o select para o padrão
+    select.value = '';
     mostrarToast(isRemover ? selecionados.length + ' domicílio(s) desvinculado(s)' : selecionados.length + ' domicílio(s) atribuídos a ' + novoNome, 'sucesso');
   } catch(e) { mostrarToast('Erro ao atualizar', 'erro'); console.error(e); }
 };
@@ -2056,7 +2063,6 @@ async function carregarVisitas() {
 // ── SETORES ──
 async function carregarSetores() {
   try {
-    // Deriva setores diretamente dos domicílios importados
     const snap = await getDocs(collection(db, 'domicilios'));
     const domicilios = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.endereco);
 
@@ -2066,7 +2072,6 @@ async function carregarSetores() {
       return;
     }
 
-    // Agrupa por UPA → Setor
     const upas = {};
     domicilios.forEach(d => {
       const upa = d.upa || '—';
@@ -2084,9 +2089,7 @@ async function carregarSetores() {
       const totalUpa = Object.values(setores).reduce((s, v) => s + v.domicilios.length, 0);
       const realizadasUpa = Object.values(setores).reduce((s, v) =>
         s + v.domicilios.filter(d => d.status_atual === 'realizada').length, 0);
-      const pctUpa = totalUpa > 0 ? Math.round(realizadasUpa / totalUpa * 100) : 0;
 
-      // Linha da UPA
       html += `<tr style="background:var(--azul-claro)">
         <td colspan="6">
           <strong style="color:var(--azul);font-size:0.85rem">UPA ${upa}</strong>
@@ -2263,12 +2266,11 @@ async function carregarTentativas() {
     const snap = await getDocs(collection(db, 'domicilios'));
     const domicilios = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.endereco);
 
-    // Extrai todas as tentativas de todos os domicílios
     todasTentativas = [];
     domicilios.forEach(d => {
       const tentativas = d.tentativas_recentes || [];
       tentativas.forEach(t => {
-        if (!t.origem) return; // só tentativas reais
+        if (!t.origem) return;
         todasTentativas.push({
           ...t,
           domicilio_id: d.id,
@@ -2284,7 +2286,6 @@ async function carregarTentativas() {
       });
     });
 
-    // Preenche filtro de entrevistadores
     const entrevistadores = [...new Set(todasTentativas.map(t => t.entrevistador_nome).filter(Boolean))].sort();
     const sel = document.getElementById('tent-filtro-entrevistador');
     if (sel) {
@@ -2431,7 +2432,6 @@ async function preencherSelectEntrevistadores(idSelect) {
   });
 }
 
-// Enter no login
 document.getElementById('input-senha').addEventListener('keydown', e => {
   if (e.key === 'Enter') fazerLogin();
 });
@@ -2443,10 +2443,7 @@ window.carregarMoradores = async (domId) => {
   try {
     const snap = await getDocs(collection(db, 'domicilios', domId, 'moradores'));
     moradoresAtuais = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    
-    // Ordena por código
     moradoresAtuais.sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''));
-    
     renderizarMoradores();
   } catch (e) {
     console.error(e);
@@ -2457,7 +2454,6 @@ window.carregarMoradores = async (domId) => {
 
 window.renderizarMoradores = () => {
   document.getElementById('contador-moradores').textContent = `Total de moradores PNAD: ${moradoresAtuais.length}`;
-  
   const tbody = document.getElementById('tabela-moradores');
   
   if (moradoresAtuais.length === 0) {
@@ -2467,7 +2463,6 @@ window.renderizarMoradores = () => {
 
   let html = '';
   for (const m of moradoresAtuais) {
-    // Formata a data de nascimento (yyyy-mm-dd para dd/mm/yyyy)
     let nascFormatado = '—';
     if (m.nascimento) {
       const partes = m.nascimento.split('-');
@@ -2481,7 +2476,7 @@ window.renderizarMoradores = () => {
       <td>${nascFormatado}</td>
       <td>${m.idade !== null && m.idade !== undefined ? m.idade + ' anos' : '-'}</td>
       <td>${m.condicao || '-'}</td>
-      <td>${m.raca || '-'}</td>
+      <td>${m.raca || m.cor_raca || '-'}</td>
       <td style="text-align: right;">
         <button class="btn-acao secundario" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="abrirModalMorador('${m.id}')">Editar</button>
         <button class="btn-acao secundario" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; color: var(--vermelho); border-color: var(--vermelho-claro);" onclick="excluirMorador('${m.id}')">✕</button>
@@ -2504,10 +2499,9 @@ window.abrirModalMorador = (id = null) => {
     document.getElementById('morador-nascimento').value = m.nascimento || '';
     document.getElementById('morador-idade').value = m.idade !== null ? m.idade : '';
     document.getElementById('morador-condicao').value = m.condicao || '';
-    document.getElementById('morador-raca').value = m.raca || '';
+    document.getElementById('morador-raca').value = m.raca || m.cor_raca || '';
     document.getElementById('morador-origem').value = m.origem || 'Entrevista PNAD';
   } else {
-    // Sugere o próximo código sequencial
     const proximoCodigo = moradoresAtuais.length > 0 ? String(moradoresAtuais.length + 1).padStart(2, '0') : '01';
     
     document.getElementById('morador-id').value = '';
@@ -2520,7 +2514,6 @@ window.abrirModalMorador = (id = null) => {
     document.getElementById('morador-raca').value = '';
     document.getElementById('morador-origem').value = 'Entrevista PNAD';
   }
-  
   abrirModal('modal-morador');
 };
 
@@ -2550,18 +2543,16 @@ window.salvarMorador = async () => {
 
   try {
     const colRef = collection(db, 'domicilios', domicilioAtualId, 'moradores');
-    
     if (id) {
       await updateDoc(doc(colRef, id), dados);
-      mostrarToast('Morador atualizado!', 'sucesso');
+      mostrarToast('Morador updated!', 'sucesso');
     } else {
       dados.criado_em = serverTimestamp();
       await addDoc(colRef, dados);
       mostrarToast('Morador adicionado!', 'sucesso');
     }
-    
     fecharModal('modal-morador');
-    carregarMoradores(domicilioAtualId); // Recarrega a tabela atualizada
+    carregarMoradores(domicilioAtualId);
   } catch (e) {
     console.error(e);
     mostrarToast('Erro ao salvar morador', 'erro');
@@ -2570,7 +2561,6 @@ window.salvarMorador = async () => {
 
 window.excluirMorador = async (id) => {
   if (!confirm('Tem certeza que deseja excluir permanentemente este morador?')) return;
-  
   try {
     await deleteDoc(doc(db, 'domicilios', domicilioAtualId, 'moradores', id));
     mostrarToast('Morador excluído', 'sucesso');
@@ -2584,17 +2574,13 @@ window.excluirMorador = async (id) => {
 window.calcularIdadeMorador = () => {
   const nasc = document.getElementById('morador-nascimento').value;
   if (!nasc) return;
-  
   const birthDate = new Date(nasc);
   const today = new Date();
-  
   let age = today.getFullYear() - birthDate.getFullYear();
   const m = today.getMonth() - birthDate.getMonth();
-  
   if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
     age--;
   }
-  
   document.getElementById('morador-idade').value = age >= 0 ? age : 0;
 };
 
@@ -2653,7 +2639,7 @@ window.processarSIGC = () => {
 
   let idxTabela = -1;
   for (let i = 0; i < linhasBruto.length; i++) {
-    if (linhasBruto[i].includes('Ordem') && linhasBruto[i].includes('Morador')) {
+    if (linhasBruto[i].includes('Ordem') && linesBruto[i].includes('Morador')) {
       idxTabela = i + 1;
       if (idxTabela < linhasBruto.length &&
          (linhasBruto[idxTabela].includes('Nascimento') || linhasBruto[idxTabela].includes('Idade'))) {
@@ -2799,6 +2785,196 @@ window.confirmarSIGC = async () => {
   } catch(e) {
     console.error(e);
     mostrarToast('Erro ao salvar dados', 'erro');
+  }
+};
+
+// ── 🆕 LOGICA DA CENTRAL DE IMPORTAÇÃO SIGC AUTOMÁTICA ──
+window.limparCentralSIGC = () => {
+  document.getElementById('central-sigc-texto').value = '';
+  document.getElementById('central-sigc-resultado').style.display = 'none';
+};
+
+window.processarCentralSIGC = async () => {
+  const texto = document.getElementById('central-sigc-texto').value.trim();
+  if (!texto) { mostrarToast('Cole o conteúdo do SIGC primeiro', 'erro'); return; }
+
+  const resultadoDiv = document.getElementById('central-sigc-resultado');
+  const statusConteudo = document.getElementById('central-sigc-status-conteudo');
+  resultadoDiv.style.display = 'block';
+  statusConteudo.innerHTML = '<div class="loader">Buscando domicílio correspondente no Firebase...</div>';
+
+  // Extração flexível de Controle e Domicílio da linha superior
+  let controle = extrairCampo(texto, 'Controle');
+  let domicilio_num = extrairCampo(texto, 'Domicílio');
+
+  if (!controle) {
+    const matchControle = texto.match(/Controle\s*:\s*([A-Z0-9]+)/i);
+    if (matchControle) controle = matchControle[1].trim();
+  }
+  if (!domicilio_num) {
+    const matchDom = texto.match(/Domicílio\s*:\s*(\d+)/i);
+    if (matchDom) domicilio_num = matchDom[1].trim();
+  }
+
+  // Fallback caso venha com formatações de tabulação ocultas do SIGC
+  if (!controle || !domicilio_num) {
+    statusConteudo.innerHTML = `<div style="color:var(--vermelho);font-weight:600;padding:0.5rem 0;">❌ Erro: Não foi possível extrair o 'Controle' ou o número do 'Domicílio' do texto fornecido. Verifique se copiou a tela inteira.</div>`;
+    return;
+  }
+
+  try {
+    // Procura o domicílio que possua esse Controle e Dom. exato
+    const qDom = query(collection(db, 'domicilios'), where('controle', '==', controle), where('domicilio_num', '==', domicilio_num));
+    const snapDom = await getDocs(qDom);
+
+    if (snapDom.empty) {
+      statusConteudo.innerHTML = `<div style="color:var(--laranja);font-weight:600;padding:0.5rem 0;">⚠️ O Domicílio com Controle <strong>${controle}</strong> e Número <strong>${domicilio_num}</strong> não está cadastrado na base local do sistema.</div>`;
+      return;
+    }
+
+    const targetDoc = snapDom.docs[0];
+    const targetId = targetDoc.id;
+
+    // Estrutura metadados da entrevista igual ao fluxo individual
+    const entrevista = {
+      numero:         extrairCampo(texto, 'Nº da Entrevista'),
+      tipo:           extrairCampo(texto, 'Tipo da Entrevista'),
+      data:           extrairCampo(texto, 'Data da Entrevista (Início e Término)'),
+      telefone:       extrairCampo(texto, 'Telefone(s)'),
+      supervisor:     extrairCampo(texto, 'Supervisor'),
+      entrevistador:  extrairCampo(texto, 'Entrevistador'),
+      ultima_posicao: extrairCampo(texto, 'Última Posição'),
+      observacao:     extrairCampo(texto, 'Observação'),
+    };
+
+    // Mapeia o status dinâmico com base no tipo retornado
+    let status_atual = 'nao_visitado';
+    const tipoLower = entrevista.tipo.toLowerCase();
+    if (tipoLower.includes('realizada')) status_atual = 'realizada';
+    else if (tipoLower.includes('recusa')) status_atual = 'recusa';
+    else if (tipoLower.includes('ausente')) status_atual = 'ausente';
+
+    // Salva metadados da entrevista
+    await updateDoc(doc(db, 'domicilios', targetId), {
+      entrevista_numero:   entrevista.numero || null,
+      entrevista_tipo:     entrevista.tipo || null,
+      entrevista_data:     entrevista.data || null,
+      telefone:            entrevista.telefone || null,
+      supervisor_sigc:     entrevista.supervisor || null,
+      entrevistador_sigc:  entrevista.entrevistador || null,
+      ultima_posicao:      entrevista.ultima_posicao || null,
+      observacao_sigc:     entrevista.observacao || null,
+      status_atual:        status_atual,
+      ultima_visita:       serverTimestamp()
+    });
+
+    // Extração e processamento de moradores
+    const linhasBruto = texto.split('\n').map(l => l.trim());
+    const moradores = [];
+    let idxTabela = -1;
+
+    for (let i = 0; i < linhasBruto.length; i++) {
+      if (linhasBruto[i].includes('Ordem') && linhasBruto[i].includes('Morador')) {
+        idxTabela = i + 1;
+        if (idxTabela < linhasBruto.length && (linhasBruto[idxTabela].includes('Nascimento') || linhasBruto[idxTabela].includes('Idade'))) {
+          idxTabela++;
+        }
+        break;
+      }
+    }
+
+    if (idxTabela >= 0) {
+      let i = idxTabela;
+      while (i < linhasBruto.length) {
+        const linha = linhasBruto[i];
+        if (!linha) { i++; continue; }
+
+        const partesTab = linha.split(/\t+/).map(p => p.trim()).filter(p => p);
+        const partesSpc = linha.split(/\s{2,}/).map(p => p.trim()).filter(p => p);
+        const partes = partesTab.length >= 5 ? partesTab : partesSpc;
+
+        const primeiroNum = parseInt(partes[0]);
+        if (isNaN(primeiroNum) || primeiroNum < 1 || primeiroNum > 30) { i++; continue; }
+
+        if (partes.length >= 7) {
+          const nome = partes[3] || partes[2] || '';
+          if (nome && /[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ]/.test(nome)) {
+            moradores.push({
+              ordem: partes[0], codigo: partes[1], nome: nome.trim(),
+              sexo: (partes[4]||'').includes('Feminino') ? 'Feminino' : (partes[4]||'').includes('Masculino') ? 'Masculino' : (partes[4]||''),
+              nascimento: partes[5] || '', idade: partes[6] || '',
+              condicao: (partes[7]||'').replace(/^\d+\s*-\s*/, '').trim(),
+              cor_raca: (partes[8]||'').replace(/^\d+\s*-\s*/, '').trim()
+            });
+          }
+          i++;
+        } else {
+          let nome = '', sexoRaw = '';
+          for (let k = 2; k < partes.length; k++) {
+            if (/^[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç\s]+$/.test(partes[k]) && partes[k].length > 2) nome = partes[k];
+            else if (partes[k].includes('Masculino') || partes[k].includes('Feminino')) sexoRaw = partes[k];
+          }
+          let nascimento = '', idade = '', condicao = '', corRaca = '';
+          if (i + 1 < linhasBruto.length) {
+            const prox = linhasBruto[i + 1];
+            const dataMatch = prox.match(/\d{2}\/\d{2}\/\d{4}/);
+            if (dataMatch) nascimento = dataMatch[0];
+            const partesProx = prox.split(/\s{2,}|\t+/).map(p => p.trim()).filter(p => p);
+            const nums = partesProx.filter(p => /^\d+$/.test(p));
+            if (nums.length > 0) idade = nums[nums.length - 1];
+            const comDash = partesProx.filter(p => /^\d+\s*-/.test(p));
+            if (comDash.length > 0) condicao = comDash[0];
+            if (comDash.length > 1) corRaca = comDash[comDash.length - 1];
+            i++;
+          }
+          if (nome) {
+            moradores.push({
+              ordem: partes[0], codigo: partes[1], nome: nome.trim(),
+              sexo: sexoRaw.includes('Feminino') ? 'Feminino' : sexoRaw.includes('Masculino') ? 'Masculino' : sexoRaw,
+              nascimento, idade,
+              condicao: condicao.replace(/^\d+\s*-\s*/, '').trim(),
+              cor_raca: corRaca.replace(/^\d+\s*-\s*/, '').trim()
+            });
+          }
+          i++;
+        }
+      }
+    }
+
+    // Grava ou atualiza a subcoleção de moradores do domicílio encontrado
+    for (const m of moradores) {
+      const existentes = await getDocs(
+        query(collection(db, 'domicilios', targetId, 'moradores'), where('codigo', '==', m.codigo))
+      );
+      if (existentes.empty) {
+        await addDoc(collection(db, 'domicilios', targetId, 'moradores'), {
+          ...m, origem: 'central_sigc', criado_em: serverTimestamp()
+        });
+      } else {
+        await updateDoc(existentes.docs[0].ref, {
+          nome: m.nome, sexo: m.sexo, nascimento: m.nascimento,
+          idade: m.idade, condicao: m.condicao, cor_raca: m.cor_raca
+        });
+      }
+    }
+
+    statusConteudo.innerHTML = `
+      <div style="background:var(--verde-claro);color:var(--verde);padding:0.75rem;border-radius:6px;font-weight:600;margin-bottom:0.5rem;">
+        ✅ Domicílio Sincronizado com Sucesso!
+      </div>
+      <p style="font-size:0.85rem;margin-bottom:0.25rem;"><strong>Endereço Alvo:</strong> ${targetDoc.data().endereco || '—'}</p>
+      <p style="font-size:0.85rem;margin-bottom:0.25rem;"><strong>Chave de Busca:</strong> Controle ${controle} | Dom. ${domicilio_num}</p>
+      <p style="font-size:0.85rem;margin-bottom:0.25rem;"><strong>Tipo Entrevista:</strong> ${entrevista.tipo || '—'} | <strong>Moradores Processados:</strong> ${moradores.length}</p>
+    `;
+    mostrarToast('Sincronização concluída com sucesso!', 'sucesso');
+    document.getElementById('central-sigc-texto').value = '';
+
+    carregarDomicilios();
+    carregarDashboard();
+
+  } catch (error) {
+    console.error(error);
+    statusConteudo.innerHTML = `<div style="color:var(--vermelho);font-weight:600;padding:0.5rem 0;">❌ Ocorreu um erro crítico de gravação no banco de dados. Verifique a consola do programador.</div>`;
   }
 };
 </script>
