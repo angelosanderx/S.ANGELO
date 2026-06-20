@@ -758,6 +758,12 @@
   }
   .info-item:hover .btn-editar-campo { opacity: 1; }
   .btn-editar-campo:hover { background: var(--azul-claro); color: var(--azul-medio); }
+  .campo-editavel-inline .btn-editar-inline {
+    border: none; background: none; cursor: pointer; padding: 0; line-height: 1;
+    font-size: 0.72rem; opacity: 0; transition: opacity 0.15s; flex-shrink: 0;
+  }
+  .campo-editavel-inline:hover .btn-editar-inline { opacity: 0.5; }
+  .campo-editavel-inline .btn-editar-inline:hover { opacity: 1; }
   .ficha-campo-input {
     width: 100%; font-size: 0.92rem; font-family: var(--fonte);
     padding: 0.3rem 0.5rem; border: 1.5px solid var(--azul-medio);
@@ -836,7 +842,7 @@
       <span class="icone">🏠</span> Domicílios
     </div>
     <div class="nav-item" onclick="irPara('visitas')">
-      <span class="icone">📋</span> Visitas
+      <span class="icone">📋</span> Solicitações
     </div>
     <div class="nav-item" onclick="irPara('importar-sigc')">
       <span class="icone">📥</span> Importar SIGC
@@ -1000,7 +1006,7 @@
     </div>
 
     <div class="pagina" id="pag-visitas">
-      <div class="titulo-pagina">📋 Histórico de Visitas</div>
+      <div class="titulo-pagina">📋 Solicitações</div>
       <div class="card-tabela">
         <div class="card-tabela-header">
           <h3>Últimas visitas registradas</h3>
@@ -1084,6 +1090,11 @@
           <button class="btn-acao" id="btn-novo-usuario" onclick="abrirModalUsuario()">+ Novo usuário</button>
         </div>
         <div id="tabela-usuarios"><div class="loader">Carregando...</div></div>
+      </div>
+
+      <div class="card-tabela" style="margin-top:1.25rem">
+        <div class="card-tabela-header"><h3>📊 Histórico de Produção por Entrevistador</h3></div>
+        <div id="historico-producao"><div class="loader">Carregando...</div></div>
       </div>
 
       <div class="card-tabela" id="card-manutencao" style="display:none">
@@ -1235,6 +1246,7 @@
             <span id="contador-moradores">Moradores PNAD (0)</span>
             <div style="display:flex;gap:0.5rem;">
               <button class="btn-acao" onclick="abrirModalMorador()" style="font-size:0.85rem;">+ Novo morador</button>
+              <button class="btn-acao secundario" onclick="irPara('importar-sigc')" style="font-size:0.85rem;">📥 Importar SIGC</button>
             </div>
           </div>
           
@@ -2112,16 +2124,10 @@ let _moradoresLoadGen = 0;
 
 function _badgeMoradores(tem) {
   if (tem === true)
-    return `<button onclick="irPara('importar-sigc')" title="Moradores PNAD cadastrados — clique para importar SIGC"
-      style="margin-top:3px;display:inline-flex;align-items:center;gap:3px;font-size:0.67rem;font-weight:700;
-             color:var(--verde);background:var(--verde-claro);padding:2px 8px;border-radius:10px;
-             border:1px solid #a7f3d0;cursor:pointer">👥 Moradores</button>`;
+    return `<span title="Moradores PNAD cadastrados" style="font-size:1.1rem;line-height:1;color:var(--verde)">👥</span>`;
   if (tem === false)
-    return `<button onclick="irPara('importar-sigc')" title="Sem moradores PNAD cadastrados — clique para importar SIGC"
-      style="margin-top:3px;display:inline-flex;align-items:center;gap:3px;font-size:0.67rem;font-weight:700;
-             color:var(--amarelo);background:var(--amarelo-claro);padding:2px 8px;border-radius:10px;
-             border:1px solid #fde68a;cursor:pointer">⚠️ Sem moradores</button>`;
-  return `<span style="font-size:0.67rem;color:var(--cinza)">⏳</span>`;
+    return `<span title="Sem moradores PNAD cadastrados" style="font-size:1.1rem;line-height:1;opacity:0.25">👥</span>`;
+  return `<span style="font-size:0.9rem;color:var(--cinza)">⏳</span>`;
 }
 
 async function _carregarIndicadoresMoradores() {
@@ -2316,7 +2322,7 @@ window.gerarEtiquetas = async () => {
     if (!str) return '';
     return str.trim().toLowerCase().split(/\s+/).map((w,i) => (i===0||!MINUSCULAS.has(w)) ? w.charAt(0).toUpperCase()+w.slice(1) : w).join(' ');
   };
-  const parsearEndereco = (endRaw, compRaw, cidade) => {
+  const parsearEndereco = (endRaw, compRaw) => {
     const end = (endRaw||'').trim();
     const comp = (compRaw||'').trim();
     const m = end.match(/^(.*?)\s+(\d+)\s*$/);
@@ -2325,7 +2331,6 @@ window.gerarEtiquetas = async () => {
     else { logradouro = end; numero = 's/n'; }
     const partes = [titleCase(logradouro), numero];
     if (comp) partes.push(titleCase(comp));
-    if (cidade) partes.push(cidade);
     return partes.join(', ');
   };
   const FEMININOS = new Set(['MARIA','ANA','PAULA','JULIA','JESSICA','PATRICIA','SANDRA','LUCIA','ROSA','RITA','FERNANDA','CLAUDIA','BEATRIZ','CARLA','SARA','ALICE','HELOISA','CAMILA','LARISSA','VANESSA','ADRIANA','REGINA','VERA','MONICA','SONIA','CRISTINA','ROBERTA','JULIANA','FABIANA','LETICIA','RAFAELA','GABRIELA','RENATA','SIMONE','ELIANE','LUCIANA','MARCIA','KARINA','TATIANA','VIVIANE','ANDREA','DEBORA','DENISE','ELAINE','FLAVIA','LIDIANE','MIRIAM','NATALIA','PRISCILA','SOLANGE','SUELI','VIVIAN','TEREZA','TERESA','HELEN','HELENA','ISABEL','ISABELA','NATHALIA','GIOVANA','REBECA','BRUNA','THAIS','LUANA','MILENA','SUELLEN','PAMELA','SAMELLA','RHENA','KARIA','ELIZABETHE','ELIZABETH']);
@@ -2343,7 +2348,7 @@ window.gerarEtiquetas = async () => {
   };
   const montarEtiqueta = (d) => {
     const cidade = cidadePorCodigo(d);
-    const endFormatado = parsearEndereco(d.endereco, d.complemento, cidade);
+    const endFormatado = parsearEndereco(d.endereco_custom || d.endereco, d.complemento);
     const codigo = formatarCodigo(d);
     const nomesPnad = moradoresPorDom[d.id] || [];
     let nomesFmt;
@@ -2359,6 +2364,7 @@ window.gerarEtiquetas = async () => {
     return `<div class="etiqueta">
       <div class="etiq-nomes">${nomesFmt}</div>
       <div class="etiq-end" contenteditable="true">${endFormatado}</div>
+      ${cidade ? `<div class="etiq-end" contenteditable="true">${cidade}</div>` : ''}
       <div class="etiq-cod" contenteditable="true">${codigo}</div>
     </div>`;
   };
@@ -2389,7 +2395,7 @@ window.gerarEtiquetas = async () => {
     row-gap: 0mm;
   }
   .etiqueta {
-    border: 2px solid #333;
+    border: 3px solid #111;
     padding: 4mm 5mm 3mm 5mm;
     display: flex;
     flex-direction: column;
@@ -2704,7 +2710,7 @@ function renderizarDomicilios(lista) {
     '<th>Endereço / Morador</th>' +
     '<th style="width:108px">Status</th>' +
     '<th style="width:108px">Trim. Ant.</th>' +
-    '<th style="width:120px">Ação</th>' +
+    '<th style="width:80px">Ação</th>' +
     '</tr></thead><tbody>';
   for (const d of lista) {
     const setor = d.controle ? d.controle.slice(0,-1) : (d.upa || '-');
@@ -2736,9 +2742,19 @@ function renderizarDomicilios(lista) {
       <td style="text-align:center;padding:0.5rem 0.3rem"><span class="badge badge-cinza" style="font-size:0.68rem;padding:1px 5px">${d.visita_etapa || '-'}ª</span></td>
       <td style="font-size:0.75rem;padding:0.5rem 0.5rem;word-break:break-word">${nomeEntr}</td>
       <td style="padding:0.5rem 0.6rem">
-        <div style="font-size:0.8rem;font-weight:600">${d.endereco || '-'}</div>
-        <div style="font-size:0.7rem;color:var(--cinza)">${d.morador_cnefe || d.morador || ''}${d.telefone ? ' · ' + d.telefone : ''}</div>
-        <div id="ind-morad-${d.id}">${_badgeMoradores(d._tem_moradores)}</div>
+        <div class="campo-editavel-inline" style="font-size:0.8rem;font-weight:600;display:flex;align-items:center;gap:3px">
+          <span id="dom-end-${d.id}">${d.endereco_custom || d.endereco || '-'}</span>
+          <button class="btn-editar-inline" onclick="editarCampoDomicilio('${d.id}','endereco_custom')" title="Editar endereço">✏️</button>
+        </div>
+        <div class="campo-editavel-inline" style="font-size:0.7rem;color:var(--cinza);display:flex;align-items:center;gap:3px">
+          <span id="dom-mor-${d.id}">${d.morador_cnefe || d.morador || ''}</span>
+          <button class="btn-editar-inline" onclick="editarCampoDomicilio('${d.id}','morador_cnefe')" title="Editar morador CNEFE">✏️</button>
+          ${d.telefone ? `<span style="opacity:0.7"> · ${d.telefone}</span>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:0.4rem;margin-top:3px">
+          <button class="btn-acao secundario" style="font-size:0.78rem;padding:0.3rem 0.7rem" onclick="abrirFicha('${d.id}')">📄 Ficha</button>
+          <div id="ind-morad-${d.id}">${_badgeMoradores(d._tem_moradores)}</div>
+        </div>
       </td>
       <td style="padding:0.5rem 0.5rem">
         ${badgeStatus(d.status_atual || 'nao_visitado')}
@@ -2753,10 +2769,7 @@ function renderizarDomicilios(lista) {
           : '<span style="color:var(--cinza)">—</span>'}
       </td>
       <td style="padding:0.5rem 0.5rem">
-        <div style="display:flex;flex-direction:column;gap:0.3rem">
-          <button class="btn-acao secundario" style="font-size:0.78rem;padding:0.25rem 0.6rem" onclick="abrirFicha('${d.id}')">Ficha</button>
-          <button class="btn-acao secundario" style="font-size:0.78rem;padding:0.25rem 0.6rem;background:var(--laranja-claro);color:var(--laranja);border:1px solid var(--laranja)" onclick="abrirSolicitar('${d.id}')">Solicitar</button>
-        </div>
+        <button class="btn-acao secundario" style="font-size:0.78rem;padding:0.25rem 0.6rem;background:var(--laranja-claro);color:var(--laranja);border:1px solid var(--laranja)" onclick="abrirSolicitar('${d.id}')">Solicitar</button>
       </td>
     </tr>`;
   }
@@ -2944,6 +2957,73 @@ window.editarCampoFicha = (campo) => {
 
   btnSalvar.onclick = salvar;
   btnCancelar.onclick = restaurar;
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); salvar(); }
+    if (e.key === 'Escape') { restaurar(); }
+  });
+};
+
+// ── EDIÇÃO INLINE NA TABELA PRINCIPAL ──
+window.editarCampoDomicilio = (domId, campo) => {
+  const spanId = campo === 'endereco_custom' ? `dom-end-${domId}` : `dom-mor-${domId}`;
+  const label  = campo === 'endereco_custom' ? 'Endereço' : 'Morador CNEFE';
+  const span   = document.getElementById(spanId);
+  if (!span || span.dataset.editing === '1') return;
+
+  const valorAtual = span.textContent.trim() === '-' ? '' : span.textContent.trim();
+  span.dataset.editing = '1';
+  span.style.display = 'none';
+
+  const pai = span.parentElement;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = valorAtual;
+  input.placeholder = label;
+  input.style.cssText = 'flex:1;min-width:0;font-size:0.8rem;padding:2px 5px;border:1.5px solid var(--azul);border-radius:4px;font-family:inherit';
+
+  const btnOk = document.createElement('button');
+  btnOk.className = 'btn-acao';
+  btnOk.style.cssText = 'font-size:0.7rem;padding:1px 7px;flex-shrink:0';
+  btnOk.textContent = '✓';
+
+  const btnX = document.createElement('button');
+  btnX.className = 'btn-acao secundario';
+  btnX.style.cssText = 'font-size:0.7rem;padding:1px 6px;flex-shrink:0';
+  btnX.textContent = '✕';
+
+  pai.insertBefore(input, span.nextSibling);
+  pai.insertBefore(btnOk, input.nextSibling);
+  pai.insertBefore(btnX, btnOk.nextSibling);
+  input.focus();
+  input.select();
+
+  const restaurar = () => {
+    input.remove(); btnOk.remove(); btnX.remove();
+    span.style.display = '';
+    delete span.dataset.editing;
+  };
+
+  const salvar = async () => {
+    const novo = input.value.trim();
+    if (novo === valorAtual) { restaurar(); return; }
+    btnOk.disabled = true; btnOk.textContent = '⏳';
+    try {
+      await updateDoc(doc(db, 'domicilios', domId), { [campo]: novo });
+      const domObj = todosdomicilios.find(d => d.id === domId);
+      if (domObj) domObj[campo] = novo;
+      span.textContent = novo || '-';
+      restaurar();
+      mostrarToast(label + ' atualizado!', 'sucesso');
+    } catch(e) {
+      console.error(e);
+      mostrarToast('Erro ao salvar', 'erro');
+      btnOk.disabled = false; btnOk.textContent = '✓';
+    }
+  };
+
+  btnOk.onclick = salvar;
+  btnX.onclick = restaurar;
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter')  { e.preventDefault(); salvar(); }
     if (e.key === 'Escape') { restaurar(); }
@@ -3665,6 +3745,46 @@ async function carregarUsuarios() {
     }
     html += '</tbody></table>';
     document.getElementById('tabela-usuarios').innerHTML = html;
+
+    // ── Histórico de produção derivado de historico_especies (já em memória) ──
+    const prod = {};
+    todosdomicilios.forEach(d => {
+      (d.historico_especies || []).forEach(h => {
+        const nome = (h.entrevistador || '').trim();
+        if (!nome || nome === 'Não identificado' || nome === 'Não informado') return;
+        if (!prod[nome]) prod[nome] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, total: 0 };
+        const eta = parseInt(h.entrevista);
+        if (eta >= 1 && eta <= 5) prod[nome][eta]++;
+        prod[nome].total++;
+      });
+    });
+
+    const nomes = Object.keys(prod).sort((a, b) => prod[b].total - prod[a].total);
+    const divProd = document.getElementById('historico-producao');
+    if (!divProd) return;
+
+    if (nomes.length === 0) {
+      divProd.innerHTML = '<div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📊</div>Nenhum histórico encontrado. Importe o arquivo .xlsx na seção de Manutenção para ver a produção por entrevistador.</div>';
+      return;
+    }
+
+    let hh = '<div style="overflow-x:auto"><table><thead><tr>' +
+      '<th>Entrevistador</th>' +
+      '<th style="text-align:center">1ª etapa</th><th style="text-align:center">2ª etapa</th>' +
+      '<th style="text-align:center">3ª etapa</th><th style="text-align:center">4ª etapa</th>' +
+      '<th style="text-align:center">5ª etapa</th><th style="text-align:center">Total</th>' +
+      '</tr></thead><tbody>';
+    nomes.forEach(nome => {
+      const p = prod[nome];
+      hh += `<tr>
+        <td><strong>${nome}</strong></td>
+        ${[1,2,3,4,5].map(i => `<td style="text-align:center;color:${p[i] ? 'inherit' : 'var(--cinza)'}">${p[i] || '—'}</td>`).join('')}
+        <td style="text-align:center"><span class="badge badge-azul">${p.total}</span></td>
+      </tr>`;
+    });
+    hh += '</tbody></table></div>';
+    divProd.innerHTML = hh;
+
   } catch(e) {
     console.error(e);
     erroCarregamento('tabela-usuarios');
