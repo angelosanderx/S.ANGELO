@@ -936,6 +936,17 @@
         </div>
         <div id="tabela-produtividade"><div class="loader">Carregando...</div></div>
       </div>
+
+      <div class="card-tabela" style="margin-top:1.25rem">
+        <div class="card-tabela-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+          <h3>⚠️ Domicílios Pendentes</h3>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn-acao secundario" onclick="gerarEtiquetas()" style="font-size:0.82rem">🏷️ Etiquetas</button>
+            <button class="btn-acao secundario" onclick="gerarCartoes()" style="font-size:0.82rem">🗂️ Cartões</button>
+          </div>
+        </div>
+        <div id="painel-pendentes-tabela"><div class="loader">Carregando...</div></div>
+      </div>
     </div>
 
     <div class="pagina" id="pag-domicilios">
@@ -2118,6 +2129,8 @@ async function carregarDashboard() {
     }
     html += '</tbody></table></div>';
     document.getElementById('tabela-produtividade').innerHTML = html;
+
+    renderizarPainelPendentes(docs, semanaAtual);
   } catch(e) {
     console.error(e);
     erroCarregamento(['tabela-semanas', 'tabela-situacao', 'tabela-produtividade']);
@@ -2706,44 +2719,24 @@ ${paginas}
   win.document.close();
 };
 
-function renderizarDomicilios(lista) {
-  const contador = document.getElementById('dom-contador');
-  if (contador) contador.textContent = lista.length + ' domicilio(s)';
-  if (lista.length === 0) {
-    document.getElementById('tabela-domicilios').innerHTML =
-      '<div class="vazio"><div class="icone-vazio">🏠</div>Nenhum domicilio encontrado.</div>';
-    return;
-  }
-  let html = '<div style="overflow-x:auto"><table style="min-width:780px;table-layout:fixed;width:100%"><thead><tr>' +
-    '<th style="width:36px;padding:0.6rem 0.4rem"><input type="checkbox" id="chk-todos" onchange="toggleTodos(this)" title="Selecionar todos"></th>' +
-    '<th style="width:110px">UPA / Setor / Dom.</th>' +
-    '<th style="width:40px;text-align:center;padding:0.6rem 0.3rem">Sem.</th>' +
-    '<th style="width:46px;text-align:center;padding:0.6rem 0.3rem">Eta.</th>' +
-    '<th style="width:80px">Entrev.</th>' +
-    '<th>Endereço / Morador</th>' +
-    '<th style="width:108px">Status</th>' +
-    '<th style="width:108px">Trim. Ant.</th>' +
-    '<th style="width:80px">Ação</th>' +
-    '</tr></thead><tbody>';
-  for (const d of lista) {
-    const setor = d.controle ? d.controle.slice(0,-1) : (d.upa || '-');
-    const primeiroNome = (d.entrevistador_nome || '').split(' ')[0];
-    const nomeEntr = primeiroNome || (d.entrevistador_id ? '...' : '<span style="color:var(--cinza);font-style:italic">—</span>');
-    const _esp = (d.historico_especies || []).slice().sort((a,b) => parseInt(a.entrevista)-parseInt(b.entrevista));
-    const _eta = parseInt(d.visita_etapa || 0);
-    // Busca a etapa imediatamente anterior à atual (sem fallback para evitar mostrar a própria etapa atual)
-    const _ant = _eta > 1 ? (_esp.find(h => parseInt(h.entrevista) === _eta - 1) || null) : null;
-    // Calcula o rótulo de data: usa mes_ano se existir, senão deriva o trimestre a partir do trimestre atual
-    const _calcTrimEtapa = (trim, etaAtual, etaHist) => {
-      const m = (trim || '').match(/(\d{4})T(\d)/);
-      if (!m) return '';
-      let ano = parseInt(m[1]), q = parseInt(m[2]) - (etaAtual - parseInt(etaHist));
-      while (q <= 0) { q += 4; ano--; }
-      while (q > 4) { q -= 4; ano++; }
-      return `${ano}T${q}`;
-    };
-    const _dataAnt = _ant ? (_ant.mes_ano || _calcTrimEtapa(d.trimestre, _eta, _ant.entrevista)) : '';
-    html += `<tr id="row-${d.id}">
+// Helper compartilhado: monta uma <tr> de domicílio. ns = namespace de IDs ('' para tabela principal, 'pd-' para painel dashboard)
+function _montarLinhaDOM(d, ns = '') {
+  const setor = d.controle ? d.controle.slice(0,-1) : (d.upa || '-');
+  const primeiroNome = (d.entrevistador_nome || '').split(' ')[0];
+  const nomeEntr = primeiroNome || (d.entrevistador_id ? '...' : '<span style="color:var(--cinza);font-style:italic">—</span>');
+  const _esp = (d.historico_especies || []).slice().sort((a,b) => parseInt(a.entrevista)-parseInt(b.entrevista));
+  const _eta = parseInt(d.visita_etapa || 0);
+  const _ant = _eta > 1 ? (_esp.find(h => parseInt(h.entrevista) === _eta - 1) || null) : null;
+  const _calcTrimEtapa = (trim, etaAtual, etaHist) => {
+    const m = (trim || '').match(/(\d{4})T(\d)/);
+    if (!m) return '';
+    let ano = parseInt(m[1]), q = parseInt(m[2]) - (etaAtual - parseInt(etaHist));
+    while (q <= 0) { q += 4; ano--; }
+    while (q > 4) { q -= 4; ano++; }
+    return `${ano}T${q}`;
+  };
+  const _dataAnt = _ant ? (_ant.mes_ano || _calcTrimEtapa(d.trimestre, _eta, _ant.entrevista)) : '';
+  return `<tr id="${ns}row-${d.id}">
       <td style="padding:0.5rem 0.4rem"><input type="checkbox" class="chk-dom" value="${d.id}" onchange="atualizarSelecao()"></td>
       <td style="padding:0.5rem 0.6rem">
         <div style="font-size:0.65rem;color:var(--cinza)">UPA ${d.upa || '-'}</div>
@@ -2756,17 +2749,17 @@ function renderizarDomicilios(lista) {
       <td style="font-size:0.75rem;padding:0.5rem 0.5rem;word-break:break-word">${nomeEntr}</td>
       <td style="padding:0.5rem 0.6rem">
         <div class="campo-editavel-inline" style="font-size:0.8rem;font-weight:600;display:flex;align-items:center;gap:3px">
-          <span id="dom-end-${d.id}">${d.endereco_custom || d.endereco || '-'}</span>
-          <button class="btn-editar-inline" onclick="editarCampoDomicilio('${d.id}','endereco_custom')" title="Editar endereço">✏️</button>
+          <span id="${ns}dom-end-${d.id}">${d.endereco_custom || d.endereco || '-'}</span>
+          <button class="btn-editar-inline" onclick="editarCampoDomicilio('${d.id}','endereco_custom','${ns}')" title="Editar endereço">✏️</button>
         </div>
         <div class="campo-editavel-inline" style="font-size:0.7rem;color:var(--cinza);display:flex;align-items:center;gap:3px">
-          <span id="dom-mor-${d.id}">${d.morador_cnefe || d.morador || ''}</span>
-          <button class="btn-editar-inline" onclick="editarCampoDomicilio('${d.id}','morador_cnefe')" title="Editar morador CNEFE">✏️</button>
+          <span id="${ns}dom-mor-${d.id}">${d.morador_cnefe || d.morador || ''}</span>
+          <button class="btn-editar-inline" onclick="editarCampoDomicilio('${d.id}','morador_cnefe','${ns}')" title="Editar morador CNEFE">✏️</button>
           ${d.telefone ? `<span style="opacity:0.7"> · ${d.telefone}</span>` : ''}
         </div>
         <div style="display:flex;align-items:center;gap:0.4rem;margin-top:3px">
           <button class="btn-acao secundario" style="font-size:0.78rem;padding:0.3rem 0.7rem" onclick="abrirFicha('${d.id}')">📄 Ficha</button>
-          <div id="ind-morad-${d.id}">${_badgeMoradores(d._tem_moradores)}</div>
+          <div id="${ns}ind-morad-${d.id}">${_badgeMoradores(d._tem_moradores)}</div>
         </div>
       </td>
       <td style="padding:0.5rem 0.5rem">
@@ -2785,10 +2778,51 @@ function renderizarDomicilios(lista) {
         <button class="btn-acao secundario" style="font-size:0.78rem;padding:0.25rem 0.6rem;background:var(--laranja-claro);color:var(--laranja);border:1px solid var(--laranja)" onclick="abrirSolicitar('${d.id}')">Solicitar</button>
       </td>
     </tr>`;
+}
+
+function _cabecalhoTabela(checkboxId, oncheckAll) {
+  return '<div style="overflow-x:auto"><table style="min-width:780px;table-layout:fixed;width:100%"><thead><tr>' +
+    `<th style="width:36px;padding:0.6rem 0.4rem"><input type="checkbox" id="${checkboxId}" onchange="${oncheckAll}" title="Selecionar todos"></th>` +
+    '<th style="width:110px">UPA / Setor / Dom.</th>' +
+    '<th style="width:40px;text-align:center;padding:0.6rem 0.3rem">Sem.</th>' +
+    '<th style="width:46px;text-align:center;padding:0.6rem 0.3rem">Eta.</th>' +
+    '<th style="width:80px">Entrev.</th>' +
+    '<th>Endereço / Morador</th>' +
+    '<th style="width:108px">Status</th>' +
+    '<th style="width:108px">Trim. Ant.</th>' +
+    '<th style="width:80px">Ação</th>' +
+    '</tr></thead><tbody>';
+}
+
+function renderizarDomicilios(lista) {
+  const contador = document.getElementById('dom-contador');
+  if (contador) contador.textContent = lista.length + ' domicilio(s)';
+  if (lista.length === 0) {
+    document.getElementById('tabela-domicilios').innerHTML =
+      '<div class="vazio"><div class="icone-vazio">🏠</div>Nenhum domicilio encontrado.</div>';
+    return;
   }
-  html += '</tbody></table></div>';
-  document.getElementById('tabela-domicilios').innerHTML = html;
+  document.getElementById('tabela-domicilios').innerHTML =
+    _cabecalhoTabela('chk-todos', 'toggleTodos(this)') +
+    lista.map(d => _montarLinhaDOM(d, '')).join('') +
+    '</tbody></table></div>';
   preencherSelectAtribuicao();
+}
+
+function renderizarPainelPendentes(docs, semanaAtual) {
+  const el = document.getElementById('painel-pendentes-tabela');
+  if (!el) return;
+  const pendentes = docs
+    .filter(d => parseInt(d.semana) <= semanaAtual && STATUS_PENDENTES.includes(d.status_atual || 'nao_visitado'))
+    .sort((a, b) => (parseInt(a.semana||0) - parseInt(b.semana||0)) || (parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0)));
+  if (pendentes.length === 0) {
+    el.innerHTML = '<div class="vazio"><div class="icone-vazio">✅</div>Nenhum domicílio pendente para as semanas até agora.</div>';
+    return;
+  }
+  el.innerHTML =
+    _cabecalhoTabela('chk-todos-painel', "document.querySelectorAll('#painel-pendentes-tabela .chk-dom').forEach(c=>c.checked=this.checked);atualizarSelecao()") +
+    pendentes.map(d => _montarLinhaDOM(d, 'pd-')).join('') +
+    '</tbody></table></div>';
 }
 
 // ── FICHA DO DOMICÍLIO (Sem Abas) ──
@@ -3076,9 +3110,10 @@ window.editarCampoFicha = (campo) => {
   });
 };
 
-// ── EDIÇÃO INLINE NA TABELA PRINCIPAL ──
-window.editarCampoDomicilio = (domId, campo) => {
-  const spanId = campo === 'endereco_custom' ? `dom-end-${domId}` : `dom-mor-${domId}`;
+// ── EDIÇÃO INLINE NA TABELA PRINCIPAL E PAINEL PENDENTES ──
+window.editarCampoDomicilio = (domId, campo, ns = '') => {
+  const baseId = campo === 'endereco_custom' ? `dom-end-${domId}` : `dom-mor-${domId}`;
+  const spanId = `${ns}${baseId}`;
   const label  = campo === 'endereco_custom' ? 'Endereço' : 'Morador CNEFE';
   const span   = document.getElementById(spanId);
   if (!span || span.dataset.editing === '1') return;
@@ -3126,6 +3161,12 @@ window.editarCampoDomicilio = (domId, campo) => {
       const domObj = todosdomicilios.find(d => d.id === domId);
       if (domObj) domObj[campo] = novo;
       span.textContent = novo || '-';
+      // Sincroniza o mesmo campo no outro namespace (tabela principal ↔ painel pendentes)
+      for (const nsAlt of ['', 'pd-']) {
+        if (nsAlt === ns) continue;
+        const outro = document.getElementById(`${nsAlt}${baseId}`);
+        if (outro && outro.dataset.editing !== '1') outro.textContent = novo || '-';
+      }
       restaurar();
       mostrarToast(label + ' atualizado!', 'sucesso');
     } catch(e) {
