@@ -2893,7 +2893,7 @@ async function carregarSetores() {
 
     // Aplica filtro de semana se selecionado
     if (filtrSemana) {
-      domicilios = domicilios.filter(d => String(d.semana) === filtrSemana);
+      domicilios = domicilios.filter(d => String(d.semana) === String(filtrSemana) || d.semana === parseInt(filtrSemana));
     }
 
     if (domicilios.length === 0) {
