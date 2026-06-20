@@ -1048,10 +1048,13 @@
               <div style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.35rem">Buscar</div>
               <input type="text" id="pend-busca" placeholder="Endereço, morador..." oninput="filtrarPendencias()" style="width:100%;padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte)">
             </div>
-            <!-- Agrupar + Limpar -->
-            <div style="display:flex;align-items:flex-end;gap:0.5rem;padding-bottom:1px">
+            <!-- Agrupar + toggles + Limpar -->
+            <div style="display:flex;align-items:flex-end;gap:0.5rem;padding-bottom:1px;flex-wrap:wrap">
               <label style="display:flex;align-items:center;gap:0.35rem;font-size:0.83rem;cursor:pointer;white-space:nowrap">
                 <input type="checkbox" id="pend-agrupar" onchange="filtrarPendencias()"> Agrupar por entrevistador
+              </label>
+              <label style="display:flex;align-items:center;gap:0.35rem;font-size:0.83rem;cursor:pointer;white-space:nowrap">
+                <input type="checkbox" id="pend-filtro-sem-tel" onchange="filtrarPendencias()"> <span style="color:var(--vermelho);font-weight:600">⚠️ Sem tentativa por telefone</span>
               </label>
               <button class="btn-acao secundario" onclick="limparFiltrosPendencias()" style="font-size:0.82rem;white-space:nowrap">Limpar filtros</button>
             </div>
@@ -3067,6 +3070,7 @@ window.limparFiltrosPendencias = () => {
   ['pend-busca','pend-filtro-setor','pend-filtro-data-de','pend-filtro-data-ate'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const ord = document.getElementById('pend-ordenar'); if (ord) ord.value = 'semana';
   const agr = document.getElementById('pend-agrupar'); if (agr) agr.checked = false;
+  const semTel = document.getElementById('pend-filtro-sem-tel'); if (semTel) semTel.checked = false;
   document.querySelectorAll('#pend-entr-dropdown input').forEach(c => c.checked = false);
   const lbl = document.getElementById('pend-entr-label'); if (lbl) lbl.textContent = 'Todos os entrevistadores';
   filtrarPendencias();
@@ -3078,6 +3082,7 @@ window.filtrarPendencias = () => {
   const setor      = document.getElementById('pend-filtro-setor')?.value || '';
   const dataFiltroDE  = document.getElementById('pend-filtro-data-de')?.value || '';
   const dataFiltroATE = document.getElementById('pend-filtro-data-ate')?.value || '';
+  const soSemTel      = document.getElementById('pend-filtro-sem-tel')?.checked || false;
   const ordenar    = document.getElementById('pend-ordenar')?.value || 'semana';
   const agrupar    = document.getElementById('pend-agrupar')?.checked || false;
 
@@ -3113,6 +3118,11 @@ window.filtrarPendencias = () => {
       });
       if (!temNoPeriodo) return false;
     }
+    // Sem tentativa por telefone
+    if (soSemTel) {
+      const temTel = (d.tentativas_recentes || []).some(t => /telefone/i.test(t.origem || ''));
+      if (temTel) return false;
+    }
     // Busca texto
     if (busca) { const h = ((d.endereco_custom||d.endereco||'') + ' ' + (d.morador_cnefe||d.morador||'')).toLowerCase(); if (!h.includes(busca)) return false; }
     return true;
@@ -3133,7 +3143,7 @@ window.filtrarPendencias = () => {
     ? `<strong>${lista.length}</strong> pendência${lista.length!==1?'s':''} · <strong>${nE}</strong> entrevistador${nE!==1?'es':''} · <strong>${nS}</strong> setor${nS!==1?'es':''}`
     : '';
   _atualizarContadorPendencias(lista.length);
-  const _temFPend = !!(_pendFiltros.semanas.size || _pendFiltros.etapas.size || _pendFiltros.status.size || _pendFiltros.entrevistadores.size || busca || setor || dataFiltroDE || dataFiltroATE);
+  const _temFPend = !!(_pendFiltros.semanas.size || _pendFiltros.etapas.size || _pendFiltros.status.size || _pendFiltros.entrevistadores.size || busca || setor || dataFiltroDE || dataFiltroATE || soSemTel);
   _indicarFiltroAtivo('card-pend-tabela', _temFPend);
   const _pSetorEl  = document.getElementById('pend-filtro-setor');    if (_pSetorEl)  _pSetorEl.classList.toggle('filtro-ativo-ctrl', !!setor);
   const _pBuscaEl  = document.getElementById('pend-busca');           if (_pBuscaEl)  _pBuscaEl.classList.toggle('filtro-ativo-ctrl', !!busca);
