@@ -705,6 +705,21 @@
     transition: width 0.4s;
   }
 
+  .filtro-chip {
+    padding: 0.27rem 0.65rem;
+    border: 1.5px solid var(--borda);
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-family: var(--fonte);
+    background: var(--cinza-claro);
+    color: var(--cinza-escuro);
+    cursor: pointer;
+    transition: 0.15s;
+    white-space: nowrap;
+  }
+  .filtro-chip:hover { border-color: var(--azul-medio); color: var(--azul); }
+  .filtro-chip.ativo { background: var(--azul-claro); border-color: var(--azul-medio); color: var(--azul); font-weight: 700; }
+
   .solicitar-btn {
     width: 100%;
     padding: 0.7rem 1rem;
@@ -960,6 +975,91 @@
           <button class="btn-acao secundario" onclick="gerarCartoes()" style="font-size:0.85rem">🗂️ Cartões</button>
         </div>
       </div>
+
+      <!-- Filtros -->
+      <div class="card-tabela" style="margin-bottom:0.75rem">
+        <div style="padding:0.85rem 1.25rem">
+
+          <!-- Linha 1: chips de semana, etapa, status -->
+          <div style="display:flex;flex-wrap:wrap;gap:1rem;margin-bottom:0.75rem">
+            <div>
+              <div style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.35rem">Semana</div>
+              <div style="display:flex;gap:0.3rem">
+                <button class="filtro-chip" data-grupo="semana" data-val="1" onclick="toggleChipPend(this)">Sem. 1</button>
+                <button class="filtro-chip" data-grupo="semana" data-val="2" onclick="toggleChipPend(this)">Sem. 2</button>
+                <button class="filtro-chip" data-grupo="semana" data-val="3" onclick="toggleChipPend(this)">Sem. 3</button>
+                <button class="filtro-chip" data-grupo="semana" data-val="4" onclick="toggleChipPend(this)">Sem. 4</button>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.35rem">Etapa</div>
+              <div style="display:flex;gap:0.3rem">
+                <button class="filtro-chip" data-grupo="etapa" data-val="1" onclick="toggleChipPend(this)">1ª</button>
+                <button class="filtro-chip" data-grupo="etapa" data-val="2" onclick="toggleChipPend(this)">2ª</button>
+                <button class="filtro-chip" data-grupo="etapa" data-val="3" onclick="toggleChipPend(this)">3ª</button>
+                <button class="filtro-chip" data-grupo="etapa" data-val="4" onclick="toggleChipPend(this)">4ª</button>
+                <button class="filtro-chip" data-grupo="etapa" data-val="5" onclick="toggleChipPend(this)">5ª</button>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.35rem">Status</div>
+              <div style="display:flex;gap:0.3rem;flex-wrap:wrap">
+                <button class="filtro-chip" data-grupo="status" data-val="nao_visitado" onclick="toggleChipPend(this)">Não visitado</button>
+                <button class="filtro-chip" data-grupo="status" data-val="ausente" onclick="toggleChipPend(this)">Ausente</button>
+                <button class="filtro-chip" data-grupo="status" data-val="agendado" onclick="toggleChipPend(this)">Agendado</button>
+                <button class="filtro-chip" data-grupo="status" data-val="recusa" onclick="toggleChipPend(this)">Recusa</button>
+                <button class="filtro-chip" data-grupo="status" data-val="carta_solicitada" onclick="toggleChipPend(this)">Carta solicitada</button>
+                <button class="filtro-chip" data-grupo="status" data-val="supervisao" onclick="toggleChipPend(this)">Supervisão</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Linha 2: dropdowns + busca + opções -->
+          <div style="display:flex;flex-wrap:wrap;gap:0.6rem;align-items:flex-end">
+            <!-- Entrevistador multi-select -->
+            <div style="position:relative" id="pend-entr-wrap">
+              <div style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.35rem">Entrevistador</div>
+              <button id="pend-entr-btn" onclick="toggleDropdownPendEntr(event)" style="padding:0.38rem 0.75rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);cursor:pointer;display:flex;align-items:center;gap:0.5rem;min-width:210px;justify-content:space-between">
+                <span id="pend-entr-label">Todos os entrevistadores</span><span style="font-size:0.7rem;opacity:0.6">▾</span>
+              </button>
+              <div id="pend-entr-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:300;background:#fff;border:1.5px solid var(--borda);border-radius:8px;min-width:240px;max-height:240px;overflow-y:auto;box-shadow:0 4px 20px rgba(0,0,0,0.13);padding:0.25rem 0"></div>
+            </div>
+            <!-- Setor -->
+            <div>
+              <div style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.35rem">Setor / UPA</div>
+              <select id="pend-filtro-setor" onchange="filtrarPendencias()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:170px">
+                <option value="">Todos</option>
+              </select>
+            </div>
+            <!-- Ordenar -->
+            <div>
+              <div style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.35rem">Ordenar por</div>
+              <select id="pend-ordenar" onchange="filtrarPendencias()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
+                <option value="semana">Semana → Dom.</option>
+                <option value="entrevistador">Entrevistador</option>
+                <option value="status">Status</option>
+                <option value="setor">Setor</option>
+              </select>
+            </div>
+            <!-- Busca -->
+            <div style="flex:1;min-width:180px">
+              <div style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.35rem">Buscar</div>
+              <input type="text" id="pend-busca" placeholder="Endereço, morador..." oninput="filtrarPendencias()" style="width:100%;padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte)">
+            </div>
+            <!-- Agrupar + Limpar -->
+            <div style="display:flex;align-items:flex-end;gap:0.5rem;padding-bottom:1px">
+              <label style="display:flex;align-items:center;gap:0.35rem;font-size:0.83rem;cursor:pointer;white-space:nowrap">
+                <input type="checkbox" id="pend-agrupar" onchange="filtrarPendencias()"> Agrupar por entrevistador
+              </label>
+              <button class="btn-acao secundario" onclick="limparFiltrosPendencias()" style="font-size:0.82rem;white-space:nowrap">Limpar filtros</button>
+            </div>
+          </div>
+
+          <!-- Resumo dinâmico -->
+          <div id="pend-resumo" style="margin-top:0.6rem;font-size:0.8rem;color:var(--cinza);min-height:1.2em"></div>
+        </div>
+      </div>
+
       <div class="card-tabela">
         <div id="pag-pendencias-tabela"><div class="loader">Carregando...</div></div>
       </div>
@@ -2854,20 +2954,141 @@ function renderizarPainelPendentes(docs, semanaAtual) {
     '</tbody></table></div>';
 }
 
-function renderizarPaginaPendencias() {
+// ── PENDÊNCIAS — estado de filtros ──
+const _pendFiltros = {
+  semanas:        new Set(),
+  etapas:         new Set(),
+  status:         new Set(),
+  entrevistadores: new Set(),
+};
+
+window.toggleChipPend = (el) => {
+  el.classList.toggle('ativo');
+  const { grupo, val } = el.dataset;
+  const set = grupo === 'semana' ? _pendFiltros.semanas : grupo === 'etapa' ? _pendFiltros.etapas : _pendFiltros.status;
+  set[el.classList.contains('ativo') ? 'add' : 'delete'](val);
+  filtrarPendencias();
+};
+
+window.toggleDropdownPendEntr = (e) => {
+  e.stopPropagation();
+  const dd = document.getElementById('pend-entr-dropdown');
+  if (dd) dd.style.display = dd.style.display === 'none' ? '' : 'none';
+};
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#pend-entr-wrap')) {
+    const dd = document.getElementById('pend-entr-dropdown');
+    if (dd) dd.style.display = 'none';
+  }
+});
+
+window.atualizarFiltroEntrPend = () => {
+  const sel = [...document.querySelectorAll('#pend-entr-dropdown input:checked')].map(c => c.value);
+  _pendFiltros.entrevistadores = new Set(sel);
+  const lbl = document.getElementById('pend-entr-label');
+  if (lbl) lbl.textContent = sel.length === 0 ? 'Todos os entrevistadores' : `${sel.length} selecionado${sel.length > 1 ? 's' : ''}`;
+  filtrarPendencias();
+};
+
+window.limparFiltrosPendencias = () => {
+  _pendFiltros.semanas.clear(); _pendFiltros.etapas.clear();
+  _pendFiltros.status.clear();  _pendFiltros.entrevistadores.clear();
+  document.querySelectorAll('#pag-pendencias .filtro-chip.ativo').forEach(c => c.classList.remove('ativo'));
+  ['pend-busca','pend-filtro-setor'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const ord = document.getElementById('pend-ordenar'); if (ord) ord.value = 'semana';
+  const agr = document.getElementById('pend-agrupar'); if (agr) agr.checked = false;
+  document.querySelectorAll('#pend-entr-dropdown input').forEach(c => c.checked = false);
+  const lbl = document.getElementById('pend-entr-label'); if (lbl) lbl.textContent = 'Todos os entrevistadores';
+  filtrarPendencias();
+};
+
+window.filtrarPendencias = () => {
   const semanaAtual = parseInt(localStorage.getItem('pnad_semana_atual') || '2');
-  const pendentes = _filtrarPendentes(todosdomicilios, semanaAtual);
-  _atualizarContadorPendencias(pendentes.length);
+  const busca   = (document.getElementById('pend-busca')?.value || '').toLowerCase().trim();
+  const setor   = document.getElementById('pend-filtro-setor')?.value || '';
+  const ordenar = document.getElementById('pend-ordenar')?.value || 'semana';
+  const agrupar = document.getElementById('pend-agrupar')?.checked || false;
+
+  let lista = todosdomicilios.filter(d => {
+    const s = d.status_atual || 'nao_visitado';
+    // Status: se nenhum chip ativo, aplica STATUS_PENDENTES padrão; senão respeita seleção
+    if (_pendFiltros.status.size > 0 ? !_pendFiltros.status.has(s) : !STATUS_PENDENTES.includes(s)) return false;
+    // Semana: se chips ativos, filtra; senão usa semanaAtual como teto
+    const sem = String(d.semana || '');
+    if (_pendFiltros.semanas.size > 0 ? !_pendFiltros.semanas.has(sem) : parseInt(d.semana) > semanaAtual) return false;
+    // Etapa
+    if (_pendFiltros.etapas.size > 0 && !_pendFiltros.etapas.has(String(d.visita_etapa || ''))) return false;
+    // Entrevistador
+    if (_pendFiltros.entrevistadores.size > 0 && !_pendFiltros.entrevistadores.has(d.entrevistador_nome || '')) return false;
+    // Setor
+    if (setor) { const sd = d.controle ? d.controle.slice(0,-1) : (d.upa || ''); if (sd !== setor && d.upa !== setor) return false; }
+    // Busca texto
+    if (busca) { const h = ((d.endereco_custom||d.endereco||'') + ' ' + (d.morador_cnefe||d.morador||'')).toLowerCase(); if (!h.includes(busca)) return false; }
+    return true;
+  });
+
+  // Ordenação
+  const cmp = { semana: (a,b)=>(parseInt(a.semana||0)-parseInt(b.semana||0))||(parseInt(a.domicilio_num||0)-parseInt(b.domicilio_num||0)),
+    entrevistador: (a,b)=>(a.entrevistador_nome||'').localeCompare(b.entrevistador_nome||''),
+    status: (a,b)=>(a.status_atual||'').localeCompare(b.status_atual||''),
+    setor: (a,b)=>((a.controle?a.controle.slice(0,-1):a.upa)||'').localeCompare((b.controle?b.controle.slice(0,-1):b.upa)||'') };
+  lista = lista.sort(cmp[ordenar] || cmp.semana);
+
+  // Resumo
+  const nE = new Set(lista.map(d=>d.entrevistador_nome).filter(Boolean)).size;
+  const nS = new Set(lista.map(d=>d.controle?d.controle.slice(0,-1):d.upa).filter(Boolean)).size;
+  const resumo = document.getElementById('pend-resumo');
+  if (resumo) resumo.innerHTML = lista.length
+    ? `<strong>${lista.length}</strong> pendência${lista.length!==1?'s':''} · <strong>${nE}</strong> entrevistador${nE!==1?'es':''} · <strong>${nS}</strong> setor${nS!==1?'es':''}`
+    : '';
+  _atualizarContadorPendencias(lista.length);
+
   const el = document.getElementById('pag-pendencias-tabela');
   if (!el) return;
-  if (pendentes.length === 0) {
-    el.innerHTML = '<div class="vazio"><div class="icone-vazio">✅</div>Todos os domicílios das semanas passadas estão concluídos!</div>';
+  if (lista.length === 0) {
+    el.innerHTML = '<div class="vazio"><div class="icone-vazio">✅</div>Nenhuma pendência encontrada com esses filtros.</div>';
     return;
   }
-  el.innerHTML =
-    _cabecalhoTabela('chk-todos-pag-pend', "document.querySelectorAll('#pag-pendencias-tabela .chk-dom').forEach(c=>c.checked=this.checked);atualizarSelecao()") +
-    pendentes.map(d => _montarLinhaDOM(d, 'pp-')).join('') +
-    '</tbody></table></div>';
+
+  if (agrupar) {
+    const grupos = {};
+    lista.forEach(d => { const k = d.entrevistador_nome || '(Sem entrevistador)'; (grupos[k]=grupos[k]||[]).push(d); });
+    let html = '<div style="overflow-x:auto">';
+    for (const [nome, doms] of Object.entries(grupos).sort(([a],[b])=>a.localeCompare(b))) {
+      html += `<div style="background:var(--azul-claro);padding:0.45rem 1rem;font-weight:700;font-size:0.85rem;color:var(--azul);border-bottom:2px solid var(--azul-medio)">👤 ${nome} — ${doms.length} pendência${doms.length!==1?'s':''}</div>`;
+      html += '<table style="min-width:780px;table-layout:fixed;width:100%"><thead><tr>' +
+        '<th style="width:36px"></th><th style="width:110px">UPA/Setor/Dom.</th><th style="width:40px;text-align:center">Sem.</th><th style="width:46px;text-align:center">Eta.</th><th style="width:80px">Entrev.</th><th>Endereço/Morador</th><th style="width:108px">Status</th><th style="width:108px">Trim.Ant.</th><th style="width:80px">Ação</th>' +
+        '</tr></thead><tbody>' + doms.map(d=>_montarLinhaDOM(d,'pp-')).join('') + '</tbody></table>';
+    }
+    html += '</div>';
+    el.innerHTML = html;
+  } else {
+    el.innerHTML =
+      _cabecalhoTabela('chk-todos-pag-pend', "document.querySelectorAll('#pag-pendencias-tabela .chk-dom').forEach(c=>c.checked=this.checked);atualizarSelecao()") +
+      lista.map(d => _montarLinhaDOM(d, 'pp-')).join('') +
+      '</tbody></table></div>';
+  }
+};
+
+function renderizarPaginaPendencias() {
+  // Popula dropdown de setor (apenas na primeira vez)
+  const setorSel = document.getElementById('pend-filtro-setor');
+  if (setorSel && setorSel.options.length <= 1) {
+    const setores = [...new Set(todosdomicilios.map(d => d.controle ? d.controle.slice(0,-1) : d.upa).filter(Boolean))].sort();
+    setores.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = `Setor ${s}`; setorSel.appendChild(o); });
+  }
+  // Popula lista de entrevistadores (apenas na primeira vez)
+  const ddEntr = document.getElementById('pend-entr-dropdown');
+  if (ddEntr && ddEntr.children.length === 0) {
+    const entrs = [...new Set(todosdomicilios.map(d => d.entrevistador_nome).filter(Boolean))].sort();
+    ddEntr.innerHTML = entrs.map(nome =>
+      `<label style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.8rem;cursor:pointer;font-size:0.83rem" onmouseenter="this.style.background='var(--cinza-claro)'" onmouseleave="this.style.background=''">
+        <input type="checkbox" value="${nome}" onchange="atualizarFiltroEntrPend()"> ${nome}
+      </label>`
+    ).join('');
+  }
+  filtrarPendencias();
 }
 
 // ── FICHA DO DOMICÍLIO (Sem Abas) ──
