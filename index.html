@@ -776,6 +776,7 @@
         <option value="jan_abr_jul_out">Jan / Abr / Jul / Out</option>
         <option value="fev_mai_ago_nov">Fev / Mai / Ago / Nov</option>
         <option value="mar_jun_set_dez">Mar / Jun / Set / Dez</option>
+        <option value="todos">🔎 Todos os períodos</option>
       </select>
       <span class="perfil-chip" id="chip-perfil"></span>
       <div class="avatar" id="avatar-inicial"></div>
@@ -836,6 +837,10 @@
             <option value="4">Semana 4</option>
           </select>
         </div>
+      </div>
+
+      <div id="aviso-todos-periodos" style="display:none;background:var(--azul-claro);border:1px solid var(--azul-medio);border-radius:8px;padding:0.6rem 1rem;margin-bottom:1rem;font-size:0.83rem;color:var(--azul)">
+        🔎 Exibindo números somados de <strong>todos os períodos</strong> juntos. Para ver os números de um trimestre específico, troque o período no topo da tela.
       </div>
 
       <div class="grid-cards" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin-bottom:1.25rem">
@@ -1510,11 +1515,13 @@ const PERIODO_PADRAO = 'mar_jun_set_dez';
 const PERIODOS = {
   jan_abr_jul_out: 'Jan / Abr / Jul / Out',
   fev_mai_ago_nov: 'Fev / Mai / Ago / Nov',
-  mar_jun_set_dez: 'Mar / Jun / Set / Dez'
+  mar_jun_set_dez: 'Mar / Jun / Set / Dez',
+  todos: 'Todos os períodos'
 };
 let periodoAtual = localStorage.getItem('pnad_periodo_atual') || PERIODO_PADRAO;
 
 function pertencePeriodo(d) {
+  if (periodoAtual === 'todos') return true;
   return (d.periodo || PERIODO_PADRAO) === periodoAtual;
 }
 
@@ -1655,6 +1662,9 @@ async function carregarDashboard() {
   try {
     const snap = await getDocs(collection(db, 'domicilios'));
     const docs = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.endereco && pertencePeriodo(d));
+
+    const avisoTodos = document.getElementById('aviso-todos-periodos');
+    if (avisoTodos) avisoTodos.style.display = periodoAtual === 'todos' ? '' : 'none';
 
     // Semana atual — lê do localStorage ou do select
     const semanaAtual = parseInt(localStorage.getItem('pnad_semana_atual') || '2');
@@ -1874,6 +1884,7 @@ function renderizarDomicilios(lista) {
         <div style="font-size:0.7rem;color:var(--cinza)">UPA ${d.upa || '-'}</div>
         <div style="font-size:0.7rem;color:var(--cinza)">Setor ${setor}</div>
         <div style="font-weight:800;font-size:1rem;color:var(--azul)">Dom. ${d.domicilio_num || d.numero_sequencial || '-'}</div>
+        ${periodoAtual === 'todos' ? `<div style="font-size:0.65rem;font-weight:700;color:var(--azul-medio);margin-top:2px">${PERIODOS[d.periodo || PERIODO_PADRAO]}</div>` : ''}
       </td>
       <td style="text-align:center;font-size:0.85rem">${d.semana || '-'}</td>
       <td style="text-align:center"><span class="badge badge-cinza">${d.visita_etapa || '-'}ª</span></td>
@@ -2059,15 +2070,23 @@ window.salvarDomicilio = async () => {
   const endereco = document.getElementById('dom-endereco').value.trim();
   if (!endereco) { mostrarToast('Preencha o endereço', 'erro'); return; }
   try {
+    const setorIdEscolhido = document.getElementById('dom-setor').value;
+    let periodoDomicilio = periodoAtual !== 'todos' ? periodoAtual : PERIODO_PADRAO;
+    if (setorIdEscolhido) {
+      try {
+        const setorSnap = await getDoc(doc(db, 'setores', setorIdEscolhido));
+        if (setorSnap.exists() && setorSnap.data().periodo) periodoDomicilio = setorSnap.data().periodo;
+      } catch(eSetor) { /* mantém o fallback acima */ }
+    }
     await addDoc(collection(db, 'domicilios'), {
       endereco,
       numero_sequencial: document.getElementById('dom-seq').value.trim(),
-      setor_id: document.getElementById('dom-setor').value,
+      setor_id: setorIdEscolhido,
       entrevistador_id: document.getElementById('dom-entrevistador').value,
       status_atual: 'nao_visitado',
       tentativas: 0,
       ultima_visita: null,
-      periodo: periodoAtual,
+      periodo: periodoDomicilio,
       criado_em: serverTimestamp()
     });
     fecharModal('modal-domicilio');
@@ -2113,6 +2132,8 @@ window.abrirVisita = (id, endereco) => {
 window.salvarVisita = async () => {
   if (!statusSelecionado) { mostrarToast('Selecione um status', 'erro'); return; }
   try {
+    const domAtual = todosdomicilios.find(d => d.id === domicilioAtualId);
+    const periodoVisita = (domAtual && domAtual.periodo) || (periodoAtual !== 'todos' ? periodoAtual : PERIODO_PADRAO);
     await addDoc(collection(db, 'visitas'), {
       domicilio_id: domicilioAtualId,
       entrevistador_id: usuarioLogado.uid,
@@ -2120,7 +2141,7 @@ window.salvarVisita = async () => {
       status: statusSelecionado,
       observacao: document.getElementById('visita-obs').value.trim(),
       carta_solicitada: statusSelecionado === 'carta_solicitada',
-      periodo: periodoAtual
+      periodo: periodoVisita
     });
     await updateDoc(doc(db, 'domicilios', domicilioAtualId), {
       status_atual: statusSelecionado,
@@ -2241,7 +2262,7 @@ window.abrirModalSetor = async () => {
   document.getElementById('setor-municipio').value = 'Campos dos Goytacazes';
   document.getElementById('setor-descricao').value = '';
   document.getElementById('setor-total').value = '';
-  document.getElementById('setor-periodo').value = periodoAtual;
+  document.getElementById('setor-periodo').value = periodoAtual !== 'todos' ? periodoAtual : PERIODO_PADRAO;
   await preencherSelectEntrevistadores('setor-entrevistador');
   abrirModal('modal-setor');
 };
@@ -2522,10 +2543,11 @@ async function preencherSelectSetores(idSelect) {
   const snap = await getDocs(collection(db, 'setores'));
   snap.docs.forEach(d => {
     const s = d.data();
-    if (s.codigo && (s.periodo || PERIODO_PADRAO) === periodoAtual) {
+    if (s.codigo && (periodoAtual === 'todos' || (s.periodo || PERIODO_PADRAO) === periodoAtual)) {
       const opt = document.createElement('option');
       opt.value = d.id;
-      opt.textContent = s.codigo + (s.descricao ? ' — ' + s.descricao : '');
+      opt.textContent = s.codigo + (s.descricao ? ' — ' + s.descricao : '') +
+        (periodoAtual === 'todos' ? ' [' + (PERIODOS[s.periodo || PERIODO_PADRAO]) + ']' : '');
       sel.appendChild(opt);
     }
   });
