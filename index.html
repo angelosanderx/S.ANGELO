@@ -1991,6 +1991,10 @@ window.abrirFicha = (id) => {
     
     let htmlEsp = '<div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.5rem">';
     historicoOrdenado.forEach(h => {
+      // Cria uma variável com o "Plano B": se houver entrevistador no histórico, usa ele. 
+      // Se não, puxa o atual do domicílio. Se nenhum existir, fica 'Não informado'.
+      const nomeEntrevistador = h.entrevistador || dom.entrevistador_nome || 'Não informado';
+
       htmlEsp += `<div style="background:var(--cinza-claro);padding:0.75rem 1rem;border-radius:8px;min-width:150px;border:1px solid var(--borda)">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div style="font-size:0.72rem;color:var(--cinza);font-weight:700;text-transform:uppercase">Etapa ${h.entrevista}</div>
@@ -1998,7 +2002,7 @@ window.abrirFicha = (id) => {
         </div>
         <div style="font-size:0.85rem;color:var(--azul);font-weight:700;margin-top:6px">${h.resultado || '-'}</div>
         <div style="font-size:0.75rem;color:var(--cinza-escuro);margin-top:6px;border-top:1px solid var(--borda);padding-top:6px;display:flex;align-items:center;gap:4px">
-          <span>👤</span> <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px" title="${h.entrevistador || 'Não informado'}">${h.entrevistador || 'Não informado'}</span>
+          <span>👤</span> <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px" title="${nomeEntrevistador}">${nomeEntrevistador}</span>
         </div>
       </div>`;
     });
