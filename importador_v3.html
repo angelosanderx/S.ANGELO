@@ -158,6 +158,15 @@
     <div class="card-body">
       <div class="config-grid">
         <div class="form-grupo">
+          <label>Período (grupo de meses)</label>
+          <select id="cfg-periodo">
+            <option value="jan_abr_jul_out">Jan / Abr / Jul / Out</option>
+            <option value="fev_mai_ago_nov">Fev / Mai / Ago / Nov</option>
+            <option value="mar_jun_set_dez" selected>Mar / Jun / Set / Dez</option>
+          </select>
+          <span style="font-size:0.72rem;color:#64748b;margin-top:2px">Grupo de rotação ao qual este setor pertence — define em qual "aba" do painel esses domicílios vão aparecer</span>
+        </div>
+        <div class="form-grupo">
           <label>Trimestre</label>
           <select id="cfg-trimestre">
             <option value="2026T1">2026 — T1 (Jan-Mar)</option>
@@ -409,6 +418,7 @@ function toggleTabela() {
 // ── Processar e cruzar dados ──
 function processarDados() {
   const trimestre = document.getElementById('cfg-trimestre').value;
+  const periodo = document.getElementById('cfg-periodo').value;
   dadosProcessados = [];
 
   dados.movimento.forEach(row => {
@@ -484,6 +494,7 @@ function processarDados() {
       longitude: end['Longitude'] || '',
       painel: end['Painel'] || '',
       trimestre,
+      periodo,
       status_atual: status,
       entrevistador_nome: entrevistadorNome,
       entrevistador_id: '',
@@ -563,7 +574,7 @@ function processarDados() {
 
 // ── Importar para Firestore ──
 async function importarFirestore() {
-  // Busca o token diretamente da variável de sessão
+  // ALTERAÇÃO: Agora busca o token diretamente da variável de sessão
   const token = window.firebaseAuthToken;
   const projectId = document.getElementById('cfg-projectid').value.trim();
   
@@ -592,7 +603,7 @@ async function importarFirestore() {
 
   for (let i = 0; i < dadosProcessados.length; i++) {
     const d = dadosProcessados[i];
-    const docId = `${d.controle}_${d.domicilio_num}`;
+    const docId = `${d.periodo}_${d.controle}_${d.domicilio_num}`;
     const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/domicilios/${docId}`;
 
     const toStr = v => ({ stringValue: String(v || '') });
@@ -618,24 +629,12 @@ async function importarFirestore() {
       longitude:         toStr(d.longitude),
       painel:            toStr(d.painel),
       trimestre:         toStr(d.trimestre),
+      periodo:           toStr(d.periodo),
       status_atual:      toStr(d.status_atual),
+      entrevistador_nome:toStr(d.entrevistador_nome),
+      entrevistador_id:  toStr(''),
       tentativas_count:  toInt(d.tentativas_count),
     };
-
-    // LÓGICA DE PROTEÇÃO DE DADOS
-    const modoImportacao = document.getElementById('cfg-modo').value;
-    
-    if (modoImportacao === 'novo') {
-      // Se for novo trimestre, limpa quem era o responsável para começar do zero
-      fields.entrevistador_id = toStr('');
-      fields.entrevistador_nome = toStr(d.entrevistador_nome);
-    } else {
-      // MODO ATUALIZAR (Dia a Dia)
-      // Preserva as atribuições já feitas. Só atualiza se vier preenchido do CSV.
-      if (d.entrevistador_nome) {
-        fields.entrevistador_nome = toStr(d.entrevistador_nome);
-      }
-    }
 
     // Adiciona histórico de espécies e telefones como arrays
     if (d.historico_especies.length > 0) fields.historico_especies = toArr(d.historico_especies);

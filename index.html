@@ -430,6 +430,11 @@
 
   @media (max-width: 500px) { .form-grid { grid-template-columns: 1fr; } }
 
+  @media (max-width: 480px) {
+    #chip-perfil { display: none; }
+    #periodo-atual-config { font-size: 0.7rem; padding: 0.3rem 0.35rem; max-width: 92px; }
+  }
+
   .form-grupo { display: flex; flex-direction: column; gap: 4px; }
   .form-grupo.full { grid-column: 1 / -1; }
 
@@ -767,6 +772,11 @@
       <div class="topbar-titulo">PNAD-C Campos</div>
     </div>
     <div class="topbar-direita">
+      <select id="periodo-atual-config" onchange="mudarPeriodo(this.value)" title="Período (grupo de meses)" style="padding:0.35rem 0.6rem;border:none;border-radius:6px;font-size:0.8rem;font-family:var(--fonte);font-weight:700;color:var(--azul);background:var(--branco)">
+        <option value="jan_abr_jul_out">Jan / Abr / Jul / Out</option>
+        <option value="fev_mai_ago_nov">Fev / Mai / Ago / Nov</option>
+        <option value="mar_jun_set_dez">Mar / Jun / Set / Dez</option>
+      </select>
       <span class="perfil-chip" id="chip-perfil"></span>
       <div class="avatar" id="avatar-inicial"></div>
       <button class="btn-sair" onclick="fazerLogout()">Sair</button>
@@ -985,7 +995,7 @@
       <!-- Lista de setores -->
       <div class="card-tabela">
         <div class="card-tabela-header">
-          <h3>Setores do trimestre</h3>
+          <h3>Setores do período <span id="setores-periodo-label" style="font-weight:700;color:var(--azul-medio)"></span></h3>
           <button class="btn-acao" id="btn-novo-setor" onclick="abrirModalSetor()">+ Novo setor</button>
         </div>
         <div id="tabela-setores"><div class="loader">Carregando...</div></div>
@@ -1247,6 +1257,14 @@
           <input type="text" id="setor-descricao" placeholder="ex: Setor urbano - Centro">
         </div>
         <div class="form-grupo">
+          <label>Período (grupo de meses)</label>
+          <select id="setor-periodo">
+            <option value="jan_abr_jul_out">Jan / Abr / Jul / Out</option>
+            <option value="fev_mai_ago_nov">Fev / Mai / Ago / Nov</option>
+            <option value="mar_jun_set_dez">Mar / Jun / Set / Dez</option>
+          </select>
+        </div>
+        <div class="form-grupo">
           <label>Total de domicílios</label>
           <input type="number" id="setor-total" placeholder="ex: 60">
         </div>
@@ -1484,6 +1502,33 @@ let perfilLogado = null;
 let todosdomicilios = [];
 let unsubs = [];
 
+// ── PERÍODO (grupo de meses / painel) ──
+// A pesquisa roda em 3 grupos de rotação fixos. Setores/domicílios antigos
+// que ainda não têm o campo "periodo" são tratados como pertencentes ao
+// grupo Mar/Jun/Set/Dez (era o único grupo cadastrado até a criação deste recurso).
+const PERIODO_PADRAO = 'mar_jun_set_dez';
+const PERIODOS = {
+  jan_abr_jul_out: 'Jan / Abr / Jul / Out',
+  fev_mai_ago_nov: 'Fev / Mai / Ago / Nov',
+  mar_jun_set_dez: 'Mar / Jun / Set / Dez'
+};
+let periodoAtual = localStorage.getItem('pnad_periodo_atual') || PERIODO_PADRAO;
+
+function pertencePeriodo(d) {
+  return (d.periodo || PERIODO_PADRAO) === periodoAtual;
+}
+
+window.mudarPeriodo = async (valor) => {
+  periodoAtual = valor;
+  localStorage.setItem('pnad_periodo_atual', valor);
+  await carregarDomicilios();
+  carregarDashboard();
+  carregarVisitas();
+  carregarSetores();
+  carregarTentativas();
+  mostrarToast('Período alterado para ' + PERIODOS[valor], 'sucesso');
+};
+
 // ── MAPA DE STATUS ──
 const STATUS = {
   nao_visitado: { label: "Não visitado", cor: "badge-cinza", bg: "#f1f5f9", fg: "#64748b" },
@@ -1544,7 +1589,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-function iniciarApp() {
+async function iniciarApp() {
   document.getElementById('tela-auth').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('chip-perfil').textContent = perfilLogado.perfil;
@@ -1556,8 +1601,11 @@ function iniciarApp() {
     document.getElementById('nav-usuarios').style.display = 'none';
   }
 
+  const selPeriodo = document.getElementById('periodo-atual-config');
+  if (selPeriodo) selPeriodo.value = periodoAtual;
+
+  await carregarDomicilios();
   carregarDashboard();
-  carregarDomicilios();
   carregarVisitas();
   carregarSetores();
   carregarUsuarios();
@@ -1606,7 +1654,7 @@ window.mostrarToast = (msg, tipo = '') => {
 async function carregarDashboard() {
   try {
     const snap = await getDocs(collection(db, 'domicilios'));
-    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.endereco);
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.endereco && pertencePeriodo(d));
 
     // Semana atual — lê do localStorage ou do select
     const semanaAtual = parseInt(localStorage.getItem('pnad_semana_atual') || '2');
@@ -1715,7 +1763,7 @@ async function carregarDomicilios() {
   try {
     const snap = await getDocs(collection(db, 'domicilios'));
     todosdomicilios = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .filter(d => d.endereco);
+      .filter(d => d.endereco && pertencePeriodo(d));
     preencherFiltrosUpa();
     filtrarDomicilios();
     // Renderiza mapa de setores após domicílios carregados (tem latitude_kml)
@@ -2019,6 +2067,7 @@ window.salvarDomicilio = async () => {
       status_atual: 'nao_visitado',
       tentativas: 0,
       ultima_visita: null,
+      periodo: periodoAtual,
       criado_em: serverTimestamp()
     });
     fecharModal('modal-domicilio');
@@ -2070,7 +2119,8 @@ window.salvarVisita = async () => {
       data_visita: serverTimestamp(),
       status: statusSelecionado,
       observacao: document.getElementById('visita-obs').value.trim(),
-      carta_solicitada: statusSelecionado === 'carta_solicitada'
+      carta_solicitada: statusSelecionado === 'carta_solicitada',
+      periodo: periodoAtual
     });
     await updateDoc(doc(db, 'domicilios', domicilioAtualId), {
       status_atual: statusSelecionado,
@@ -2091,7 +2141,7 @@ async function carregarVisitas() {
       query(collection(db, 'visitas'), orderBy('data_visita', 'desc'), limit(50))
     );
     const visitas = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .filter(d => d.domicilio_id);
+      .filter(d => d.domicilio_id && todosdomicilios.some(td => td.id === d.domicilio_id));
 
     if (visitas.length === 0) {
       document.getElementById('tabela-visitas').innerHTML =
@@ -2117,13 +2167,15 @@ async function carregarVisitas() {
 // ── SETORES ──
 async function carregarSetores() {
   try {
+    const lbl = document.getElementById('setores-periodo-label');
+    if (lbl) lbl.textContent = '— ' + (PERIODOS[periodoAtual] || periodoAtual);
     // Deriva setores diretamente dos domicílios importados
     const snap = await getDocs(collection(db, 'domicilios'));
-    const domicilios = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.endereco);
+    const domicilios = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.endereco && pertencePeriodo(d));
 
     if (domicilios.length === 0) {
       document.getElementById('tabela-setores').innerHTML =
-        '<div class="vazio"><div class="icone-vazio">🗺️</div>Nenhum domicílio importado ainda.</div>';
+        '<div class="vazio"><div class="icone-vazio">🗺️</div>Nenhum domicílio importado ainda neste período (' + (PERIODOS[periodoAtual] || periodoAtual) + ').</div>';
       return;
     }
 
@@ -2189,6 +2241,7 @@ window.abrirModalSetor = async () => {
   document.getElementById('setor-municipio').value = 'Campos dos Goytacazes';
   document.getElementById('setor-descricao').value = '';
   document.getElementById('setor-total').value = '';
+  document.getElementById('setor-periodo').value = periodoAtual;
   await preencherSelectEntrevistadores('setor-entrevistador');
   abrirModal('modal-setor');
 };
@@ -2203,6 +2256,7 @@ window.salvarSetor = async () => {
       descricao: document.getElementById('setor-descricao').value.trim(),
       total_domicilios: parseInt(document.getElementById('setor-total').value) || 0,
       entrevistador_id: document.getElementById('setor-entrevistador').value,
+      periodo: document.getElementById('setor-periodo').value,
       ativo: true
     });
     fecharModal('modal-setor');
@@ -2322,7 +2376,7 @@ let todasTentativas = [];
 async function carregarTentativas() {
   try {
     const snap = await getDocs(collection(db, 'domicilios'));
-    const domicilios = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.endereco);
+    const domicilios = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.endereco && pertencePeriodo(d));
 
     // Extrai todas as tentativas de todos os domicílios
     todasTentativas = [];
@@ -2468,7 +2522,7 @@ async function preencherSelectSetores(idSelect) {
   const snap = await getDocs(collection(db, 'setores'));
   snap.docs.forEach(d => {
     const s = d.data();
-    if (s.codigo) {
+    if (s.codigo && (s.periodo || PERIODO_PADRAO) === periodoAtual) {
       const opt = document.createElement('option');
       opt.value = d.id;
       opt.textContent = s.codigo + (s.descricao ? ' — ' + s.descricao : '');
@@ -3382,8 +3436,11 @@ window.processarCentralSIGC = async () => {
   try {
     // 3. BUSCA SUPER FLEXÍVEL NO FIREBASE
     // Primeiro busca apenas os domicílios que possuem o mesmo código de controle exato
+    // (restrito ao período selecionado no topo, para não cruzar com setores homônimos de outro período)
     const qDom = query(collection(db, 'domicilios'), where('controle', '==', controle));
-    const snapDom = await getDocs(qDom);
+    const snapDomBruto = await getDocs(qDom);
+    const snapDom = { docs: snapDomBruto.docs.filter(d => pertencePeriodo(d.data())), empty: false };
+    snapDom.empty = snapDom.docs.length === 0;
 
     let targetDoc = null;
 
