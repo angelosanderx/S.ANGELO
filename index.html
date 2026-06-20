@@ -1024,10 +1024,14 @@
                 <option value="">Todos</option>
               </select>
             </div>
-            <!-- Data da tentativa -->
+            <!-- Intervalo de data da tentativa -->
             <div>
-              <div style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.35rem">Data da tentativa</div>
-              <input type="date" id="pend-filtro-data" onchange="filtrarPendencias()" style="padding:0.38rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
+              <div style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.35rem">Tentativa — de</div>
+              <input type="date" id="pend-filtro-data-de" onchange="filtrarPendencias()" style="padding:0.38rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
+            </div>
+            <div>
+              <div style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.35rem">até</div>
+              <input type="date" id="pend-filtro-data-ate" onchange="filtrarPendencias()" style="padding:0.38rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
             </div>
             <!-- Ordenar -->
             <div>
@@ -3060,7 +3064,7 @@ window.limparFiltrosPendencias = () => {
   _pendFiltros.semanas.clear(); _pendFiltros.etapas.clear();
   _pendFiltros.status.clear();  _pendFiltros.entrevistadores.clear();
   document.querySelectorAll('#pag-pendencias .filtro-chip.ativo').forEach(c => c.classList.remove('ativo'));
-  ['pend-busca','pend-filtro-setor','pend-filtro-data'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['pend-busca','pend-filtro-setor','pend-filtro-data-de','pend-filtro-data-ate'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const ord = document.getElementById('pend-ordenar'); if (ord) ord.value = 'semana';
   const agr = document.getElementById('pend-agrupar'); if (agr) agr.checked = false;
   document.querySelectorAll('#pend-entr-dropdown input').forEach(c => c.checked = false);
@@ -3072,7 +3076,8 @@ window.filtrarPendencias = () => {
   const semanaAtual = parseInt(localStorage.getItem('pnad_semana_atual') || '2');
   const busca      = (document.getElementById('pend-busca')?.value || '').toLowerCase().trim();
   const setor      = document.getElementById('pend-filtro-setor')?.value || '';
-  const dataFiltro = document.getElementById('pend-filtro-data')?.value || '';
+  const dataFiltroDE  = document.getElementById('pend-filtro-data-de')?.value || '';
+  const dataFiltroATE = document.getElementById('pend-filtro-data-ate')?.value || '';
   const ordenar    = document.getElementById('pend-ordenar')?.value || 'semana';
   const agrupar    = document.getElementById('pend-agrupar')?.checked || false;
 
@@ -3097,8 +3102,17 @@ window.filtrarPendencias = () => {
     if (_pendFiltros.entrevistadores.size > 0 && !_pendFiltros.entrevistadores.has(d.entrevistador_nome || '')) return false;
     // Setor
     if (setor) { const sd = d.controle ? d.controle.slice(0,-1) : (d.upa || ''); if (sd !== setor && d.upa !== setor) return false; }
-    // Data da tentativa
-    if (dataFiltro && !(d.tentativas_recentes || []).some(t => _tentISO(t.data) === dataFiltro)) return false;
+    // Intervalo de data da tentativa
+    if (dataFiltroDE || dataFiltroATE) {
+      const temNoPeriodo = (d.tentativas_recentes || []).some(t => {
+        const iso = _tentISO(t.data);
+        if (!iso) return false;
+        if (dataFiltroDE && iso < dataFiltroDE) return false;
+        if (dataFiltroATE && iso > dataFiltroATE) return false;
+        return true;
+      });
+      if (!temNoPeriodo) return false;
+    }
     // Busca texto
     if (busca) { const h = ((d.endereco_custom||d.endereco||'') + ' ' + (d.morador_cnefe||d.morador||'')).toLowerCase(); if (!h.includes(busca)) return false; }
     return true;
@@ -3119,11 +3133,12 @@ window.filtrarPendencias = () => {
     ? `<strong>${lista.length}</strong> pendência${lista.length!==1?'s':''} · <strong>${nE}</strong> entrevistador${nE!==1?'es':''} · <strong>${nS}</strong> setor${nS!==1?'es':''}`
     : '';
   _atualizarContadorPendencias(lista.length);
-  const _temFPend = !!(_pendFiltros.semanas.size || _pendFiltros.etapas.size || _pendFiltros.status.size || _pendFiltros.entrevistadores.size || busca || setor || dataFiltro);
+  const _temFPend = !!(_pendFiltros.semanas.size || _pendFiltros.etapas.size || _pendFiltros.status.size || _pendFiltros.entrevistadores.size || busca || setor || dataFiltroDE || dataFiltroATE);
   _indicarFiltroAtivo('card-pend-tabela', _temFPend);
-  const _pSetorEl = document.getElementById('pend-filtro-setor'); if (_pSetorEl) _pSetorEl.classList.toggle('filtro-ativo-ctrl', !!setor);
-  const _pBuscaEl = document.getElementById('pend-busca'); if (_pBuscaEl) _pBuscaEl.classList.toggle('filtro-ativo-ctrl', !!busca);
-  const _pDataEl  = document.getElementById('pend-filtro-data');  if (_pDataEl)  _pDataEl.classList.toggle('filtro-ativo-ctrl', !!dataFiltro);
+  const _pSetorEl  = document.getElementById('pend-filtro-setor');    if (_pSetorEl)  _pSetorEl.classList.toggle('filtro-ativo-ctrl', !!setor);
+  const _pBuscaEl  = document.getElementById('pend-busca');           if (_pBuscaEl)  _pBuscaEl.classList.toggle('filtro-ativo-ctrl', !!busca);
+  const _pDataDeEl = document.getElementById('pend-filtro-data-de');  if (_pDataDeEl) _pDataDeEl.classList.toggle('filtro-ativo-ctrl', !!dataFiltroDE);
+  const _pDataAEl  = document.getElementById('pend-filtro-data-ate'); if (_pDataAEl)  _pDataAEl.classList.toggle('filtro-ativo-ctrl', !!dataFiltroATE);
 
   const el = document.getElementById('pag-pendencias-tabela');
   if (!el) return;
