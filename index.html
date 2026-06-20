@@ -938,6 +938,14 @@
             <option value="carta_solicitada">Carta solicitada</option>
             <option value="supervisao">Supervisão necessária</option>
           </select>
+          <select id="filtro-solicitacao" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
+            <option value="">Todas as solicitações</option>
+            <option value="carta_abertura">📄 Carta de Abertura</option>
+            <option value="carta_retorno">🔄 Carta de Retorno</option>
+            <option value="carta_recusa">✉️ Carta de Recusa</option>
+            <option value="apoio_supervisao">👤 Apoio da Supervisão</option>
+            <option value="apoio_viatura">🚗 Apoio da Viatura</option>
+          </select>
           <select id="filtro-entrevistador" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:180px">
             <option value="">Todos os entrevistadores</option>
           </select>
@@ -1745,6 +1753,16 @@ window.irPara = (pag) => {
   document.getElementById('pag-' + pag).classList.add('ativa');
   event.currentTarget.classList.add('ativo');
   fecharSidebar();
+  // Força recálculo do mapa de setores quando a página fica visível
+  if (pag === 'setores') {
+    setTimeout(() => {
+      if (_mapaSetoresInstance) {
+        _mapaSetoresInstance.invalidateSize();
+      } else {
+        renderizarMapaSetores();
+      }
+    }, 100);
+  }
 };
 
 window.toggleSidebar = () => {
@@ -1955,6 +1973,7 @@ window.filtrarDomicilios = () => {
   const semana = document.getElementById('filtro-semana').value;
   const entrevistador = document.getElementById('filtro-entrevistador').value;
   const q = document.getElementById('busca-domicilio').value.toLowerCase();
+  const solicitacao = document.getElementById('filtro-solicitacao').value;
   const filtrados = todosdomicilios.filter(d => {
     const setorDom = d.controle ? d.controle.slice(0,-1) : d.upa;
     if (upa && d.upa !== upa) return false;
@@ -1964,6 +1983,7 @@ window.filtrarDomicilios = () => {
     if (entrevistador && entrevistador !== '__sem__' && d.entrevistador_nome !== entrevistador) return false;
     const status = document.getElementById('filtro-status').value;
     if (status && (d.status_atual || 'nao_visitado') !== status) return false;
+    if (solicitacao && d.tipo_solicitacao !== solicitacao) return false;
     if (q && !(d.endereco||'').toLowerCase().includes(q) && !(d.morador||'').toLowerCase().includes(q)) return false;
     return true;
   });
@@ -1996,6 +2016,7 @@ window.limparFiltros = () => {
   document.getElementById('filtro-setor').value = '';
   document.getElementById('filtro-semana').value = '';
   document.getElementById('filtro-status').value = '';
+  document.getElementById('filtro-solicitacao').value = '';
   document.getElementById('filtro-entrevistador').value = '';
   document.getElementById('filtro-ordem').value = 'padrao';
   document.getElementById('busca-domicilio').value = '';
@@ -2069,13 +2090,13 @@ window.gerarEtiquetas = async () => {
     const nomesPnad = moradoresPorDom[d.id] || [];
     let nomesFmt;
     if (nomesPnad.length > 0) {
-      nomesFmt = nomesPnad.slice(0,2).map(n => `<div class="etiq-nome" contenteditable="true">${formatarNome(n)}</div>`).join('');
+      // Só o 1º morador PNAD + linha em branco editável abaixo
+      nomesFmt = `<div class="etiq-nome" contenteditable="true">${formatarNome(nomesPnad[0])}</div>` +
+                 `<div class="etiq-nome" contenteditable="true" style="min-height:1.3em;border-bottom:1px dashed #ccc;margin-top:1px"></div>`;
     } else {
-      const morador = d.morador_cnefe || d.morador || '';
-      const nomes = morador ? morador.split(/[,\/]/).map(s=>s.trim()).filter(Boolean) : [];
-      nomesFmt = nomes.length > 0
-        ? nomes.slice(0,2).map(n => `<div class="etiq-nome" contenteditable="true">${formatarNome(n)}</div>`).join('')
-        : '<div class="etiq-nome" contenteditable="true">Sr.(a) Morador(a)</div>';
+      // Sem ninguém cadastrado na PNAD: genérico + linha em branco
+      nomesFmt = `<div class="etiq-nome" contenteditable="true">Sr.(a) Morador(a)</div>` +
+                 `<div class="etiq-nome" contenteditable="true" style="min-height:1.3em;border-bottom:1px dashed #ccc;margin-top:1px"></div>`;
     }
     return `<div class="etiqueta">
       <div class="etiq-nomes">${nomesFmt}</div>
@@ -2202,7 +2223,12 @@ function renderizarDomicilios(lista) {
         <div style="font-size:0.85rem;font-weight:600">${d.endereco || '-'}</div>
         <div style="font-size:0.75rem;color:var(--cinza)">${d.morador || ''}${d.telefone ? ' · ' + d.telefone : ''}</div>
       </td>
-      <td>${badgeStatus(d.status_atual || 'nao_visitado')}</td>
+      <td>
+        ${badgeStatus(d.status_atual || 'nao_visitado')}
+        ${d.tipo_solicitacao ? `<div style="margin-top:3px;font-size:0.68rem;font-weight:700;color:var(--laranja);background:var(--laranja-claro);padding:2px 6px;border-radius:10px;display:inline-block">${
+          {carta_abertura:'📄 Carta Abertura', carta_retorno:'🔄 Carta Retorno', carta_recusa:'✉️ Carta Recusa', apoio_supervisao:'👤 Supervisão', apoio_viatura:'🚗 Viatura'}[d.tipo_solicitacao] || d.tipo_solicitacao
+        }</div>` : ''}
+      </td>
       <td>
         <div style="display:flex;gap:0.5rem">
           <button class="btn-acao secundario" onclick="abrirFicha('${d.id}')">Ficha</button>
@@ -3431,7 +3457,10 @@ function iniciarMapaSetores(pins) {
   } else {
     _mapaSetoresInstance.setView([-21.75, -41.33], 10);
   }
-  setTimeout(() => { if (_mapaSetoresInstance) _mapaSetoresInstance.invalidateSize(); }, 200);
+  // Dispara invalidateSize em múltiplos momentos para garantir que os tiles carregam
+  [100, 300, 600, 1200].forEach(ms =>
+    setTimeout(() => { if (_mapaSetoresInstance) _mapaSetoresInstance.invalidateSize(); }, ms)
+  );
 }
 
 // ── ROTEIRO DE CAMPO NA FICHA ──
