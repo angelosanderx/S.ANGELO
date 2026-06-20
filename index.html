@@ -2370,7 +2370,7 @@ window.salvarSolicitar = async () => {
   } catch(e) { mostrarToast('Erro ao salvar solicitação', 'erro'); console.error(e); }
 };
 
- {
+async function carregarVisitas() {
   try {
     const snap = await getDocs(
       query(collection(db, 'visitas'), orderBy('data_visita', 'desc'), limit(50))
