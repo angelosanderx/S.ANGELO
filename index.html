@@ -2897,6 +2897,51 @@ function _montarLinhaDOM(d, ns = '') {
     </tr>`;
 }
 
+function _montarTentativasSubrow(d) {
+  const tents = (d.tentativas_recentes || []).filter(t => t.origem);
+  const temTel = tents.some(t => /telefone/i.test(t.origem || ''));
+
+  const fmtData = (str) => {
+    if (!str) return '';
+    const m = String(str).match(/(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(\d{2}:\d{2})/);
+    if (m) return `${m[1]} ${m[2]}`;
+    const m2 = String(str).match(/(\d{4}-\d{2}-\d{2})[T\s](\d{2}:\d{2})/);
+    if (m2) { const [,dt,hr] = m2; const [y,mo,da] = dt.split('-'); return `${da}/${mo} ${hr}`; }
+    return String(str).slice(0, 16);
+  };
+
+  let chipsHtml;
+  if (tents.length === 0) {
+    chipsHtml = `<span style="font-size:0.72rem;color:var(--cinza);font-style:italic">Nenhuma tentativa registrada</span>`;
+  } else {
+    chipsHtml = tents.map(t => {
+      const isTel = /telefone/i.test(t.origem || '');
+      const icone = isTel ? '📞' : '🏠';
+      const cor   = isTel ? '#166534' : 'var(--azul)';
+      const bg    = isTel ? '#dcfce7' : 'var(--azul-claro)';
+      const borda = isTel ? '#86efac' : 'var(--azul-medio)';
+      const data  = fmtData(t.data);
+      const res   = t.resultado ? ` · ${t.resultado.slice(0, 28)}` : '';
+      const title = [t.resultado, t.observacao].filter(Boolean).join('\n');
+      return `<span title="${title}" style="display:inline-flex;align-items:center;gap:3px;background:${bg};border:1px solid ${borda};border-radius:12px;padding:1px 8px;font-size:0.7rem;font-weight:600;color:${cor};white-space:nowrap">${icone} ${data}${res}</span>`;
+    }).join(' ');
+  }
+
+  const aviso = !temTel
+    ? `<span style="display:inline-flex;align-items:center;gap:3px;background:var(--vermelho-claro);border:1px solid var(--vermelho);border-radius:12px;padding:2px 9px;font-size:0.7rem;font-weight:700;color:var(--vermelho)">⚠️ Sem tentativa por telefone</span>`
+    : '';
+
+  return `<tr style="background:#f8fafc;border-bottom:2px solid var(--borda)">
+    <td colspan="9" style="padding:0.22rem 0.6rem 0.28rem 2.2rem">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.35rem">
+        <span style="font-size:0.65rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.3px">Tentativas:</span>
+        ${chipsHtml}
+        ${aviso}
+      </div>
+    </td>
+  </tr>`;
+}
+
 function _cabecalhoTabela(checkboxId, oncheckAll) {
   return '<div style="overflow-x:auto"><table style="min-width:780px;table-layout:fixed;width:100%"><thead><tr>' +
     `<th style="width:36px;padding:0.6rem 0.4rem"><input type="checkbox" id="${checkboxId}" onchange="${oncheckAll}" title="Selecionar todos"></th>` +
@@ -3059,14 +3104,14 @@ window.filtrarPendencias = () => {
       html += `<div style="background:var(--azul-claro);padding:0.45rem 1rem;font-weight:700;font-size:0.85rem;color:var(--azul);border-bottom:2px solid var(--azul-medio)">👤 ${nome} — ${doms.length} pendência${doms.length!==1?'s':''}</div>`;
       html += '<table style="min-width:780px;table-layout:fixed;width:100%"><thead><tr>' +
         '<th style="width:36px"></th><th style="width:110px">UPA/Setor/Dom.</th><th style="width:40px;text-align:center">Sem.</th><th style="width:46px;text-align:center">Eta.</th><th style="width:80px">Entrev.</th><th>Endereço/Morador</th><th style="width:108px">Status</th><th style="width:108px">Trim.Ant.</th><th style="width:80px">Ação</th>' +
-        '</tr></thead><tbody>' + doms.map(d=>_montarLinhaDOM(d,'pp-')).join('') + '</tbody></table>';
+        '</tr></thead><tbody>' + doms.map(d => _montarLinhaDOM(d,'pp-') + _montarTentativasSubrow(d)).join('') + '</tbody></table>';
     }
     html += '</div>';
     el.innerHTML = html;
   } else {
     el.innerHTML =
       _cabecalhoTabela('chk-todos-pag-pend', "document.querySelectorAll('#pag-pendencias-tabela .chk-dom').forEach(c=>c.checked=this.checked);atualizarSelecao()") +
-      lista.map(d => _montarLinhaDOM(d, 'pp-')).join('') +
+      lista.map(d => _montarLinhaDOM(d, 'pp-') + _montarTentativasSubrow(d)).join('') +
       '</tbody></table></div>';
   }
 };
