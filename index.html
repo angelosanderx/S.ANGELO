@@ -1225,18 +1225,12 @@
           <div class="secao-titulo">
             <span>Histórico de Entrevistas</span>
           </div>
-          <div style="margin-bottom:1.5rem">
-            <div style="font-size:0.78rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem">Acompanhar Espécies (Etapas)</div>
-            <div id="historico-especies-ficha">
-              <div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📈</div>Importe os dados do CSV Acompanhar Espécies para ver o histórico.</div>
-            </div>
+          <div id="historico-unificado-ficha">
+            <div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📈</div>Nenhum histórico registrado para este domicílio.</div>
           </div>
-          <div>
-            <div style="font-size:0.78rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem">Telefones por entrevista</div>
-            <div id="historico-telefones-ficha">
-              <div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📞</div>Importe os dados do CSV TelefoneEntrevista para ver os telefones.</div>
-            </div>
-          </div>
+          <!-- mantidos por compatibilidade com código existente que usa esses IDs -->
+          <div id="historico-especies-ficha" style="display:none"></div>
+          <div id="historico-telefones-ficha" style="display:none"></div>
         </div>
 
         <hr class="divisor-secao">
@@ -2287,49 +2281,75 @@ window.abrirFicha = (id) => {
   document.getElementById('ficha-entrevistador').textContent = dom.entrevistador_nome || 'Não atribuído';
   document.getElementById('ficha-supervisor').textContent = dom.supervisor_nome || 'Não atribuído';
 
-  // Preencher Histórico de Espécies/Etapas
-  const divEsp = document.getElementById('historico-especies-ficha');
-  if (dom.historico_especies && dom.historico_especies.length > 0) {
-    // Ordena para garantir que a 1ª etapa apareça primeiro
-    const historicoOrdenado = dom.historico_especies.sort((a, b) => parseInt(a.entrevista) - parseInt(b.entrevista));
-    
-    let htmlEsp = '<div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.5rem">';
-    historicoOrdenado.forEach(h => {
-      // Puxa APENAS o entrevistador salvo no histórico daquela etapa específica
-      const nomeEntrevistador = (h.entrevistador && h.entrevistador !== 'Não identificado') ? h.entrevistador : 'Não informado';
+  // ── HISTÓRICO UNIFICADO: etapas + entrevistador + telefone + observação ──
+  const divUnif = document.getElementById('historico-unificado-ficha');
 
-      htmlEsp += `<div style="background:var(--cinza-claro);padding:0.75rem 1rem;border-radius:8px;min-width:150px;border:1px solid var(--borda)">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div style="font-size:0.72rem;color:var(--cinza);font-weight:700;text-transform:uppercase">Etapa ${h.entrevista}</div>
-          <div style="font-size:0.65rem;background:var(--branco);padding:2px 6px;border-radius:4px;color:var(--azul-medio);font-weight:600 border:1px solid var(--borda)">${h.mes_ano || '-'}</div>
-        </div>
-        <div style="font-size:0.85rem;color:var(--azul);font-weight:700;margin-top:6px">${h.resultado || '-'}</div>
-        <div style="font-size:0.75rem;color:var(--cinza-escuro);margin-top:6px;border-top:1px solid var(--borda);padding-top:6px;display:flex;align-items:center;gap:4px">
-          <span>👤</span> <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px" title="${nomeEntrevistador}">${nomeEntrevistador}</span>
-        </div>
-      </div>`;
-    });
-    htmlEsp += '</div>';
-    divEsp.innerHTML = htmlEsp;
+  const especies = (dom.historico_especies || []).slice().sort((a,b) => parseInt(a.entrevista) - parseInt(b.entrevista));
+  const telefones = dom.historico_telefones || [];
+
+  // Índice de telefone/obs por etapa
+  const telPorEtapa = {};
+  telefones.forEach(t => { telPorEtapa[String(t.entrevista)] = t; });
+
+  // Índice de entrevistador por etapa (do historico_especies)
+  const entrPorEtapa = {};
+  especies.forEach(h => {
+    if (h.entrevistador && h.entrevistador !== 'Não identificado' && h.entrevistador !== 'Não informado') {
+      entrPorEtapa[String(h.entrevista)] = h.entrevistador;
+    }
+  });
+
+  // Une todas as etapas que existem em qualquer dos dois arrays
+  const todasEtapas = [...new Set([
+    ...especies.map(h => String(h.entrevista)),
+    ...telefones.map(t => String(t.entrevista))
+  ])].sort((a,b) => parseInt(a) - parseInt(b));
+
+  if (todasEtapas.length === 0) {
+    divUnif.innerHTML = '<div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📈</div>Nenhum histórico registrado para este domicílio.</div>';
   } else {
-    divEsp.innerHTML = '<div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📈</div>Nenhum histórico de etapas registrado para este domicílio.</div>';
-  }
+    let html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;margin-top:0.25rem">' +
+      '<thead><tr>' +
+      '<th style="width:65px;text-align:center;padding:0.5rem">Etapa</th>' +
+      '<th style="padding:0.5rem">Resultado</th>' +
+      '<th style="padding:0.5rem;width:150px">Entrevistador</th>' +
+      '<th style="padding:0.5rem;width:110px">Telefone</th>' +
+      '<th style="padding:0.5rem">Observação</th>' +
+      '</tr></thead><tbody>';
 
-  // Preencher Histórico de Telefones
-  const divTel = document.getElementById('historico-telefones-ficha');
-  if (dom.historico_telefones && dom.historico_telefones.length > 0) {
-    let htmlTel = '<table style="width:100%;border-collapse:collapse;margin-top:0.5rem"><thead><tr><th style="width:80px;text-align:center">Entrevista</th><th>Telefone</th><th>Observação</th></tr></thead><tbody>';
-    dom.historico_telefones.forEach(t => {
-      htmlTel += `<tr>
-        <td style="text-align:center"><span class="badge badge-cinza">${t.entrevista}ª</span></td>
-        <td style="font-weight:600;color:var(--azul-medio)">${t.telefone || '-'}</td>
-        <td style="font-size:0.8rem;color:var(--cinza-escuro)">${t.observacao || '-'}</td>
+    todasEtapas.forEach(etapa => {
+      const esp = especies.find(h => String(h.entrevista) === etapa);
+      const tel = telPorEtapa[etapa];
+      const resultado = esp ? (esp.resultado || '—') : '—';
+      const mesAno   = esp ? (esp.mes_ano || '') : '';
+      const entr     = entrPorEtapa[etapa] || (esp ? 'Não informado' : '—');
+      const telefone = tel ? (tel.telefone || '-') : '-';
+      const obs      = tel ? (tel.observacao || '—') : '—';
+
+      // Badge de cor pelo resultado
+      let corBadge = 'badge-cinza';
+      if (/realizada/i.test(resultado)) corBadge = 'badge-verde';
+      else if (/recusa/i.test(resultado)) corBadge = 'badge-vermelho';
+      else if (/fechado|vago|ocasional|desocupado/i.test(resultado)) corBadge = 'badge-amarelo';
+
+      html += `<tr style="border-bottom:1px solid var(--cinza-claro)">
+        <td style="text-align:center;padding:0.6rem 0.5rem">
+          <span class="badge badge-cinza" style="font-size:0.8rem">${etapa}ª</span>
+          ${mesAno ? `<div style="font-size:0.65rem;color:var(--cinza);margin-top:2px">${mesAno}</div>` : ''}
+        </td>
+        <td style="padding:0.6rem 0.5rem">
+          <span class="badge ${corBadge}" style="white-space:normal;font-size:0.75rem">${resultado}</span>
+        </td>
+        <td style="padding:0.6rem 0.5rem;font-size:0.8rem;font-weight:600;color:var(--cinza-escuro)">
+          <span title="${entr}">👤 ${entr.length > 18 ? entr.slice(0,16)+'…' : entr}</span>
+        </td>
+        <td style="padding:0.6rem 0.5rem;font-size:0.82rem;font-weight:600;color:var(--azul-medio)">${telefone}</td>
+        <td style="padding:0.6rem 0.5rem;font-size:0.8rem;color:var(--cinza-escuro);line-height:1.4">${obs}</td>
       </tr>`;
     });
-    htmlTel += '</tbody></table>';
-    divTel.innerHTML = htmlTel;
-  } else {
-    divTel.innerHTML = '<div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📞</div>Nenhum telefone registrado no histórico.</div>';
+
+    html += '</tbody></table></div>';
+    divUnif.innerHTML = html;
   }
 
   // Carrega roteiro de campo
