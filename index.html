@@ -1021,6 +1021,25 @@
         </div>
         <div id="tabela-usuarios"><div class="loader">Carregando...</div></div>
       </div>
+
+      <div class="card-tabela" id="card-manutencao" style="display:none">
+        <div class="card-tabela-header">
+          <h3>🛠️ Manutenção de dados</h3>
+        </div>
+        <div style="padding:1.25rem">
+          <p style="font-size:0.85rem;color:var(--cinza-escuro);margin-bottom:0.75rem">
+            <strong>Limpar entrevistador do histórico de etapas.</strong> Remove o nome do entrevistador
+            gravado em <em>todas</em> as etapas (Acompanhar Espécies) de <em>todos</em> os domicílios,
+            voltando o campo para "Não informado". O resultado de cada etapa e o mês/ano são preservados —
+            só o nome do entrevistador é apagado. Use isso uma única vez para corrigir o espelhamento indevido
+            feito anteriormente; depois disso, reimporte os CSVs/SIGC normalmente.
+          </p>
+          <button class="btn-acao" style="background:var(--vermelho)" onclick="limparEntrevistadorHistorico()">
+            🧹 Limpar entrevistador de todas as etapas
+          </button>
+          <div id="manutencao-status" style="margin-top:0.85rem;font-size:0.85rem"></div>
+        </div>
+      </div>
     </div>
 
     <div class="pagina" id="pag-avisos">
@@ -1630,6 +1649,12 @@ async function iniciarApp() {
   document.getElementById('chip-perfil').textContent = perfilLogado.perfil;
   document.getElementById('avatar-inicial').textContent =
     (perfilLogado.nome || 'U')[0].toUpperCase();
+
+  // Exibe ferramenta de manutenção apenas para administradores
+  if (perfilLogado.perfil === 'administrador') {
+    const cardManut = document.getElementById('card-manutencao');
+    if (cardManut) cardManut.style.display = '';
+  }
 
   // Esconde itens de gestão para entrevistadores
   if (perfilLogado.perfil === 'entrevistador') {
@@ -2402,6 +2427,69 @@ window.salvarUsuario = async () => {
     carregarUsuarios();
   } catch(e) { mostrarToast('Erro ao salvar', 'erro'); console.error(e); }
 };
+
+// ── MANUTENÇÃO: limpar entrevistador "espelhado" indevidamente no histórico de etapas ──
+// Corrige o problema em que o entrevistador atual do domicílio foi gravado em TODAS as
+// etapas do historico_especies (passadas e futuras), em vez de só na etapa em que ele
+// realmente atuou. Mantém resultado/mes_ano de cada etapa intactos, zera apenas o nome.
+window.limparEntrevistadorHistorico = async () => {
+  if (perfilLogado.perfil !== 'administrador') {
+    mostrarToast('Apenas administradores podem executar esta limpeza', 'erro'); return;
+  }
+  const statusDiv = document.getElementById('manutencao-status');
+  const confirmar = confirm(
+    'Isso vai remover o nome do entrevistador de TODAS as etapas (Acompanhar Espécies) de TODOS ' +
+    'os domicílios do sistema, deixando como "Não informado". O resultado de cada etapa e o mês/ano ' +
+    'NÃO serão alterados. Esta ação não pode ser desfeita automaticamente. Deseja continuar?'
+  );
+  if (!confirmar) return;
+
+  statusDiv.innerHTML = '<div class="loader">Lendo domicílios...</div>';
+  try {
+    const snap = await getDocs(collection(db, 'domicilios'));
+    const candidatos = snap.docs.filter(d => {
+      const hist = d.data().historico_especies;
+      return Array.isArray(hist) && hist.some(h => h.entrevistador && h.entrevistador !== 'Não identificado');
+    });
+
+    if (candidatos.length === 0) {
+      statusDiv.innerHTML = '<div style="color:var(--verde);font-weight:600">✅ Nenhum domicílio com entrevistador gravado no histórico de etapas. Nada para limpar.</div>';
+      return;
+    }
+
+    statusDiv.innerHTML = `<div class="loader">Limpando 0 / ${candidatos.length} domicílios...</div>`;
+    let ok = 0, erros = 0;
+
+    for (let i = 0; i < candidatos.length; i++) {
+      const docSnap = candidatos[i];
+      const histLimpo = (docSnap.data().historico_especies || []).map(h => ({
+        ...h,
+        entrevistador: 'Não identificado'
+      }));
+      try {
+        await updateDoc(doc(db, 'domicilios', docSnap.id), { historico_especies: histLimpo });
+        ok++;
+      } catch (e) {
+        erros++;
+        console.error('Erro ao limpar domicílio', docSnap.id, e);
+      }
+      statusDiv.innerHTML = `<div class="loader">Limpando ${i + 1} / ${candidatos.length} domicílios...</div>`;
+    }
+
+    statusDiv.innerHTML = `<div style="color:var(--verde);font-weight:700">✅ Concluído! ${ok} domicílio(s) limpos${erros > 0 ? `, ${erros} erro(s)` : ''}.</div>`;
+    mostrarToast('Limpeza concluída: ' + ok + ' domicílio(s)', 'sucesso');
+
+    // Atualiza dados locais e ficha aberta, se houver
+    await carregarDomicilios();
+    if (typeof domicilioAtualId !== 'undefined' && domicilioAtualId && typeof window.abrirFicha === 'function') {
+      window.abrirFicha(domicilioAtualId);
+    }
+  } catch (e) {
+    console.error(e);
+    statusDiv.innerHTML = '<div style="color:var(--vermelho);font-weight:600">❌ Erro ao executar a limpeza. Veja o console.</div>';
+  }
+};
+
 
 // ── AVISOS ──
 async function carregarAvisos() {
