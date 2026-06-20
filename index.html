@@ -1056,6 +1056,29 @@
             🗑️ Remover duplicados sem período
           </button>
           <div id="duplicados-status" style="margin-top:0.85rem;font-size:0.85rem"></div>
+
+          <hr class="divisor-secao" style="margin:1.5rem 0">
+
+          <p style="font-size:0.85rem;color:var(--cinza-escuro);margin-bottom:0.75rem">
+            <strong>Importar histórico de entrevistadores (.xlsx).</strong> Carrega uma planilha com as
+            colunas <code>MÊS, UPA, CONTROLE, DOM., ENTREVISTADOR 1…5</code> e preenche o
+            <em>histórico de etapas</em> de cada domicílio no Firebase — mesclando com o que já
+            existe (não apaga dados do SIGC). Use uma única vez para carregar o histórico completo;
+            depois, o SIGC vai atualizando normalmente.
+          </p>
+          <label class="btn-acao secundario" style="cursor:pointer;display:inline-block">
+            📂 Selecionar planilha .xlsx
+            <input type="file" accept=".xlsx" style="display:none" onchange="carregarPlanilhaHistorico(this)">
+          </label>
+          <div id="hist-xlsx-preview" style="margin-top:1rem;display:none">
+            <div style="font-size:0.82rem;color:var(--cinza-escuro);margin-bottom:0.5rem" id="hist-xlsx-resumo"></div>
+            <div style="max-height:200px;overflow-y:auto;border:1px solid var(--borda);border-radius:8px;font-size:0.8rem" id="hist-xlsx-tabela"></div>
+            <div style="margin-top:0.75rem;display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
+              <button class="btn-acao" onclick="confirmarImportacaoHistorico()">✅ Confirmar importação</button>
+              <button class="btn-acao secundario" onclick="cancelarImportacaoHistorico()">Cancelar</button>
+            </div>
+          </div>
+          <div id="hist-xlsx-status" style="margin-top:0.85rem;font-size:0.85rem"></div>
         </div>
       </div>
     </div>
@@ -2652,7 +2675,208 @@ window.removerDuplicadosSemPeriodo = async () => {
 };
 
 
-// ── AVISOS ──
+// ── MANUTENÇÃO: importar histórico de entrevistadores via .xlsx ──
+let _sheetJSPromise = null;
+function obterSheetJS() {
+  if (window.XLSX) return Promise.resolve();
+  if (_sheetJSPromise) return _sheetJSPromise;
+  _sheetJSPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return _sheetJSPromise;
+}
+
+// Mapa de período: valor da coluna MÊS → chave do sistema
+const MAPA_PERIODO_XLSX = {
+  'JAN/ABR/JUL/OUT': 'jan_abr_jul_out',
+  'FEV/MAI/AGO/NOV': 'fev_mai_ago_nov',
+  'FEV/MAIO/AGO/NOV': 'fev_mai_ago_nov',
+  'MAR/JUN/SET/DEZ': 'mar_jun_set_dez',
+};
+
+let _dadosPlanilhaHistorico = null; // linhas parseadas aguardando confirmação
+
+window.carregarPlanilhaHistorico = async (input) => {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = ''; // reset para permitir recarregar o mesmo arquivo
+
+  const statusDiv = document.getElementById('hist-xlsx-status');
+  const previewDiv = document.getElementById('hist-xlsx-preview');
+  statusDiv.innerHTML = '<div class="loader">Lendo planilha…</div>';
+  previewDiv.style.display = 'none';
+  _dadosPlanilhaHistorico = null;
+
+  try {
+    await obterSheetJS();
+
+    const buf = await file.arrayBuffer();
+    const wb = window.XLSX.read(buf, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = window.XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    // Normaliza nomes de coluna (remove espaços extras, tabs)
+    const linhas = rows.map(r => {
+      const n = {};
+      for (const [k, v] of Object.entries(r)) {
+        n[k.trim()] = typeof v === 'string' ? v.trim().replace(/\t/g, '').trim() : String(v === null || v === undefined ? '' : v).trim();
+      }
+      return n;
+    }).filter(r => r['CONTROLE'] && r['DOM.']);
+
+    if (linhas.length === 0) {
+      statusDiv.innerHTML = '<div style="color:var(--vermelho);font-weight:600">❌ Nenhuma linha válida encontrada. Verifique se a planilha tem as colunas MÊS, CONTROLE, DOM., ENTREVISTADOR 1…5.</div>';
+      return;
+    }
+
+    _dadosPlanilhaHistorico = linhas;
+
+    // Prévia: primeiras 10 linhas
+    const cols = ['MÊS', 'CONTROLE', 'DOM.', 'ENT.', 'ENTREVISTADOR 1', 'ENTREVISTADOR 2', 'ENTREVISTADOR 3', 'ENTREVISTADOR 4', 'ENTREVISTADOR 5'];
+    let tbl = '<table style="width:100%;border-collapse:collapse"><thead><tr>' +
+      cols.map(c => `<th style="padding:0.35rem 0.5rem;background:var(--cinza-claro);font-size:0.72rem;white-space:nowrap">${c}</th>`).join('') +
+      '</tr></thead><tbody>';
+    linhas.slice(0, 10).forEach(r => {
+      tbl += '<tr>' + cols.map(c => `<td style="padding:0.3rem 0.5rem;border-bottom:1px solid var(--cinza-claro);font-size:0.78rem;white-space:nowrap">${r[c] || '—'}</td>`).join('') + '</tr>';
+    });
+    if (linhas.length > 10) tbl += `<tr><td colspan="${cols.length}" style="padding:0.4rem 0.5rem;color:var(--cinza);font-size:0.78rem">… e mais ${linhas.length - 10} linha(s)</td></tr>`;
+    tbl += '</tbody></table>';
+
+    document.getElementById('hist-xlsx-resumo').textContent = `${linhas.length} domicílio(s) encontrado(s) na planilha. Confira a prévia abaixo antes de confirmar:`;
+    document.getElementById('hist-xlsx-tabela').innerHTML = tbl;
+    previewDiv.style.display = '';
+    statusDiv.innerHTML = '';
+  } catch (e) {
+    console.error(e);
+    statusDiv.innerHTML = '<div style="color:var(--vermelho);font-weight:600">❌ Erro ao ler a planilha: ' + e.message + '</div>';
+  }
+};
+
+window.cancelarImportacaoHistorico = () => {
+  _dadosPlanilhaHistorico = null;
+  document.getElementById('hist-xlsx-preview').style.display = 'none';
+  document.getElementById('hist-xlsx-status').innerHTML = '';
+};
+
+window.confirmarImportacaoHistorico = async () => {
+  if (!_dadosPlanilhaHistorico || _dadosPlanilhaHistorico.length === 0) return;
+  if (perfilLogado.perfil !== 'administrador') {
+    mostrarToast('Apenas administradores podem executar esta importação', 'erro'); return;
+  }
+
+  const statusDiv = document.getElementById('hist-xlsx-status');
+  const previewDiv = document.getElementById('hist-xlsx-preview');
+  previewDiv.style.display = 'none';
+  statusDiv.innerHTML = '<div class="loader">Buscando domicílios no Firebase…</div>';
+
+  try {
+    // Carrega todos os domicílios uma vez (sem filtro de período — planilha pode ter vários)
+    const snap = await getDocs(collection(db, 'domicilios'));
+    const todosDoms = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    let atualizados = 0, naoEncontrados = 0, erros = 0;
+    const naoEncontradosLog = [];
+
+    for (let idx = 0; idx < _dadosPlanilhaHistorico.length; idx++) {
+      const r = _dadosPlanilhaHistorico[idx];
+
+      // Chave de busca: controle (sem letra) + domicilio_num + período
+      const controleXlsx = String(r['CONTROLE'] || '').trim();
+      const domNumXlsx   = String(r['DOM.'] || '').trim();
+      const mesXlsx      = String(r['MÊS'] || '').trim().toUpperCase();
+      const periodoXlsx  = MAPA_PERIODO_XLSX[mesXlsx] || null;
+
+      if (!controleXlsx || !domNumXlsx) continue;
+
+      // Tenta casar: controle.slice(0,-1) === controleXlsx  E  domicilio_num === domNumXlsx
+      // Se tiver período, usa também; se não mapear (período desconhecido), ignora filtro de período
+      const candidatos = todosDoms.filter(d => {
+        const cSemLetra = (d.controle || '').slice(0, -1);
+        const domNumOk = (d.domicilio_num || d.numero_sequencial || '') === domNumXlsx;
+        const controleOk = cSemLetra === controleXlsx;
+        const periodoOk = !periodoXlsx || !d.periodo || d.periodo === periodoXlsx;
+        return controleOk && domNumOk && periodoOk;
+      });
+
+      if (candidatos.length === 0) {
+        naoEncontrados++;
+        naoEncontradosLog.push(`Controle ${controleXlsx} Dom ${domNumXlsx} (${mesXlsx})`);
+        continue;
+      }
+
+      // Se mais de um candidato, prefere o que bate com período exato
+      const alvo = candidatos.find(d => periodoXlsx && d.periodo === periodoXlsx) || candidatos[0];
+
+      // Monta as etapas que têm entrevistador preenchido nesta linha
+      const etapasLinha = [];
+      for (let et = 1; et <= 5; et++) {
+        const nomeRaw = String(r[`ENTREVISTADOR ${et}`] || '').trim();
+        if (nomeRaw) etapasLinha.push({ etapa: String(et), nome: nomeRaw });
+      }
+      if (etapasLinha.length === 0) continue;
+
+      // Mescla com historico_especies existente
+      let historico = Array.isArray(alvo.historico_especies) ? [...alvo.historico_especies] : [];
+
+      for (const { etapa, nome } of etapasLinha) {
+        const idx2 = historico.findIndex(h => String(h.entrevista) === etapa);
+        if (idx2 >= 0) {
+          // Etapa já existe — atualiza entrevistador apenas se estava vazio/não informado
+          const atual = historico[idx2].entrevistador || '';
+          if (!atual || atual === 'Não identificado' || atual === 'Não informado') {
+            historico[idx2] = { ...historico[idx2], entrevistador: nome };
+          }
+        } else {
+          // Etapa não existe — cria entrada mínima
+          historico.push({
+            entrevista: etapa,
+            resultado: 'Entrevista Realizada',
+            entrevistador: nome,
+            mes_ano: ''
+          });
+        }
+      }
+
+      // Ordena por número de etapa
+      historico.sort((a, b) => parseInt(a.entrevista) - parseInt(b.entrevista));
+
+      try {
+        await updateDoc(doc(db, 'domicilios', alvo.id), { historico_especies: historico });
+        // Atualiza também na memória local
+        const memIdx = todosdomicilios.findIndex(d => d.id === alvo.id);
+        if (memIdx >= 0) todosdomicilios[memIdx].historico_especies = historico;
+        atualizados++;
+      } catch (e) {
+        erros++;
+        console.error('Erro ao atualizar domicílio', alvo.id, e);
+      }
+
+      if ((idx + 1) % 20 === 0 || idx === _dadosPlanilhaHistorico.length - 1) {
+        statusDiv.innerHTML = `<div class="loader">Processando… ${idx + 1} / ${_dadosPlanilhaHistorico.length}</div>`;
+      }
+    }
+
+    let msg = `✅ Concluído! ${atualizados} domicílio(s) atualizados.`;
+    if (naoEncontrados > 0) msg += ` ⚠️ ${naoEncontrados} não encontrado(s) no Firebase`;
+    if (erros > 0) msg += ` ❌ ${erros} erro(s) de gravação`;
+    if (naoEncontradosLog.length > 0 && naoEncontradosLog.length <= 20) {
+      msg += `<br><small style="color:var(--cinza)">Não encontrados: ${naoEncontradosLog.join(' | ')}</small>`;
+    }
+    statusDiv.innerHTML = `<div style="color:var(--verde);font-weight:700">${msg}</div>`;
+    mostrarToast(`Histórico importado: ${atualizados} domicílio(s)`, 'sucesso');
+    _dadosPlanilhaHistorico = null;
+
+  } catch (e) {
+    console.error(e);
+    statusDiv.innerHTML = '<div style="color:var(--vermelho);font-weight:600">❌ Erro crítico na importação. Veja o console.</div>';
+  }
+};
+
+
 async function carregarAvisos() {
   try {
     const snap = await getDocs(
