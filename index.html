@@ -958,6 +958,7 @@
           </select>
           <button class="btn-acao secundario" onclick="limparFiltros()">Limpar</button>
           <button class="btn-acao secundario" onclick="gerarEtiquetas()" title="Gerar etiquetas de endereço">🏷️ Etiquetas</button>
+          <button class="btn-acao secundario" onclick="gerarCartoes()" title="Gerar cartões de campo para impressão">🗂️ Cartões</button>
           <button class="btn-acao" onclick="abrirModalDomicilio()">+ Novo</button>
         </div>
       </div>
@@ -2214,6 +2215,242 @@ ${paginas}
   win.document.close();
 };
 
+// ── CARTÕES DE CAMPO (4 por folha A4) ──
+window.gerarCartoes = async () => {
+  const checkboxes = document.querySelectorAll('.chk-dom');
+  const selecionados = [...document.querySelectorAll('.chk-dom:checked')].map(c => c.value);
+  const usarSelecao = selecionados.length > 0;
+  let lista = [];
+  if (usarSelecao) {
+    lista = selecionados.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
+  } else {
+    checkboxes.forEach(c => { const d = todosdomicilios.find(x => x.id === c.value); if (d) lista.push(d); });
+  }
+  if (lista.length === 0) { mostrarToast('Nenhum domicílio visível para gerar cartões', 'erro'); return; }
+
+  mostrarToast('Carregando dados dos domicílios…', '');
+
+  // Carrega moradores PNAD de todos em paralelo
+  const moradoresPorDom = {};
+  await Promise.all(lista.map(async (d) => {
+    try {
+      const snap = await getDocs(collection(db, 'domicilios', d.id, 'moradores'));
+      moradoresPorDom[d.id] = snap.docs.map(m => m.data())
+        .sort((a,b) => (a.codigo||'').localeCompare(b.codigo||''));
+    } catch(e) { moradoresPorDom[d.id] = []; }
+  }));
+
+  const MINUSCULAS = new Set(['de','da','do','das','dos','e','em','a','o','ao','à','na','no','nas','nos','por','pelo','pela']);
+  const titleCase = (str) => {
+    if (!str) return '';
+    return str.trim().toLowerCase().split(/\s+/).map((w,i) =>
+      (i===0||!MINUSCULAS.has(w)) ? w.charAt(0).toUpperCase()+w.slice(1) : w
+    ).join(' ');
+  };
+
+  const STATUS_LABEL = {
+    nao_visitado: 'Não visitado', ausente: 'Ausente', agendado: 'Agendado',
+    realizada: 'Realizada', recusa: 'Recusa', carta_solicitada: 'Carta solicitada',
+    supervisao: 'Supervisão',
+  };
+
+  const montarCartao = (d) => {
+    const moradores = moradoresPorDom[d.id] || [];
+    const especies  = (d.historico_especies || []).slice().sort((a,b) => parseInt(a.entrevista)-parseInt(b.entrevista));
+    const telefones = (d.historico_telefones || []);
+    const telPorEtapa = {};
+    telefones.forEach(t => { telPorEtapa[String(t.entrevista)] = t; });
+
+    // Situação trimestre anterior = última etapa antes da atual
+    const etapaAtual = parseInt(d.visita_etapa || 0);
+    const etapaAnterior = especies.find(h => parseInt(h.entrevista) === etapaAtual - 1);
+    const situacaoAnterior = etapaAnterior
+      ? `${etapaAnterior.resultado || '—'} (${etapaAnterior.mes_ano || '—'})`
+      : (especies.length > 0 ? `${especies[especies.length-1].resultado || '—'} (${especies[especies.length-1].mes_ano || '—'})` : '—');
+
+    // Código
+    const upa = (d.upa || d.controle || '').replace(/[A-Za-z]/g,'');
+    const ultimos4 = upa.slice(-4);
+    const domNum = String(d.domicilio_num || d.numero_sequencial || '');
+    const codigo = ultimos4 && domNum ? `${ultimos4}/${domNum}` : (d.controle || domNum || '—');
+
+    // Endereço formatado
+    const endRaw = (d.endereco || '').trim();
+    const compRaw = (d.complemento || '').trim();
+    const mEnd = endRaw.match(/^(.*?)\s+(\d+)\s*$/);
+    let endFmt = endRaw;
+    if (mEnd) endFmt = titleCase(mEnd[1]) + ', ' + (mEnd[2]==='0'?'s/n':mEnd[2]);
+    if (compRaw) endFmt += ', ' + titleCase(compRaw);
+
+    // Moradores PNAD
+    let tblMoradores = '';
+    if (moradores.length > 0) {
+      tblMoradores = `<table class="tbl-mor">
+        <thead><tr><th>Nome</th><th>Idade</th><th>Condição</th><th>Cor/Raça</th></tr></thead>
+        <tbody>${moradores.map(m => `<tr>
+          <td>${titleCase(m.nome||'—')}</td>
+          <td>${m.idade!=null ? m.idade+'a' : '—'}</td>
+          <td style="font-size:0.7em">${m.condicao||'—'}</td>
+          <td>${m.raca||m.cor_raca||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+    } else {
+      tblMoradores = '<div class="sem-dados">Nenhum morador PNAD cadastrado</div>';
+    }
+
+    // Observações por etapa
+    let obsHTML = '';
+    const etapasComObs = especies.filter(h => {
+      const t = telPorEtapa[String(h.entrevista)];
+      return (t && t.observacao) || h.resultado;
+    });
+    if (etapasComObs.length > 0) {
+      obsHTML = etapasComObs.map(h => {
+        const t = telPorEtapa[String(h.entrevista)];
+        const obs = t ? (t.observacao || '') : '';
+        const entr = (h.entrevistador && h.entrevistador !== 'Não informado') ? h.entrevistador : '';
+        return `<div class="obs-linha">
+          <span class="obs-num">${h.entrevista}ª</span>
+          ${entr ? `<span class="obs-entr">(${entr})</span>` : ''}
+          <span class="obs-txt">${obs || '—'}</span>
+        </div>`;
+      }).join('');
+    } else {
+      obsHTML = '<div class="sem-dados">—</div>';
+    }
+
+    return `<div class="cartao">
+      <div class="cartao-header">
+        <div class="cartao-codigo">${codigo}</div>
+        <div class="cartao-status">${STATUS_LABEL[d.status_atual] || d.status_atual || 'Não visitado'}</div>
+      </div>
+      <div class="cartao-endereco">${endFmt}</div>
+      <div class="cartao-info">
+        <span>Sem.: <strong>${d.semana||'—'}</strong></span>
+        <span>Etapa: <strong>${d.visita_etapa||'—'}ª</strong></span>
+        <span>Trim. ant.: <strong>${situacaoAnterior}</strong></span>
+        ${d.entrevistador_nome ? `<span>Entr.: <strong>${d.entrevistador_nome}</strong></span>` : ''}
+      </div>
+      ${d.morador_cnefe||d.morador ? `<div class="cartao-cnefe">👤 ${titleCase(d.morador_cnefe||d.morador||'')}</div>` : ''}
+      <div class="cartao-secao">MORADORES PNAD</div>
+      ${tblMoradores}
+      <div class="cartao-secao">OBSERVAÇÕES</div>
+      <div class="cartao-obs">${obsHTML}</div>
+    </div>`;
+  };
+
+  const POR_PAGINA = 4;
+  let paginas = '';
+  for (let i = 0; i < lista.length; i += POR_PAGINA) {
+    const fatia = lista.slice(i, i+POR_PAGINA);
+    // Preenche com cartões vazios para completar grade 2×2
+    while (fatia.length < POR_PAGINA) fatia.push(null);
+    paginas += `<div class="pagina">${fatia.map(d => d ? montarCartao(d) : '<div class="cartao cartao-vazio"></div>').join('')}</div>`;
+  }
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cartões de Campo — PNAD-C</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #fff; font-size: 9pt; padding-top: 46px; }
+  .pagina {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 8mm;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 5mm;
+    page-break-after: always;
+  }
+  .cartao {
+    border: 2px solid #1a3a5c;
+    border-radius: 6px;
+    padding: 5mm 5mm 4mm;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    overflow: hidden;
+  }
+  .cartao-vazio { border: 1px dashed #ccc; }
+  .cartao-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+  }
+  .cartao-codigo { font-size: 11pt; font-weight: 800; color: #1a3a5c; }
+  .cartao-status {
+    font-size: 7.5pt; font-weight: 700;
+    background: #e8f0fb; color: #2563a8;
+    padding: 2px 7px; border-radius: 10px;
+  }
+  .cartao-endereco { font-size: 8.5pt; font-weight: 600; color: #1e293b; line-height: 1.3; }
+  .cartao-info {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    font-size: 7.5pt; color: #64748b;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 3px 0; margin: 2px 0;
+  }
+  .cartao-info span strong { color: #1e293b; }
+  .cartao-cnefe { font-size: 8pt; color: #1e293b; font-style: italic; }
+  .cartao-secao {
+    font-size: 6.5pt; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    color: #64748b; margin-top: 3px;
+  }
+  .tbl-mor { width: 100%; border-collapse: collapse; font-size: 7.5pt; margin-top: 2px; }
+  .tbl-mor th {
+    background: #f1f5f9; padding: 2px 4px;
+    text-align: left; font-size: 6.5pt;
+    font-weight: 700; color: #64748b;
+    text-transform: uppercase;
+  }
+  .tbl-mor td { padding: 2px 4px; border-bottom: 1px solid #f1f5f9; }
+  .cartao-obs { font-size: 7.5pt; margin-top: 2px; flex: 1; }
+  .obs-linha {
+    display: flex; gap: 4px; align-items: baseline;
+    padding: 2px 0; border-bottom: 1px dotted #e2e8f0;
+    line-height: 1.3;
+  }
+  .obs-num { font-weight: 800; color: #2563a8; min-width: 16px; flex-shrink: 0; }
+  .obs-entr { color: #64748b; font-style: italic; flex-shrink: 0; }
+  .obs-txt { color: #1e293b; }
+  .sem-dados { font-size: 7.5pt; color: #94a3b8; font-style: italic; padding: 2px 0; }
+  .toolbar {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: #1a3a5c; color: #fff;
+    padding: 0.5rem 1rem; display: flex;
+    align-items: center; gap: 0.75rem;
+    font-size: 0.85rem; z-index: 999;
+  }
+  .toolbar button { background: #2563a8; border: none; color: #fff; padding: 0.3rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-family: Arial; }
+  .toolbar button.sec { background: rgba(255,255,255,0.15); }
+  @media print {
+    @page { size: A4; margin: 0; }
+    body { padding-top: 0; }
+    .toolbar { display: none; }
+    .pagina { page-break-after: always; }
+  }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <span>🗂️ <strong>${lista.length}</strong> cartão(ões)${usarSelecao ? ' — seleção manual' : ' — filtro atual'}</span>
+  <button onclick="window.print()">🖨️ Imprimir</button>
+  <button class="sec" onclick="window.close()">Fechar</button>
+</div>
+${paginas}
+</body>
+</html>`);
+  win.document.close();
+};
+
 function renderizarDomicilios(lista) {
   const contador = document.getElementById('dom-contador');
   if (contador) contador.textContent = lista.length + ' domicilio(s)';
@@ -2657,8 +2894,12 @@ async function carregarSetores() {
       upas[upa][setor].domicilios.push(d);
     });
 
-    let html = '<div style="overflow-x:auto"><table style="min-width:600px"><thead><tr>' +
-      '<th>UPA / Setor</th><th>Município</th><th>Dom.</th><th>Realizadas</th><th>Progresso</th><th>Pendentes</th>' +
+    // Carrega quais setores já têm Endereço Completo salvo no Firestore
+    const snapEC = await getDocs(collection(db, 'enderecos_setor'));
+    const setoresComCSV = new Set(snapEC.docs.map(d => d.id));
+
+    let html = '<div style="overflow-x:auto"><table style="min-width:650px"><thead><tr>' +
+      '<th>UPA / Setor</th><th>Município</th><th>Dom.</th><th>Realizadas</th><th>Progresso</th><th>Pendentes</th><th>End. Completo</th>' +
       '</tr></thead><tbody>';
 
     for (const [upa, setores] of Object.entries(upas).sort()) {
@@ -2669,7 +2910,7 @@ async function carregarSetores() {
 
       // Linha da UPA
       html += `<tr style="background:var(--azul-claro)">
-        <td colspan="6">
+        <td colspan="7">
           <strong style="color:var(--azul);font-size:0.85rem">UPA ${upa}</strong>
           <span style="font-size:0.75rem;color:var(--cinza);margin-left:0.5rem">${Object.keys(setores).length} setor(es) · ${totalUpa} domicílios</span>
         </td>
@@ -2681,6 +2922,7 @@ async function carregarSetores() {
         const pendentes = dados.domicilios.filter(d => ['nao_visitado','ausente','agendado'].includes(d.status_atual || 'nao_visitado')).length;
         const pct = total > 0 ? Math.round(realizadas / total * 100) : 0;
         const isSameUpa = setor === upa;
+        const temCSV = setoresComCSV.has(setor);
 
         html += `<tr>
           <td>
@@ -2695,6 +2937,12 @@ async function carregarSetores() {
             <div class="barra-prog"><div class="barra-prog-fill" style="width:${pct}%"></div></div>
           </td>
           <td style="text-align:center"><span class="badge badge-amarelo">${pendentes}</span></td>
+          <td style="text-align:center">
+            <label style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.78rem;${temCSV ? 'color:var(--verde);font-weight:600' : 'color:var(--cinza)'}">
+              ${temCSV ? '✅ Importado' : '📂 CSV'}
+              <input type="file" accept=".csv" style="display:none" onchange="salvarEnderecoSetor(this,'${setor}')">
+            </label>
+          </td>
         </tr>`;
       }
     }
@@ -3690,95 +3938,121 @@ function iniciarMapaSetores(pins) {
 }
 
 // ── ROTEIRO DE CAMPO NA FICHA ──
-let listagemSetor = {}; // { setor: [ {seq_visita, dom, endereco, complemento, morador} ] }
+let listagemSetor = {}; // cache em memória { setor: [...] }
 
-// Importa o CSV "Endereço Completo" e guarda em memória por setor
+// Parseia CSV de Endereço Completo e retorna array de objetos
+function parsearEnderecoCSV(texto) {
+  const linhas = texto.split(/\r?\n/);
+  if (linhas.length < 2) return [];
+  const sep = linhas[0].includes(';') ? ';' : ',';
+  const cabecalho = linhas[0].split(sep).map(c => c.trim().replace(/^"|"$/g,''));
+  const idx = (nome) => cabecalho.findIndex(c => c.toLowerCase() === nome.toLowerCase());
+  const iControle = idx('Controle'), iSeq = idx('SeqVisita'), iDom = idx('Dom.');
+  const iEnd = idx('Endereço'), iCompl = idx('Complemento'), iMorador = idx('Morador');
+  if (iControle < 0 || iSeq < 0) return [];
+
+  const parseLinha = (l) => {
+    const res = []; let cur = '', inQ = false;
+    for (const ch of l) {
+      if (ch === '"') inQ = !inQ;
+      else if (ch === sep && !inQ) { res.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    res.push(cur.trim()); return res;
+  };
+
+  const resultado = [];
+  for (let i = 1; i < linhas.length; i++) {
+    const l = linhas[i].trim(); if (!l) continue;
+    const cols = parseLinha(l);
+    resultado.push({
+      seq_visita:  (cols[iSeq]     || '').trim(),
+      dom:         iDom >= 0     ? (cols[iDom]     || '').trim() : '',
+      endereco:    iEnd >= 0     ? (cols[iEnd]     || '').trim() : '',
+      complemento: iCompl >= 0  ? (cols[iCompl]   || '').trim() : '',
+      morador:     iMorador >= 0 ? (cols[iMorador] || '').trim() : '',
+    });
+  }
+  return resultado;
+}
+
+// Salva Endereço Completo no Firestore para um setor específico (chamado pela tela de Setores)
+window.salvarEnderecoSetor = (input, setor) => {
+  const file = input.files[0]; if (!file) return;
+  input.value = '';
+  mostrarToast('Lendo CSV…', '');
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const registros = parsearEnderecoCSV(e.target.result);
+      if (registros.length === 0) { mostrarToast('CSV sem dados válidos', 'erro'); return; }
+
+      // Salva no Firestore — documento por setor, array de registros
+      await setDoc(doc(db, 'enderecos_setor', setor), {
+        registros,
+        atualizado_em: serverTimestamp(),
+        total: registros.length,
+      });
+
+      // Atualiza cache em memória
+      listagemSetor[setor] = registros;
+
+      mostrarToast(`${registros.length} endereços salvos para setor ${setor}`, 'sucesso');
+      carregarSetores(); // Atualiza ícone ✅ na tabela
+    } catch(err) {
+      console.error(err);
+      mostrarToast('Erro ao salvar: ' + err.message, 'erro');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+};
+
+// Importação direta na ficha (mantida para compatibilidade — agora também salva no Firestore)
 window.importarEnderecoCompleto = (input) => {
-  const file = input.files[0];
-  if (!file) return;
+  const file = input.files[0]; if (!file) return;
   input.value = '';
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const texto = e.target.result;
       const linhas = texto.split(/\r?\n/);
-      if (linhas.length < 2) { mostrarToast('CSV vazio ou inválido', 'erro'); return; }
-
-      // Detecta separador (ponto e vírgula ou vírgula)
       const sep = linhas[0].includes(';') ? ';' : ',';
       const cabecalho = linhas[0].split(sep).map(c => c.trim().replace(/^"|"$/g,''));
+      const iControle = cabecalho.findIndex(c => c.toLowerCase() === 'controle');
 
-      const idx = (nome) => cabecalho.findIndex(c => c.toLowerCase() === nome.toLowerCase());
-      const iControle  = idx('Controle');
-      const iSeq       = idx('SeqVisita');
-      const iDom       = idx('Dom.');
-      const iEndereco  = idx('Endereço');
-      const iCompl     = idx('Complemento');
-      const iMorador   = idx('Morador');
-
-      if (iControle < 0 || iSeq < 0) {
-        mostrarToast('CSV não tem colunas Controle e SeqVisita esperadas', 'erro'); return;
-      }
-
-      const parseLinha = (l) => {
-        // Suporte simples a campos com aspas
-        const res = [];
-        let cur = '', inQ = false;
-        for (const ch of l) {
-          if (ch === '"') { inQ = !inQ; }
-          else if (ch === sep && !inQ) { res.push(cur.trim()); cur = ''; }
-          else { cur += ch; }
-        }
-        res.push(cur.trim());
-        return res;
-      };
-
-      // Agrupa por setor (controle sem letra)
       const novo = {};
-      for (let i = 1; i < linhas.length; i++) {
-        const l = linhas[i].trim();
-        if (!l) continue;
-        const cols = parseLinha(l);
-        const controle = (cols[iControle] || '').trim();
-        if (!controle) continue;
-        // Setor = controle sem letra final (se tiver letra) ou como está
-        const setor = controle.replace(/[A-Za-z]$/, '');
-        if (!novo[setor]) novo[setor] = [];
-        novo[setor].push({
-          seq_visita: (cols[iSeq] || '').trim(),
-          dom:        iDom >= 0 ? (cols[iDom] || '').trim() : '',
-          endereco:   iEndereco >= 0 ? (cols[iEndereco] || '').trim() : '',
-          complemento: iCompl >= 0 ? (cols[iCompl] || '').trim() : '',
-          morador:    iMorador >= 0 ? (cols[iMorador] || '').trim() : '',
+      const registros = parsearEnderecoCSV(texto);
+      registros.forEach(r => {
+        // Detecta setor pelo controle da linha original — agrupa
+        const linhaIdx = registros.indexOf(r) + 1;
+        const cols = linhas[linhaIdx]?.split(sep) || [];
+        const controle = (cols[iControle] || '').trim().replace(/[A-Za-z]$/, '');
+        if (!controle) return;
+        if (!novo[controle]) novo[controle] = [];
+        novo[controle].push(r);
+      });
+
+      // Salva cada setor no Firestore e no cache
+      for (const [setor, regs] of Object.entries(novo)) {
+        await setDoc(doc(db, 'enderecos_setor', setor), {
+          registros: regs, atualizado_em: serverTimestamp(), total: regs.length,
         });
+        listagemSetor[setor] = regs;
       }
 
-      // Mescla com o que já existia (outros setores)
-      Object.assign(listagemSetor, novo);
-
-      const totalSetores = Object.keys(novo).length;
-      const totalLinhas  = Object.values(novo).reduce((s,v) => s+v.length, 0);
-      mostrarToast(`Endereço Completo importado: ${totalLinhas} endereços em ${totalSetores} setor(es)`, 'sucesso');
-
-      // Se a ficha de um domicílio já estiver aberta, atualiza o roteiro
+      mostrarToast(`Importado: ${registros.length} endereços em ${Object.keys(novo).length} setor(es)`, 'sucesso');
       if (domicilioAtualId) {
         const dom = todosdomicilios.find(d => d.id === domicilioAtualId);
-        if (dom) {
-          const setor = dom.controle ? dom.controle.slice(0,-1) : dom.upa;
-          carregarRoteiroSetor(setor, dom);
-        }
+        if (dom) { const s = dom.controle ? dom.controle.slice(0,-1) : dom.upa; carregarRoteiroSetor(s, dom); }
       }
-    } catch(err) {
-      console.error(err);
-      mostrarToast('Erro ao ler CSV: ' + err.message, 'erro');
-    }
+    } catch(err) { console.error(err); mostrarToast('Erro: ' + err.message, 'erro'); }
   };
   reader.readAsText(file, 'UTF-8');
 };
 
 window.carregarRoteiroSetor = async (setor, domAtual) => {
   try {
-    // Garante coordenadas do Firestore
+    // Garante coordenadas
     let domComCoords = domAtual;
     if (!domAtual.latitude_kml) {
       const docSnap = await getDoc(doc(db, 'domicilios', domAtual.id));
@@ -3788,29 +4062,30 @@ window.carregarRoteiroSetor = async (setor, domAtual) => {
         if (idx >= 0) todosdomicilios[idx] = domComCoords;
       }
     }
-
     const cor = corEntrevistador(domComCoords.entrevistador_nome || '');
 
-    // Verifica se tem listagem do setor importada
-    const lista = listagemSetor[setor];
+    // Tenta cache → Firestore
+    let lista = listagemSetor[setor];
+    if (!lista) {
+      try {
+        const snap = await getDoc(doc(db, 'enderecos_setor', setor));
+        if (snap.exists()) {
+          lista = snap.data().registros || [];
+          listagemSetor[setor] = lista; // guarda no cache
+        }
+      } catch(e) { console.error('Erro ao buscar enderecos_setor:', e); }
+    }
+
     if (lista && lista.length > 0) {
-      // Encontra o domicílio alvo pelo número (campo dom) ou seq_visita
       const domNum = String(domAtual.domicilio_num || domAtual.numero_sequencial || '');
       let idxAlvo = lista.findIndex(d => d.dom === domNum);
-      // Fallback: busca pela sequência de visita que corresponde ao domNum
       if (idxAlvo < 0) idxAlvo = lista.findIndex(d => d.seq_visita === domNum);
-
-      const anteriores = idxAlvo > 0 ? lista.slice(Math.max(0, idxAlvo-3), idxAlvo) : [];
-      const posteriores = idxAlvo >= 0 ? lista.slice(idxAlvo+1, idxAlvo+4) : lista.slice(0,3);
-      const alvo = idxAlvo >= 0 ? lista[idxAlvo] : null;
-
-      renderizarMapaRoteiro(alvo, anteriores, posteriores, setor, cor, domComCoords);
+      renderizarMapaRoteiro(idxAlvo >= 0 ? lista[idxAlvo] : null, [], [], setor, cor, domComCoords);
       renderizarRoteiro(lista, domAtual, setor);
     } else {
-      // Sem listagem: mostra apenas o mapa
       renderizarMapaRoteiro(null, [], [], setor, cor, domComCoords);
       document.getElementById('roteiro-lista').innerHTML =
-        '<div class="vazio" style="padding:1rem"><div class="icone-vazio">📋</div>Importe o Endereço Completo do setor para ver os 3 anteriores e 3 posteriores.</div>';
+        '<div class="vazio" style="padding:1rem"><div class="icone-vazio">📋</div>Importe o Endereço Completo do setor na tela de Setores para ver o roteiro.</div>';
     }
   } catch(e) {
     console.error(e);
@@ -3818,6 +4093,7 @@ window.carregarRoteiroSetor = async (setor, domAtual) => {
       '<div class="vazio"><div class="icone-vazio">📍</div>Erro ao carregar roteiro.</div>';
   }
 };
+
 
 function renderizarRoteiroKML(doms, domAtual, setor) {
   // Usa apenas os domicílios do KML (sem lista completa)
