@@ -719,6 +719,9 @@
   }
   .filtro-chip:hover { border-color: var(--azul-medio); color: var(--azul); }
   .filtro-chip.ativo { background: var(--azul-claro); border-color: var(--azul-medio); color: var(--azul); font-weight: 700; }
+  .card-filtrado { border-color: var(--laranja) !important; box-shadow: 0 0 0 3px rgba(251,146,60,0.18), var(--sombra); transition: border-color 0.2s, box-shadow 0.2s; }
+  .card-filtrado > .card-tabela-header { background: #fff7ed; border-bottom-color: #fed7aa; }
+  .filtro-ativo-ctrl { border-color: var(--laranja) !important; background: #fff7ed !important; }
 
   .solicitar-btn {
     width: 100%;
@@ -1060,7 +1063,7 @@
         </div>
       </div>
 
-      <div class="card-tabela">
+      <div id="card-pend-tabela" class="card-tabela">
         <div id="pag-pendencias-tabela"><div class="loader">Carregando...</div></div>
       </div>
     </div>
@@ -1117,7 +1120,7 @@
           <button class="btn-acao" onclick="abrirModalDomicilio()">+ Novo</button>
         </div>
       </div>
-      <div class="card-tabela">
+      <div id="card-lista-dom" class="card-tabela">
         <div class="card-tabela-header">
           <h3 id="dom-contador">Lista de domicílios</h3>
         </div>
@@ -1321,7 +1324,7 @@
           <input type="text" id="tent-busca" placeholder="Buscar endereço ou morador..." style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);flex:1;min-width:160px" oninput="filtrarTentativas()">
         </div>
       </div>
-      <div class="card-tabela">
+      <div id="card-tent-tabela" class="card-tabela">
         <div class="card-tabela-header"><h3 id="tent-contador">Tentativas</h3></div>
         <div id="tabela-tentativas"><div class="loader">Carregando...</div></div>
       </div>
@@ -2359,6 +2362,11 @@ window.filtrarPorUpa = () => {
   filtrarDomicilios();
 };
 
+function _indicarFiltroAtivo(cardId, ativo) {
+  const card = document.getElementById(cardId);
+  if (card) card.classList.toggle('card-filtrado', ativo);
+}
+
 window.filtrarDomicilios = () => {
   const upa = document.getElementById('filtro-upa').value;
   const setor = document.getElementById('filtro-setor').value;
@@ -2408,6 +2416,13 @@ window.filtrarDomicilios = () => {
     return parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0);
   });
   renderizarDomicilios(filtrados);
+  const _status = document.getElementById('filtro-status')?.value || '';
+  _indicarFiltroAtivo('card-lista-dom', !!(upa || setor || semana || _status || solicitacao || entrevistador || q));
+  ['filtro-upa','filtro-setor','filtro-semana','filtro-status','filtro-solicitacao','filtro-entrevistador'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.classList.toggle('filtro-ativo-ctrl', !!el.value);
+  });
+  const _bDom = document.getElementById('busca-domicilio');
+  if (_bDom) _bDom.classList.toggle('filtro-ativo-ctrl', !!_bDom.value);
 };
 
 window.limparFiltros = () => {
@@ -3088,6 +3103,10 @@ window.filtrarPendencias = () => {
     ? `<strong>${lista.length}</strong> pendência${lista.length!==1?'s':''} · <strong>${nE}</strong> entrevistador${nE!==1?'es':''} · <strong>${nS}</strong> setor${nS!==1?'es':''}`
     : '';
   _atualizarContadorPendencias(lista.length);
+  const _temFPend = !!(_pendFiltros.semanas.size || _pendFiltros.etapas.size || _pendFiltros.status.size || _pendFiltros.entrevistadores.size || busca || setor);
+  _indicarFiltroAtivo('card-pend-tabela', _temFPend);
+  const _pSetorEl = document.getElementById('pend-filtro-setor'); if (_pSetorEl) _pSetorEl.classList.toggle('filtro-ativo-ctrl', !!setor);
+  const _pBuscaEl = document.getElementById('pend-busca'); if (_pBuscaEl) _pBuscaEl.classList.toggle('filtro-ativo-ctrl', !!busca);
 
   const el = document.getElementById('pag-pendencias-tabela');
   if (!el) return;
@@ -4792,6 +4811,12 @@ window.filtrarTentativas = () => {
     if (q && !(t.endereco || '').toLowerCase().includes(q) && !(t.morador || '').toLowerCase().includes(q)) return false;
     return true;
   });
+
+  _indicarFiltroAtivo('card-tent-tabela', !!(entr || sem || orig || pendentes || q));
+  ['tent-filtro-entrevistador','tent-filtro-semana','tent-filtro-origem','tent-filtro-pendentes'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.classList.toggle('filtro-ativo-ctrl', !!el.value);
+  });
+  const _tBusca = document.getElementById('tent-busca'); if (_tBusca) _tBusca.classList.toggle('filtro-ativo-ctrl', !!q);
 
   const contador = document.getElementById('tent-contador');
   if (contador) contador.textContent = filtradas.length + ' tentativa(s)';
