@@ -838,6 +838,9 @@
     <div class="nav-item ativo" onclick="irPara('dashboard')">
       <span class="icone">📊</span> Dashboard
     </div>
+    <div class="nav-item" onclick="irPara('pendencias')">
+      <span class="icone">⚠️</span> Pendências <span id="nav-pendencias-count" style="margin-left:auto;font-size:0.7rem;font-weight:700;background:var(--laranja);color:#fff;border-radius:10px;padding:1px 7px;display:none"></span>
+    </div>
     <div class="nav-item" onclick="irPara('domicilios')">
       <span class="icone">🏠</span> Domicílios
     </div>
@@ -946,6 +949,19 @@
           </div>
         </div>
         <div id="painel-pendentes-tabela"><div class="loader">Carregando...</div></div>
+      </div>
+    </div>
+
+    <div class="pagina" id="pag-pendencias">
+      <div class="titulo-pagina" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
+        <span>⚠️ Pendências</span>
+        <div style="display:flex;gap:0.5rem">
+          <button class="btn-acao secundario" onclick="gerarEtiquetas()" style="font-size:0.85rem">🏷️ Etiquetas</button>
+          <button class="btn-acao secundario" onclick="gerarCartoes()" style="font-size:0.85rem">🗂️ Cartões</button>
+        </div>
+      </div>
+      <div class="card-tabela">
+        <div id="pag-pendencias-tabela"><div class="loader">Carregando...</div></div>
       </div>
     </div>
 
@@ -1953,6 +1969,7 @@ window.irPara = (pag) => {
   document.getElementById('pag-' + pag).classList.add('ativa');
   event.currentTarget.classList.add('ativo');
   fecharSidebar();
+  if (pag === 'pendencias') renderizarPaginaPendencias();
   // Força recálculo do mapa de setores quando a página fica visível
   if (pag === 'setores') {
     popularFiltrosSetores();
@@ -2809,12 +2826,24 @@ function renderizarDomicilios(lista) {
   preencherSelectAtribuicao();
 }
 
-function renderizarPainelPendentes(docs, semanaAtual) {
-  const el = document.getElementById('painel-pendentes-tabela');
-  if (!el) return;
-  const pendentes = docs
+function _filtrarPendentes(docs, semanaAtual) {
+  return docs
     .filter(d => parseInt(d.semana) <= semanaAtual && STATUS_PENDENTES.includes(d.status_atual || 'nao_visitado'))
     .sort((a, b) => (parseInt(a.semana||0) - parseInt(b.semana||0)) || (parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0)));
+}
+
+function _atualizarContadorPendencias(n) {
+  const badge = document.getElementById('nav-pendencias-count');
+  if (!badge) return;
+  badge.textContent = n;
+  badge.style.display = n > 0 ? '' : 'none';
+}
+
+function renderizarPainelPendentes(docs, semanaAtual) {
+  const pendentes = _filtrarPendentes(docs, semanaAtual);
+  _atualizarContadorPendencias(pendentes.length);
+  const el = document.getElementById('painel-pendentes-tabela');
+  if (!el) return;
   if (pendentes.length === 0) {
     el.innerHTML = '<div class="vazio"><div class="icone-vazio">✅</div>Nenhum domicílio pendente para as semanas até agora.</div>';
     return;
@@ -2822,6 +2851,22 @@ function renderizarPainelPendentes(docs, semanaAtual) {
   el.innerHTML =
     _cabecalhoTabela('chk-todos-painel', "document.querySelectorAll('#painel-pendentes-tabela .chk-dom').forEach(c=>c.checked=this.checked);atualizarSelecao()") +
     pendentes.map(d => _montarLinhaDOM(d, 'pd-')).join('') +
+    '</tbody></table></div>';
+}
+
+function renderizarPaginaPendencias() {
+  const semanaAtual = parseInt(localStorage.getItem('pnad_semana_atual') || '2');
+  const pendentes = _filtrarPendentes(todosdomicilios, semanaAtual);
+  _atualizarContadorPendencias(pendentes.length);
+  const el = document.getElementById('pag-pendencias-tabela');
+  if (!el) return;
+  if (pendentes.length === 0) {
+    el.innerHTML = '<div class="vazio"><div class="icone-vazio">✅</div>Todos os domicílios das semanas passadas estão concluídos!</div>';
+    return;
+  }
+  el.innerHTML =
+    _cabecalhoTabela('chk-todos-pag-pend', "document.querySelectorAll('#pag-pendencias-tabela .chk-dom').forEach(c=>c.checked=this.checked);atualizarSelecao()") +
+    pendentes.map(d => _montarLinhaDOM(d, 'pp-')).join('') +
     '</tbody></table></div>';
 }
 
@@ -3162,7 +3207,7 @@ window.editarCampoDomicilio = (domId, campo, ns = '') => {
       if (domObj) domObj[campo] = novo;
       span.textContent = novo || '-';
       // Sincroniza o mesmo campo no outro namespace (tabela principal ↔ painel pendentes)
-      for (const nsAlt of ['', 'pd-']) {
+      for (const nsAlt of ['', 'pd-', 'pp-']) {
         if (nsAlt === ns) continue;
         const outro = document.getElementById(`${nsAlt}${baseId}`);
         if (outro && outro.dataset.editing !== '1') outro.textContent = novo || '-';
