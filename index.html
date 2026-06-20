@@ -985,7 +985,6 @@
     <div class="pagina" id="pag-setores">
       <div class="titulo-pagina">🗺️ Setores</div>
 
-      <!-- Importar KML -->
       <div class="card-tabela" style="margin-bottom:0.75rem">
         <div class="card-tabela-header">
           <h3>Importar KML do mês</h3>
@@ -997,7 +996,6 @@
         </div>
       </div>
 
-      <!-- Mapa geral dos setores -->
       <div class="card-tabela" style="margin-bottom:0.75rem">
         <div class="card-tabela-header"><h3>Mapa dos domicílios</h3></div>
         <div id="mapa-setores" style="width:100%;height:400px;background:var(--cinza-claro);border-radius:0 0 8px 8px;display:flex;align-items:center;justify-content:center;color:var(--cinza)">
@@ -1005,7 +1003,6 @@
         </div>
       </div>
 
-      <!-- Lista de setores -->
       <div class="card-tabela">
         <div class="card-tabela-header">
           <h3>Setores do período <span id="setores-periodo-label" style="font-weight:700;color:var(--azul-medio)"></span></h3>
@@ -1659,8 +1656,18 @@ window.irPara = (pag) => {
   document.querySelectorAll('.pagina').forEach(p => p.classList.remove('ativa'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('ativo'));
   document.getElementById('pag-' + pag).classList.add('ativa');
-  event.currentTarget.classList.add('ativo');
+  
+  if (typeof event !== 'undefined' && event && event.currentTarget) {
+    event.currentTarget.classList.add('ativo');
+  }
+  
   fecharSidebar();
+
+  setTimeout(() => {
+    if (pag === 'setores' && typeof _mapaSetoresInstance !== 'undefined' && _mapaSetoresInstance) {
+      _mapaSetoresInstance.invalidateSize();
+    }
+  }, 150);
 };
 
 window.toggleSidebar = () => {
