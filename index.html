@@ -2600,8 +2600,8 @@ window.gerarCartoes = async () => {
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; background: #fff; font-size: 9pt; padding-top: 46px; }
   .pagina {
-    width: 210mm;
-    min-height: 297mm;
+    width: 297mm;
+    min-height: 210mm;
     padding: 8mm;
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -2674,7 +2674,7 @@ window.gerarCartoes = async () => {
   .toolbar button { background: #2563a8; border: none; color: #fff; padding: 0.3rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-family: Arial; }
   .toolbar button.sec { background: rgba(255,255,255,0.15); }
   @media print {
-    @page { size: A4; margin: 0; }
+    @page { size: A4 landscape; margin: 0; }
     body { padding-top: 0; }
     .toolbar { display: none; }
     .pagina { page-break-after: always; }
