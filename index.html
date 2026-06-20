@@ -1034,6 +1034,12 @@
         <div class="card-tabela-header">
           <h3>Setores do período <span id="setores-periodo-label" style="font-weight:700;color:var(--azul-medio)"></span></h3>
           <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+            <select id="filtro-upa-setor" onchange="atualizarFiltroSetorSetor();carregarSetores()" style="padding:0.35rem 0.6rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:160px">
+              <option value="">Todas as UPAs</option>
+            </select>
+            <select id="filtro-setor-setor" onchange="carregarSetores()" style="padding:0.35rem 0.6rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:160px">
+              <option value="">Todos os setores</option>
+            </select>
             <select id="filtro-semana-setor" onchange="carregarSetores()" style="padding:0.35rem 0.6rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro)">
               <option value="">Todas as semanas</option>
               <option value="1">Semana 1</option>
@@ -1041,6 +1047,7 @@
               <option value="3">Semana 3</option>
               <option value="4">Semana 4</option>
             </select>
+            <button class="btn-acao secundario" onclick="limparFiltrosSetores()" style="font-size:0.82rem">Limpar</button>
             <button class="btn-acao" id="btn-novo-setor" onclick="abrirModalSetor()">+ Novo setor</button>
           </div>
         </div>
@@ -1770,6 +1777,7 @@ async function iniciarApp() {
   await carregarDomicilios();
   carregarDashboard();
   carregarVisitas();
+  popularFiltrosSetores();
   carregarSetores();
   carregarUsuarios();
   carregarAvisos();
@@ -1786,6 +1794,7 @@ window.irPara = (pag) => {
   fecharSidebar();
   // Força recálculo do mapa de setores quando a página fica visível
   if (pag === 'setores') {
+    popularFiltrosSetores();
     setTimeout(() => {
       if (_mapaSetoresInstance) {
         _mapaSetoresInstance.invalidateSize();
@@ -2879,28 +2888,59 @@ async function carregarVisitas() {
 }
 
 // ── SETORES ──
+function popularFiltrosSetores() {
+  const selUpa   = document.getElementById('filtro-upa-setor');
+  const selSetor = document.getElementById('filtro-setor-setor');
+  if (!selUpa || !selSetor) return;
+
+  const upas = [...new Set(todosdomicilios.filter(pertencePeriodo).map(d => d.upa).filter(Boolean))].sort();
+  const upaSel = selUpa.value;
+  selUpa.innerHTML = '<option value="">Todas as UPAs</option>' +
+    upas.map(u => `<option value="${u}" ${u===upaSel?'selected':''}>${u}</option>`).join('');
+  atualizarFiltroSetorSetor();
+}
+
+window.atualizarFiltroSetorSetor = () => {
+  const selUpa   = document.getElementById('filtro-upa-setor');
+  const selSetor = document.getElementById('filtro-setor-setor');
+  if (!selSetor) return;
+  const upaFiltro = selUpa?.value || '';
+  const doms = todosdomicilios.filter(d => pertencePeriodo(d) && (!upaFiltro || d.upa === upaFiltro));
+  const setores = [...new Set(doms.map(d => d.controle ? d.controle.slice(0,-1) : d.upa).filter(Boolean))].sort();
+  const setorSel = selSetor.value;
+  selSetor.innerHTML = '<option value="">Todos os setores</option>' +
+    setores.map(s => `<option value="${s}" ${s===setorSel?'selected':''}>${s}</option>`).join('');
+};
+
+window.limparFiltrosSetores = () => {
+  const ids = ['filtro-upa-setor','filtro-setor-setor','filtro-semana-setor'];
+  ids.forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  carregarSetores();
+};
+
 async function carregarSetores() {
   try {
     const lbl = document.getElementById('setores-periodo-label');
     if (lbl) lbl.textContent = '— ' + (PERIODOS[periodoAtual] || periodoAtual);
 
     const filtrSemana = document.getElementById('filtro-semana-setor')?.value || '';
+    const filtrUpa    = document.getElementById('filtro-upa-setor')?.value || '';
+    const filtrSetor  = document.getElementById('filtro-setor-setor')?.value || '';
 
-    // Deriva setores diretamente dos domicílios importados
-    const snap = await getDocs(collection(db, 'domicilios'));
-    let domicilios = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .filter(d => d.endereco && pertencePeriodo(d));
+    // Usa domicílios já em memória (mais rápido e consistente com o filtro de período)
+    let domicilios = todosdomicilios.filter(d => d.endereco && pertencePeriodo(d));
 
-    // Aplica filtro de semana se selecionado
-    if (filtrSemana) {
-      domicilios = domicilios.filter(d => String(d.semana) === String(filtrSemana) || d.semana === parseInt(filtrSemana));
-    }
+    // Filtros
+    if (filtrSemana) domicilios = domicilios.filter(d => String(d.semana) === filtrSemana);
+    if (filtrUpa)    domicilios = domicilios.filter(d => (d.upa || '') === filtrUpa);
+    if (filtrSetor)  domicilios = domicilios.filter(d => {
+      const s = d.controle ? d.controle.slice(0,-1) : d.upa;
+      return s === filtrSetor;
+    });
 
     if (domicilios.length === 0) {
       document.getElementById('tabela-setores').innerHTML =
-        '<div class="vazio"><div class="icone-vazio">🗺️</div>Nenhum domicílio encontrado' +
-        (filtrSemana ? ` na Semana ${filtrSemana}` : '') +
-        ' neste período (' + (PERIODOS[periodoAtual] || periodoAtual) + ').</div>';
+        '<div class="vazio"><div class="icone-vazio">🗺️</div>Nenhum domicílio encontrado com os filtros selecionados neste período (' + (PERIODOS[periodoAtual] || periodoAtual) + ').</div>';
       return;
     }
 
