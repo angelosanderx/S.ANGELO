@@ -672,6 +672,13 @@ async function importarFirestore() {
     const toInt = v => ({ integerValue: parseInt(v) || 0 });
     const toArr = v => ({ arrayValue: { values: v.map(item => ({ mapValue: { fields: Object.fromEntries(Object.entries(item).map(([k,val]) => [k, toStr(val)])) } })) } });
 
+    const baseFieldNames = [
+      'upa','controle','municipio','domicilio_num','semana','visita_etapa',
+      'tipo_entrevista','ultima_posicao','observacao_ibge','endereco','localidade',
+      'cep','morador','telefone','latitude','longitude','painel','trimestre',
+      'periodo','status_atual','entrevistador_nome','tentativas_count',
+    ];
+
     const fields = {
       upa:               toStr(d.upa),
       controle:          toStr(d.controle),
@@ -694,17 +701,22 @@ async function importarFirestore() {
       periodo:           toStr(d.periodo),
       status_atual:      toStr(d.status_atual),
       entrevistador_nome:toStr(d.entrevistador_nome),
-      entrevistador_id:  toStr(''),
       tentativas_count:  toInt(d.tentativas_count),
     };
 
-    // Adiciona histórico de espécies e telefones como arrays
-    if (d.historico_especies.length > 0) fields.historico_especies = toArr(d.historico_especies);
-    if (d.historico_telefones.length > 0) fields.historico_telefones = toArr(d.historico_telefones);
-    if (d.tentativas.length > 0) fields.tentativas_recentes = toArr(d.tentativas.slice(-3)); // últimas 3
+    // Adiciona histórico de espécies e telefones como arrays (apenas quando o CSV foi carregado)
+    const maskFields = [...baseFieldNames];
+    if (d.historico_especies.length > 0) { fields.historico_especies = toArr(d.historico_especies); maskFields.push('historico_especies'); }
+    if (d.historico_telefones.length > 0) { fields.historico_telefones = toArr(d.historico_telefones); maskFields.push('historico_telefones'); }
+    if (d.tentativas.length > 0) { fields.tentativas_recentes = toArr(d.tentativas.slice(-3)); maskFields.push('tentativas_recentes'); }
+
+    // updateMask garante que apenas os campos listados são tocados — campos extras
+    // salvos pelo app (solicitacoes, status_base, entrevistador_id, morador_cnefe, etc.)
+    // são preservados mesmo que não venham neste CSV.
+    const maskQuery = maskFields.map(f => `updateMask.fieldPaths=${encodeURIComponent(f)}`).join('&');
 
     try {
-      const resp = await fetch(url, {
+      const resp = await fetch(`${url}?${maskQuery}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ fields })

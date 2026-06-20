@@ -2695,13 +2695,27 @@ function renderizarDomicilios(lista) {
       '<div class="vazio"><div class="icone-vazio">🏠</div>Nenhum domicilio encontrado.</div>';
     return;
   }
-  let html = '<div style="overflow-x:auto"><table style="min-width:700px"><thead><tr>' +
+  let html = '<div style="overflow-x:auto"><table style="min-width:860px"><thead><tr>' +
     '<th style="width:36px"><input type="checkbox" id="chk-todos" onchange="toggleTodos(this)" title="Selecionar todos"></th>' +
-    '<th>UPA / Setor / Dom.</th><th>Sem.</th><th>Etapa</th><th>Entrevistador</th><th>Endereço / Morador</th><th>Status</th><th>Ação</th>' +
+    '<th>UPA / Setor / Dom.</th><th>Sem.</th><th>Etapa</th><th>Entrevistador</th><th>Endereço / Morador</th><th>Status</th><th>Trimestre Anterior</th><th>Ação</th>' +
     '</tr></thead><tbody>';
   for (const d of lista) {
     const setor = d.controle ? d.controle.slice(0,-1) : (d.upa || '-');
     const nomeEntr = d.entrevistador_nome || (d.entrevistador_id ? '...' : '<span style="color:var(--cinza);font-style:italic;font-size:0.78rem">Não atribuído</span>');
+    const _esp = (d.historico_especies || []).slice().sort((a,b) => parseInt(a.entrevista)-parseInt(b.entrevista));
+    const _eta = parseInt(d.visita_etapa || 0);
+    // Busca a etapa imediatamente anterior à atual (sem fallback para evitar mostrar a própria etapa atual)
+    const _ant = _eta > 1 ? (_esp.find(h => parseInt(h.entrevista) === _eta - 1) || null) : null;
+    // Calcula o rótulo de data: usa mes_ano se existir, senão deriva o trimestre a partir do trimestre atual
+    const _calcTrimEtapa = (trim, etaAtual, etaHist) => {
+      const m = (trim || '').match(/(\d{4})T(\d)/);
+      if (!m) return '';
+      let ano = parseInt(m[1]), q = parseInt(m[2]) - (etaAtual - parseInt(etaHist));
+      while (q <= 0) { q += 4; ano--; }
+      while (q > 4) { q -= 4; ano++; }
+      return `${ano}T${q}`;
+    };
+    const _dataAnt = _ant ? (_ant.mes_ano || _calcTrimEtapa(d.trimestre, _eta, _ant.entrevista)) : '';
     html += `<tr id="row-${d.id}">
       <td><input type="checkbox" class="chk-dom" value="${d.id}" onchange="atualizarSelecao()"></td>
       <td>
@@ -2724,6 +2738,11 @@ function renderizarDomicilios(lista) {
           .map(s => `<div style="margin-top:3px;font-size:0.68rem;font-weight:700;color:var(--laranja);background:var(--laranja-claro);padding:2px 6px;border-radius:10px;display:inline-block">${
             {carta_abertura:'📄 Carta Abertura', carta_retorno:'🔄 Carta Retorno', carta_recusa:'✉️ Carta Recusa', apoio_supervisao:'👤 Supervisão', apoio_viatura:'🚗 Viatura', correcao_questionario:'✏️ Correção Quest.', comunicar_dmc:'📢 DMC', contato_informante:'📞 Informante', mais_empenho:'💪 Empenho'}[s.tipo] || s.tipo
           }</div>`).join('')}
+      </td>
+      <td style="font-size:0.82rem;min-width:120px">
+        ${_ant
+          ? `<div style="font-weight:600">${_ant.resultado || '—'}</div><div style="font-size:0.7rem;color:var(--cinza)">${_dataAnt ? _dataAnt + ' · ' : ''}${_ant.entrevista || '?'}ª entrevista</div>`
+          : '<span style="color:var(--cinza)">—</span>'}
       </td>
       <td>
         <div style="display:flex;gap:0.5rem">
