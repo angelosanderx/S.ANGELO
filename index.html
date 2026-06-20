@@ -1142,7 +1142,7 @@
             <span>Histórico de Entrevistas</span>
           </div>
           <div style="margin-bottom:1.5rem">
-            <div style="font-size:0.78rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem">Acompanhar Espécies (Últimas 5 entrevistas)</div>
+            <div style="font-size:0.78rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem">Acompanhar Espécies (Etapas)</div>
             <div id="historico-especies-ficha">
               <div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📈</div>Importe os dados do CSV Acompanhar Espécies para ver o histórico.</div>
             </div>
@@ -1656,18 +1656,8 @@ window.irPara = (pag) => {
   document.querySelectorAll('.pagina').forEach(p => p.classList.remove('ativa'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('ativo'));
   document.getElementById('pag-' + pag).classList.add('ativa');
-  
-  if (typeof event !== 'undefined' && event && event.currentTarget) {
-    event.currentTarget.classList.add('ativo');
-  }
-  
+  event.currentTarget.classList.add('ativo');
   fecharSidebar();
-
-  setTimeout(() => {
-    if (pag === 'setores' && typeof _mapaSetoresInstance !== 'undefined' && _mapaSetoresInstance) {
-      _mapaSetoresInstance.invalidateSize();
-    }
-  }, 150);
 };
 
 window.toggleSidebar = () => {
@@ -1993,20 +1983,29 @@ window.abrirFicha = (id) => {
   document.getElementById('ficha-entrevistador').textContent = dom.entrevistador_nome || 'Não atribuído';
   document.getElementById('ficha-supervisor').textContent = dom.supervisor_nome || 'Não atribuído';
 
-  // Preencher Histórico de Espécies
+  // Preencher Histórico de Espécies/Etapas
   const divEsp = document.getElementById('historico-especies-ficha');
   if (dom.historico_especies && dom.historico_especies.length > 0) {
-    let htmlEsp = '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem">';
-    dom.historico_especies.forEach(h => {
-      htmlEsp += `<div style="background:var(--cinza-claro);padding:0.75rem 1rem;border-radius:8px;min-width:140px;border:1px solid var(--borda)">
-        <div style="font-size:0.72rem;color:var(--cinza);font-weight:700;text-transform:uppercase">Entrevista ${h.entrevista}</div>
-        <div style="font-size:0.85rem;color:var(--azul);font-weight:700;margin-top:4px">${h.resultado || '-'}</div>
+    // Ordena para garantir que a 1ª etapa apareça primeiro
+    const historicoOrdenado = dom.historico_especies.sort((a, b) => parseInt(a.entrevista) - parseInt(b.entrevista));
+    
+    let htmlEsp = '<div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.5rem">';
+    historicoOrdenado.forEach(h => {
+      htmlEsp += `<div style="background:var(--cinza-claro);padding:0.75rem 1rem;border-radius:8px;min-width:150px;border:1px solid var(--borda)">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:0.72rem;color:var(--cinza);font-weight:700;text-transform:uppercase">Etapa ${h.entrevista}</div>
+          <div style="font-size:0.65rem;background:var(--branco);padding:2px 6px;border-radius:4px;color:var(--azul-medio);font-weight:600 border:1px solid var(--borda)">${h.mes_ano || '-'}</div>
+        </div>
+        <div style="font-size:0.85rem;color:var(--azul);font-weight:700;margin-top:6px">${h.resultado || '-'}</div>
+        <div style="font-size:0.75rem;color:var(--cinza-escuro);margin-top:6px;border-top:1px solid var(--borda);padding-top:6px;display:flex;align-items:center;gap:4px">
+          <span>👤</span> <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px" title="${h.entrevistador || 'Não informado'}">${h.entrevistador || 'Não informado'}</span>
+        </div>
       </div>`;
     });
     htmlEsp += '</div>';
     divEsp.innerHTML = htmlEsp;
   } else {
-    divEsp.innerHTML = '<div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📈</div>Nenhum histórico de espécies encontrado para este domicílio.</div>';
+    divEsp.innerHTML = '<div class="vazio" style="padding:1.5rem"><div class="icone-vazio">📈</div>Nenhum histórico de etapas registrado para este domicílio.</div>';
   }
 
   // Preencher Histórico de Telefones
@@ -3483,6 +3482,21 @@ window.confirmarSIGC = async () => {
   if (!dadosSIGC || !domicilioAtualId) return;
   const { entrevista, moradores } = dadosSIGC;
   try {
+    const domAtualObj = todosdomicilios.find(d => d.id === domicilioAtualId);
+    let historico_atualizado = domAtualObj ? (domAtualObj.historico_especies || []) : [];
+    
+    const etapaNum = entrevista.numero ? entrevista.numero.replace(/\D/g, '') : null;
+    
+    if (etapaNum) {
+      historico_atualizado = historico_atualizado.filter(h => h.entrevista !== etapaNum);
+      historico_atualizado.push({
+        entrevista: etapaNum,
+        resultado: entrevista.tipo || 'Sem informação',
+        entrevistador: entrevista.entrevistador || 'Não identificado',
+        mes_ano: entrevista.data ? entrevista.data.substring(3, 10) : new Date().toLocaleDateString('pt-BR').substring(3)
+      });
+    }
+
     await updateDoc(doc(db, 'domicilios', domicilioAtualId), {
       entrevista_numero:   entrevista.numero,
       entrevista_tipo:     entrevista.tipo,
@@ -3492,6 +3506,7 @@ window.confirmarSIGC = async () => {
       entrevistador_sigc:  entrevista.entrevistador,
       ultima_posicao:      entrevista.ultima_posicao,
       observacao_sigc:     entrevista.observacao,
+      historico_especies:  historico_atualizado
     });
     for (const m of moradores) {
       const existentes = await getDocs(
@@ -3616,6 +3631,20 @@ window.processarCentralSIGC = async () => {
     else if (tipoLower.includes('recusa')) status_atual = 'recusa';
     else if (tipoLower.includes('ausente')) status_atual = 'ausente';
 
+    // NOVA LÓGICA DE HISTÓRICO
+    let historico_atualizado = targetDoc.data().historico_especies || [];
+    const etapaNum = entrevista.numero ? entrevista.numero.replace(/\D/g, '') : null;
+    
+    if (etapaNum) {
+      historico_atualizado = historico_atualizado.filter(h => h.entrevista !== etapaNum);
+      historico_atualizado.push({
+        entrevista: etapaNum,
+        resultado: entrevista.tipo || 'Sem informação',
+        entrevistador: entrevista.entrevistador || 'Não identificado',
+        mes_ano: entrevista.data ? entrevista.data.substring(3, 10) : new Date().toLocaleDateString('pt-BR').substring(3)
+      });
+    }
+
     // Salva metadados da entrevista na ficha geral
     await updateDoc(doc(db, 'domicilios', targetId), {
       entrevista_numero:   entrevista.numero || null,
@@ -3627,6 +3656,7 @@ window.processarCentralSIGC = async () => {
       ultima_posicao:      entrevista.ultima_posicao || null,
       observacao_sigc:     entrevista.observacao || null,
       status_atual:        status_atual,
+      historico_especies:  historico_atualizado,
       ultima_visita:       serverTimestamp()
     });
 
