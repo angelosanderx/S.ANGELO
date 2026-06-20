@@ -1321,16 +1321,19 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
           <div id="secao-observacoes">
             <div class="secao-titulo" style="font-size: 1rem;"><span>Observações da Equipe</span></div>
-            <div style="background:var(--cinza-claro); border-radius:8px; padding: 1.5rem; text-align:center; color:var(--cinza); font-size:0.85rem;">
-              <div style="font-size: 2rem; margin-bottom: 0.5rem;">📝</div>Quadro de observações em desenvolvimento.
+            <div id="obs-feed" style="max-height:220px;overflow-y:auto;margin-bottom:0.6rem"></div>
+            <div style="display:flex;gap:0.5rem;align-items:flex-end">
+              <textarea id="obs-input" placeholder="Adicionar observação..." rows="2"
+                style="flex:1;resize:none;border:1.5px solid var(--borda);border-radius:6px;padding:0.45rem 0.6rem;font-size:0.82rem;font-family:var(--fonte);color:var(--texto)"
+                onkeydown="if(event.ctrlKey&&event.key==='Enter')salvarObservacaoFicha()"></textarea>
+              <button class="btn-acao" style="font-size:0.8rem;padding:0.4rem 0.8rem;align-self:stretch" onclick="salvarObservacaoFicha()">Enviar</button>
             </div>
+            <div style="font-size:0.68rem;color:var(--cinza);margin-top:0.3rem">Ctrl+Enter para enviar</div>
           </div>
-          
+
           <div id="secao-links">
-            <div class="secao-titulo" style="font-size: 1rem;"><span>Links e Controles</span></div>
-            <div style="background:var(--cinza-claro); border-radius:8px; padding: 1.5rem; text-align:center; color:var(--cinza); font-size:0.85rem;">
-               <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔗</div>Atalhos operacionais em desenvolvimento.
-            </div>
+            <div class="secao-titulo" style="font-size: 1rem;"><span>Atalhos Operacionais</span></div>
+            <div id="atalhos-lista" style="display:flex;flex-direction:column;gap:0.4rem"></div>
           </div>
         </div>
 
@@ -2290,15 +2293,19 @@ window.limparFiltros = () => {
 };
 
 // ── ETIQUETAS DE ENDEREÇO (Pimaco 6181 — 2×7 = 14 por folha A4) ──
-window.gerarEtiquetas = async () => {
-  const checkboxes = document.querySelectorAll('.chk-dom');
-  const selecionados = [...document.querySelectorAll('.chk-dom:checked')].map(c => c.value);
-  const usarSelecao = selecionados.length > 0;
+window.gerarEtiquetas = async (idsOverride) => {
   let lista = [];
-  if (usarSelecao) {
-    lista = selecionados.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
+  if (idsOverride && idsOverride.length > 0) {
+    lista = idsOverride.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
   } else {
-    checkboxes.forEach(c => { const d = todosdomicilios.find(x => x.id === c.value); if (d) lista.push(d); });
+    const checkboxes = document.querySelectorAll('.chk-dom');
+    const selecionados = [...document.querySelectorAll('.chk-dom:checked')].map(c => c.value);
+    const usarSelecao = selecionados.length > 0;
+    if (usarSelecao) {
+      lista = selecionados.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
+    } else {
+      checkboxes.forEach(c => { const d = todosdomicilios.find(x => x.id === c.value); if (d) lista.push(d); });
+    }
   }
   if (lista.length === 0) { mostrarToast('Nenhum domicílio visível para gerar etiquetas', 'erro'); return; }
 
@@ -2460,15 +2467,19 @@ ${paginas}
 };
 
 // ── CARTÕES DE CAMPO (4 por folha A4) ──
-window.gerarCartoes = async () => {
-  const checkboxes = document.querySelectorAll('.chk-dom');
-  const selecionados = [...document.querySelectorAll('.chk-dom:checked')].map(c => c.value);
-  const usarSelecao = selecionados.length > 0;
+window.gerarCartoes = async (idsOverride) => {
   let lista = [];
-  if (usarSelecao) {
-    lista = selecionados.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
+  if (idsOverride && idsOverride.length > 0) {
+    lista = idsOverride.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
   } else {
-    checkboxes.forEach(c => { const d = todosdomicilios.find(x => x.id === c.value); if (d) lista.push(d); });
+    const checkboxes = document.querySelectorAll('.chk-dom');
+    const selecionados = [...document.querySelectorAll('.chk-dom:checked')].map(c => c.value);
+    const usarSelecao = selecionados.length > 0;
+    if (usarSelecao) {
+      lista = selecionados.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
+    } else {
+      checkboxes.forEach(c => { const d = todosdomicilios.find(x => x.id === c.value); if (d) lista.push(d); });
+    }
   }
   if (lista.length === 0) { mostrarToast('Nenhum domicílio visível para gerar cartões', 'erro'); return; }
 
@@ -2879,10 +2890,110 @@ window.abrirFicha = (id) => {
   // Histórico de solicitações
   renderizarHistoricoSolicitacoesFicha(id);
 
+  // Observações e atalhos
+  renderizarObservacoesFicha(id);
+  renderizarAtalhosOperacionais(dom);
+
   // Navegar para a página da ficha
   document.querySelectorAll('.pagina').forEach(p => p.classList.remove('ativa'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('ativo'));
   document.getElementById('pag-ficha-domicilio').classList.add('ativa');
+};
+
+// ── OBSERVAÇÕES DA EQUIPE ──
+function renderizarObservacoesFicha(id) {
+  const dom = todosdomicilios.find(d => d.id === id);
+  const obs = (dom?.observacoes || []);
+  const el = document.getElementById('obs-feed');
+  if (!el) return;
+  const canDelete = ['supervisor','administrador'].includes(usuarioLogado?.perfil);
+  if (obs.length === 0) {
+    el.innerHTML = '<div style="font-size:0.82rem;color:var(--cinza);font-style:italic;padding:0.4rem 0">Nenhuma observação registrada.</div>';
+    return;
+  }
+  el.innerHTML = obs.map((o, i) => `
+    <div style="background:var(--cinza-claro);border-radius:6px;padding:0.55rem 0.7rem;margin-bottom:0.35rem;border-left:3px solid var(--azul-claro)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.2rem">
+        <span style="font-size:0.72rem;font-weight:700;color:var(--azul)">${o.autor_nome || 'Anônimo'}</span>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <span style="font-size:0.68rem;color:var(--cinza)">${o.data_iso ? new Date(o.data_iso).toLocaleDateString('pt-BR') : ''}</span>
+          ${canDelete ? `<button onclick="deletarObservacaoFicha(${i})" style="border:none;background:none;cursor:pointer;font-size:0.95rem;color:var(--cinza);line-height:1;padding:0" title="Excluir">×</button>` : ''}
+        </div>
+      </div>
+      <div style="font-size:0.82rem;color:var(--cinza-escuro);line-height:1.4">${(o.texto||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</div>
+    </div>
+  `).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+window.salvarObservacaoFicha = async () => {
+  const input = document.getElementById('obs-input');
+  const texto = (input?.value || '').trim();
+  if (!texto || !domicilioAtualId) return;
+  const nova = {
+    texto,
+    autor_nome: usuarioLogado?.nome || usuarioLogado?.email || 'Usuário',
+    autor_uid: usuarioLogado?.uid || '',
+    data_iso: new Date().toISOString(),
+  };
+  input.disabled = true;
+  try {
+    const domObj = todosdomicilios.find(d => d.id === domicilioAtualId);
+    const novas = [...(domObj?.observacoes || []), nova];
+    await updateDoc(doc(db, 'domicilios', domicilioAtualId), { observacoes: novas });
+    if (domObj) domObj.observacoes = novas;
+    input.value = '';
+    renderizarObservacoesFicha(domicilioAtualId);
+  } catch(e) {
+    mostrarToast('Erro ao salvar observação', 'erro');
+  } finally {
+    input.disabled = false;
+    input.focus();
+  }
+};
+
+window.deletarObservacaoFicha = async (idx) => {
+  if (!domicilioAtualId) return;
+  const domObj = todosdomicilios.find(d => d.id === domicilioAtualId);
+  if (!domObj) return;
+  const novas = (domObj.observacoes || []).filter((_, i) => i !== idx);
+  try {
+    await updateDoc(doc(db, 'domicilios', domicilioAtualId), { observacoes: novas });
+    domObj.observacoes = novas;
+    renderizarObservacoesFicha(domicilioAtualId);
+  } catch(e) {
+    mostrarToast('Erro ao excluir observação', 'erro');
+  }
+};
+
+// ── ATALHOS OPERACIONAIS ──
+function renderizarAtalhosOperacionais(dom) {
+  const el = document.getElementById('atalhos-lista');
+  if (!el) return;
+  const lat = dom.latitude_kml || dom.latitude;
+  const lng = dom.longitude_kml || dom.longitude;
+  const mapUrl = (lat && lng)
+    ? `https://maps.google.com/?q=${lat},${lng}`
+    : `https://maps.google.com/?q=${encodeURIComponent((dom.endereco_custom || dom.endereco || '') + ', Campos dos Goytacazes, RJ')}`;
+  const tel = (dom.telefone || '').replace(/'/g, '');
+  const end = (dom.endereco_custom || dom.endereco || '').replace(/'/g, '');
+  el.innerHTML = `
+    <a href="${mapUrl}" target="_blank" rel="noopener" class="btn-acao secundario"
+       style="font-size:0.82rem;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:0.4rem">
+      📍 Abrir no Google Maps
+    </a>
+    ${tel ? `<button class="btn-acao secundario" style="font-size:0.82rem" onclick="copiarTextoClipboard('${tel}','📞 Telefone copiado!')">📞 Copiar telefone (${tel})</button>` : ''}
+    ${end ? `<button class="btn-acao secundario" style="font-size:0.82rem" onclick="copiarTextoClipboard('${end}','📋 Endereço copiado!')">📋 Copiar endereço</button>` : ''}
+    <button class="btn-acao secundario" style="font-size:0.82rem" onclick="gerarEtiquetas(['${dom.id}'])">🏷️ Imprimir etiqueta</button>
+    <button class="btn-acao secundario" style="font-size:0.82rem" onclick="gerarCartoes(['${dom.id}'])">🗂️ Imprimir cartão</button>
+    <button class="btn-acao secundario" style="font-size:0.82rem;background:var(--laranja-claro);color:var(--laranja);border-color:var(--laranja)" onclick="abrirSolicitar('${dom.id}')">📋 Solicitar</button>
+  `;
+}
+
+window.copiarTextoClipboard = (texto, msg) => {
+  navigator.clipboard.writeText(texto)
+    .then(() => mostrarToast(msg || 'Copiado!', 'sucesso'))
+    .catch(() => mostrarToast('Erro ao copiar', 'erro'));
 };
 
 // ── EDIÇÃO INLINE DE CAMPOS DA FICHA ──
