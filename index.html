@@ -973,6 +973,7 @@
             <option value="carta_recusa">✉️ Carta de Recusa</option>
             <option value="apoio_supervisao">👤 Apoio da Supervisão</option>
             <option value="apoio_viatura">🚗 Apoio da Viatura</option>
+            <option value="corrigir_moradores">👥 Corrigir quadro de moradores</option>
           </select>
           <select id="filtro-entrevistador" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:180px">
             <option value="">Todos os entrevistadores</option>
@@ -1428,8 +1429,9 @@
               </div>
             </div>
           </div>
-          <button class="solicitar-btn" data-tipo="apoio_supervisao" data-status="supervisao">👤 Apoio da Supervisão</button>
-          <button class="solicitar-btn" data-tipo="apoio_viatura"    data-status="supervisao">🚗 Apoio da Viatura</button>
+          <button class="solicitar-btn" data-tipo="apoio_supervisao"    data-status="supervisao">👤 Apoio da Supervisão</button>
+          <button class="solicitar-btn" data-tipo="apoio_viatura"       data-status="supervisao">🚗 Apoio da Viatura</button>
+          <button class="solicitar-btn" data-tipo="corrigir_moradores"  data-status="supervisao">👥 Corrigir quadro de moradores</button>
         </div>
       </div>
 
@@ -2760,7 +2762,7 @@ function renderizarDomicilios(lista) {
         ${badgeStatus(d.status_atual || 'nao_visitado')}
         ${(d.solicitacoes?.length ? d.solicitacoes : d.tipo_solicitacao ? [{ tipo: d.tipo_solicitacao }] : [])
           .map(s => `<div style="margin-top:2px;font-size:0.63rem;font-weight:700;color:var(--laranja);background:var(--laranja-claro);padding:1px 5px;border-radius:10px;display:inline-block">${
-            {carta_abertura:'📄 Abertura', carta_retorno:'🔄 Retorno', carta_recusa:'✉️ Recusa', apoio_supervisao:'👤 Apoio', apoio_viatura:'🚗 Viatura', correcao_questionario:'✏️ Correção', comunicar_dmc:'📢 DMC', contato_informante:'📞 Contato', mais_empenho:'💪 Empenho'}[s.tipo] || s.tipo
+            {carta_abertura:'📄 Abertura', carta_retorno:'🔄 Retorno', carta_recusa:'✉️ Recusa', apoio_supervisao:'👤 Apoio', apoio_viatura:'🚗 Viatura', corrigir_moradores:'👥 Moradores', correcao_questionario:'✏️ Correção', comunicar_dmc:'📢 DMC', contato_informante:'📞 Contato', mais_empenho:'💪 Empenho'}[s.tipo] || s.tipo
           }</div>`).join('')}
       </td>
       <td style="font-size:0.75rem;padding:0.5rem 0.5rem">
@@ -3227,6 +3229,7 @@ const SOL_LABELS = {
   carta_recusa:          '✉️ Carta de Recusa',
   apoio_supervisao:      '👤 Apoio da Supervisão',
   apoio_viatura:         '🚗 Apoio da Viatura',
+  corrigir_moradores:    '👥 Corrigir quadro de moradores',
   correcao_questionario: '✏️ Correção de Questionário',
   comunicar_dmc:         '📢 Comunicar DMC',
   contato_informante:    '📞 Contato com Informante',
@@ -3241,7 +3244,7 @@ let statusSolicitacaoSelecionado = null;
 function calcularStatusSolicitacoes(sols, statusBase) {
   const ativas = (sols || []).filter(s => !s.resolvido);
   if (ativas.length === 0) return statusBase || 'nao_visitado';
-  if (ativas.some(s => ['apoio_supervisao', 'apoio_viatura', ...SOL_TIPOS_SUPERVISOR].includes(s.tipo)))
+  if (ativas.some(s => ['apoio_supervisao', 'apoio_viatura', 'corrigir_moradores', ...SOL_TIPOS_SUPERVISOR].includes(s.tipo)))
     return 'supervisao';
   return 'carta_solicitada';
 }
