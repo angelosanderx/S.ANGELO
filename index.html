@@ -1499,7 +1499,12 @@
         <div class="card-tabela">
           <div class="card-tabela-header">
             <h3>Setores CNEFE</h3>
-            <button class="btn-acao" onclick="abrirModalCnefeSetorNovo()">+ Adicionar setor</button>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+              <select id="cnefe-filtro-mes" onchange="carregarCnefeSetores()" style="font-size:0.82rem;padding:0.3rem 0.65rem;border:1px solid var(--borda);border-radius:6px;background:var(--fundo);color:var(--texto)">
+                <option value="">Todos os meses</option>
+              </select>
+              <button class="btn-acao" onclick="abrirModalCnefeSetorNovo()">+ Adicionar setor</button>
+            </div>
           </div>
           <div id="cnefe-setores-tabela"><div class="loader">Carregando...</div></div>
         </div>
@@ -8341,25 +8346,65 @@ async function carregarCnefeSetores() {
     document.getElementById('cnefe-stat-atrasados').textContent = atrasados;
     document.getElementById('cnefe-stat-concluidos').textContent = concluidos;
 
-    if (!setores.length) {
+    // Popular filtro de mês (preserva seleção atual)
+    const selMes = document.getElementById('cnefe-filtro-mes');
+    const mesFiltroAtual = selMes?.value || '';
+    const mesesUnicos = [...new Map(
+      setores
+        .filter(s => s.mesCnefe)
+        .map(s => [`${s.anoCnefe}_${String(s.mesCnefe).padStart(2,'0')}`, s])
+        .sort((a, b) => a[0].localeCompare(b[0]))
+    )].map(([k, s]) => ({ key: k, mes: s.mesCnefe, ano: s.anoCnefe }));
+    if (selMes) {
+      selMes.innerHTML = '<option value="">Todos os meses</option>' +
+        mesesUnicos.map(m =>
+          `<option value="${m.key}"${m.key === mesFiltroAtual ? ' selected' : ''}>${_CNEFE_MESES[m.mes-1]} ${m.ano}</option>`
+        ).join('');
+    }
+
+    // Filtra por mês se selecionado
+    const setoresFiltrados = mesFiltroAtual
+      ? setores.filter(s => `${s.anoCnefe}_${String(s.mesCnefe).padStart(2,'0')}` === mesFiltroAtual)
+      : setores;
+
+    if (!setoresFiltrados.length) {
       el.innerHTML = '<div class="vazio"><div class="icone-vazio">📍</div>Nenhum setor. Adicione manualmente ou carregue a Amostra Mestra na página Setores.</div>';
       return;
     }
 
+    // Agrupa por mês CNEFE ordenado, setores em ordem crescente dentro de cada mês
+    const grupos = new Map();
+    setoresFiltrados
+      .slice()
+      .sort((a, b) => {
+        const ka = `${a.anoCnefe}_${String(a.mesCnefe).padStart(2,'0')}`;
+        const kb = `${b.anoCnefe}_${String(b.mesCnefe).padStart(2,'0')}`;
+        if (ka !== kb) return ka.localeCompare(kb);
+        return a.setor.localeCompare(b.setor);
+      })
+      .forEach(s => {
+        const chave = s.mesCnefe ? `${_CNEFE_MESES[s.mesCnefe-1]} ${s.anoCnefe}` : 'Sem mês';
+        if (!grupos.has(chave)) grupos.set(chave, []);
+        grupos.get(chave).push(s);
+      });
+
     const stLabel = { a_iniciar:'A iniciar', em_andamento:'Em andamento', concluido:'Concluído', atrasado:'Atrasado' };
     const stBadge = { a_iniciar:'badge-cinza', em_andamento:'badge-azul', concluido:'badge-verde', atrasado:'badge-vermelho' };
 
-    el.innerHTML = '<div style="overflow-x:auto"><table style="min-width:780px"><thead><tr>' +
-      '<th>Setor</th><th>Pesquisa</th><th>Agente</th><th>Mês CNEFE</th><th>Mês Pesquisa</th><th>Prazo Final</th><th>Status</th><th>Ações</th>' +
-      '</tr></thead><tbody>' +
-      setores.sort((a,b) => a.setor.localeCompare(b.setor)).map(s => {
+    let tbody = '';
+    for (const [mes, lista] of grupos) {
+      tbody += `<tr style="background:var(--azul-claro)">
+        <td colspan="8" style="font-size:0.75rem;font-weight:700;color:var(--azul);padding:0.35rem 0.9rem;letter-spacing:0.3px">
+          📅 ${mes} — ${lista.length} setor${lista.length !== 1 ? 'es' : ''}
+        </td>
+      </tr>`;
+      lista.forEach(s => {
         const st = calcStatus(s);
         const mcLbl = s.mesCnefe ? `${_CNEFE_MESES[s.mesCnefe-1]}/${s.anoCnefe}` : '—';
         const mpLbl = s.mesPnad  ? `${_CNEFE_MESES[s.mesPnad-1]}/${s.anoPnad}`   : '—';
         const pzLbl = s.prazoFinal instanceof Date ? s.prazoFinal.toLocaleDateString('pt-BR') : '—';
         const agNome = s.agente_nome || (_cnefeAgentesCache?.find(a => a.id === s.agente_id)?.nome) || '—';
-        const agNomeEsc = agNome.replace(/'/g,"&#39;");
-        return `<tr>
+        tbody += `<tr>
           <td><code style="font-size:0.78rem">${s.setor}</code></td>
           <td style="font-size:0.82rem">${s.pesquisa}</td>
           <td style="font-size:0.82rem">${agNome}</td>
@@ -8376,8 +8421,12 @@ async function carregarCnefeSetores() {
             </div>
           </td>
         </tr>`;
-      }).join('') +
-      '</tbody></table></div>';
+      });
+    }
+
+    el.innerHTML = '<div style="overflow-x:auto"><table style="min-width:780px"><thead><tr>' +
+      '<th>Setor</th><th>Pesquisa</th><th>Agente</th><th>Mês CNEFE</th><th>Mês Pesquisa</th><th>Prazo Final</th><th>Status</th><th>Ações</th>' +
+      '</tr></thead><tbody>' + tbody + '</tbody></table></div>';
   } catch(e) {
     console.error(e);
     el.innerHTML = '<div class="vazio"><div class="icone-vazio">⚠️</div>Erro ao carregar setores CNEFE.</div>';
