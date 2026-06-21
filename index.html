@@ -1012,9 +1012,9 @@
       <div class="titulo-pagina" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
         <span>⚠️ Pendências</span>
         <div style="display:flex;gap:0.5rem">
-          <button class="btn-acao secundario" onclick="gerarEtiquetas()" style="font-size:0.85rem">🏷️ Etiquetas</button>
-          <button class="btn-acao secundario" onclick="gerarCartoes()" style="font-size:0.85rem">🗂️ Cartões</button>
-          <button class="btn-acao secundario" onclick="gerarDiarioCampo()" style="font-size:0.85rem">📋 Diário</button>
+          <button class="btn-acao secundario" onclick="gerarEtiquetas(null,'pag-pendencias-tabela')" style="font-size:0.85rem">🏷️ Etiquetas</button>
+          <button class="btn-acao secundario" onclick="gerarCartoes(null,'pag-pendencias-tabela')" style="font-size:0.85rem">🗂️ Cartões</button>
+          <button class="btn-acao secundario" onclick="gerarDiarioCampo(null,'pag-pendencias-tabela')" style="font-size:0.85rem">📋 Diário</button>
         </div>
       </div>
 
@@ -1166,9 +1166,9 @@
             <option value="entrevistador">Agrupar por entrevistador</option>
           </select>
           <button class="btn-acao secundario" onclick="limparFiltros()">Limpar</button>
-          <button class="btn-acao secundario" onclick="gerarEtiquetas()" title="Gerar etiquetas de endereço">🏷️ Etiquetas</button>
-          <button class="btn-acao secundario" onclick="gerarCartoes()" title="Gerar cartões de campo para impressão">🗂️ Cartões</button>
-          <button class="btn-acao secundario" onclick="gerarDiarioCampo()" title="Gerar diário de campo compacto (14 por folha)">📋 Diário</button>
+          <button class="btn-acao secundario" onclick="gerarEtiquetas(null,'tabela-domicilios')" title="Gerar etiquetas de endereço">🏷️ Etiquetas</button>
+          <button class="btn-acao secundario" onclick="gerarCartoes(null,'tabela-domicilios')" title="Gerar cartões de campo para impressão">🗂️ Cartões</button>
+          <button class="btn-acao secundario" onclick="gerarDiarioCampo(null,'tabela-domicilios')" title="Gerar diário de campo compacto (14 por folha)">📋 Diário</button>
           <button class="btn-acao" onclick="abrirModalDomicilio()">+ Novo</button>
         </div>
       </div>
@@ -1187,13 +1187,13 @@
         <div id="tabela-domicilios"><div class="loader">Carregando...</div></div>
       </div>
 
-      <div class="card-tabela" style="margin-top:1.25rem">
+      <div class="card-tabela" id="card-pendentes-dom" style="margin-top:1.25rem">
         <div class="card-tabela-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
           <h3>⚠️ Domicílios Pendentes</h3>
           <div style="display:flex;gap:0.5rem">
-            <button class="btn-acao secundario" onclick="gerarEtiquetas()" style="font-size:0.82rem">🏷️ Etiquetas</button>
-            <button class="btn-acao secundario" onclick="gerarCartoes()" style="font-size:0.82rem">🗂️ Cartões</button>
-            <button class="btn-acao secundario" onclick="gerarDiarioCampo()" style="font-size:0.82rem">📋 Diário</button>
+            <button class="btn-acao secundario" onclick="gerarEtiquetas(null,'painel-pendentes-tabela')" style="font-size:0.82rem">🏷️ Etiquetas</button>
+            <button class="btn-acao secundario" onclick="gerarCartoes(null,'painel-pendentes-tabela')" style="font-size:0.82rem">🗂️ Cartões</button>
+            <button class="btn-acao secundario" onclick="gerarDiarioCampo(null,'painel-pendentes-tabela')" style="font-size:0.82rem">📋 Diário</button>
           </div>
         </div>
         <div id="painel-pendentes-tabela"><div class="loader">Carregando...</div></div>
@@ -2551,7 +2551,10 @@ window.filtrarDomicilios = () => {
   });
   renderizarDomicilios(filtrados);
   const _status = document.getElementById('filtro-status')?.value || '';
-  _indicarFiltroAtivo('card-lista-dom', !!(upa || setor || semana || _status || solicitacao || entrevistador || q));
+  const _temFiltro = !!(upa || setor || semana || _status || solicitacao || entrevistador || q);
+  _indicarFiltroAtivo('card-lista-dom', _temFiltro);
+  const _cardPend = document.getElementById('card-pendentes-dom');
+  if (_cardPend) _cardPend.style.display = _temFiltro ? 'none' : '';
   ['filtro-upa','filtro-setor','filtro-semana','filtro-status','filtro-solicitacao','filtro-entrevistador'].forEach(id => {
     const el = document.getElementById(id); if (el) el.classList.toggle('filtro-ativo-ctrl', !!el.value);
   });
@@ -2572,14 +2575,15 @@ window.limparFiltros = () => {
 };
 
 // ── ETIQUETAS DE ENDEREÇO (Pimaco 6181 — 2×7 = 14 por folha A4) ──
-window.gerarEtiquetas = async (idsOverride) => {
+window.gerarEtiquetas = async (idsOverride, tableId) => {
   let lista = [];
   let usarSelecao = false;
   if (idsOverride && idsOverride.length > 0) {
     lista = idsOverride.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
   } else {
-    const checkboxes = document.querySelectorAll('.chk-dom');
-    const selecionados = [...document.querySelectorAll('.chk-dom:checked')].map(c => c.value);
+    const scope = tableId ? (document.getElementById(tableId) || document) : document;
+    const checkboxes = scope.querySelectorAll('.chk-dom');
+    const selecionados = [...scope.querySelectorAll('.chk-dom:checked')].map(c => c.value);
     usarSelecao = selecionados.length > 0;
     if (usarSelecao) {
       lista = selecionados.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
@@ -2747,14 +2751,15 @@ ${paginas}
 };
 
 // ── CARTÕES DE CAMPO (4 por folha A4) ──
-window.gerarCartoes = async (idsOverride) => {
+window.gerarCartoes = async (idsOverride, tableId) => {
   let lista = [];
   let usarSelecao = false;
   if (idsOverride && idsOverride.length > 0) {
     lista = idsOverride.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
   } else {
-    const checkboxes = document.querySelectorAll('.chk-dom');
-    const selecionados = [...document.querySelectorAll('.chk-dom:checked')].map(c => c.value);
+    const scope = tableId ? (document.getElementById(tableId) || document) : document;
+    const checkboxes = scope.querySelectorAll('.chk-dom');
+    const selecionados = [...scope.querySelectorAll('.chk-dom:checked')].map(c => c.value);
     usarSelecao = selecionados.length > 0;
     if (usarSelecao) {
       lista = selecionados.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
@@ -3015,14 +3020,15 @@ ${paginas}
 };
 
 // ── DIÁRIO DE CAMPO (14 domicílios por folha A4 paisagem, 2 colunas) ──
-window.gerarDiarioCampo = async (idsOverride) => {
+window.gerarDiarioCampo = async (idsOverride, tableId) => {
   let lista = [];
   let usarSelecao = false;
   if (idsOverride && idsOverride.length > 0) {
     lista = idsOverride.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
   } else {
-    const checkboxes = document.querySelectorAll('.chk-dom');
-    const selecionados = [...document.querySelectorAll('.chk-dom:checked')].map(c => c.value);
+    const scope = tableId ? (document.getElementById(tableId) || document) : document;
+    const checkboxes = scope.querySelectorAll('.chk-dom');
+    const selecionados = [...scope.querySelectorAll('.chk-dom:checked')].map(c => c.value);
     usarSelecao = selecionados.length > 0;
     if (usarSelecao) {
       lista = selecionados.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
