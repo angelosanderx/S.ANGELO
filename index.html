@@ -731,6 +731,10 @@
   .cron-msel-list label:hover { background:var(--azul-claro); }
   /* Cronograma — tipo Pendencias */
   .cron-tipo-pendencias { color:var(--vermelho) !important;font-weight:700; }
+  /* Cronograma — botão adicionar setor discreto */
+  .cron-add-setor { opacity:0;font-size:0.72rem;padding:0 5px;border:none;border-radius:3px;color:var(--azul);background:transparent;cursor:pointer;transition:opacity 0.15s;line-height:1.4;display:block;margin-top:2px; }
+  tr:hover .cron-add-setor { opacity:0.35; }
+  tr:hover .cron-add-setor:hover { opacity:1;background:#e8f0fe; }
 
   .solicitar-btn {
     width: 100%;
@@ -4496,8 +4500,7 @@ function _cronRenderTabela() {
 
     // Seletores de setor + botão "+"
     const setorCels = upas.map((u,si) => _cronSetorSelHtml(i, si, u)).join('');
-    const btnAddSetor = `<button onclick="cronAddSetor(${i})" title="Adicionar setor"
-      style="font-size:0.75rem;padding:1px 7px;border:1px dashed var(--azul);border-radius:4px;color:var(--azul);background:#f0f7ff;cursor:pointer;margin-top:2px">+ setor</button>`;
+    const btnAddSetor = `<button onclick="cronAddSetor(${i})" title="Adicionar setor" class="cron-add-setor">＋</button>`;
 
     // Tipo de serviço — opções com Pendências em vermelho
     const tipoOpts = ['', ..._TIPOS_SERVICO].map(t => {
