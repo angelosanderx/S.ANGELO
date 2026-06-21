@@ -1299,11 +1299,11 @@
         </div>
       </div>
 
-      <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
+      <div style="display:flex;gap:2rem;align-items:flex-start;flex-wrap:wrap">
         <div id="cron-conteudo" style="flex:1;min-width:0">
           <div class="vazio"><div class="icone-vazio">📅</div>Selecione o mês e a semana para gerar o cronograma.</div>
         </div>
-        <div id="cron-painel-mes" style="width:260px;flex-shrink:0"></div>
+        <div id="cron-painel-mes" style="width:190px;flex-shrink:0;opacity:0.82"></div>
       </div>
     </div>
 
@@ -4640,16 +4640,15 @@ function _cronRenderPainelMes(mes) {
   });
 
   const ctrl4 = c => String(c||'').slice(-4);
-  let html = `<div class="card-tabela" style="position:sticky;top:1rem">
-    <div class="card-tabela-header" style="padding:0.55rem 0.85rem">
-      <h3 style="font-size:0.88rem">📆 ${_NOMES_MES[mes]||'Mês '+mes} — Visão global</h3>
+  let html = `<div class="card-tabela" style="position:sticky;top:1rem;font-size:0.7rem">
+    <div class="card-tabela-header" style="padding:0.4rem 0.7rem">
+      <h3 style="font-size:0.78rem;color:var(--cinza)">📆 ${_NOMES_MES[mes]||'Mês '+mes}</h3>
     </div>
     <div style="overflow-y:auto;max-height:calc(100vh - 220px)">`;
 
   for (const sem of Object.keys(porSemanaFinal).map(Number).sort((a,b)=>a-b)) {
     const inf = _SEMANAS_CAL[mes]?.[sem];
     const periodo = inf ? `${inf.de} a ${inf.ate}` : '';
-    // Agrupa por UPA
     const porUpa = new Map();
     [...porSemanaFinal[sem].values()]
       .sort((a,b) => (a.upa||'').localeCompare(b.upa||'') || (a.codigo_controle||'').localeCompare(b.codigo_controle||''))
@@ -4658,8 +4657,8 @@ function _cronRenderPainelMes(mes) {
         porUpa.get(r.upa).push(r);
       });
 
-    html += `<div style="background:var(--azul-claro);padding:0.3rem 0.75rem;font-size:0.78rem;font-weight:700;color:var(--azul);border-top:1px solid var(--azul-medio)">
-      Semana ${sem}${periodo ? `<span style="font-weight:400;margin-left:0.4rem;opacity:0.8">${periodo}</span>` : ''}
+    html += `<div style="background:var(--azul-claro);padding:0.2rem 0.6rem;font-size:0.68rem;font-weight:700;color:var(--azul);border-top:1px solid var(--azul-medio)">
+      Sem. ${sem}${periodo ? ` · <span style="font-weight:400;opacity:0.75">${periodo}</span>` : ''}
     </div>`;
 
     for (const [upa, setores] of [...porUpa.entries()].sort()) {
@@ -4668,11 +4667,11 @@ function _cronRenderPainelMes(mes) {
       const label   = extras.length === 0 ? upa : `${upa}/<b>${extras.map(r=>ctrl4(r.codigo_controle)).join('/')}</b>`;
       const loc     = (_localidadesCache||{})[upa] || '';
       const etapas  = [...new Set(setores.map(r=>r.numero_entrevista).filter(Boolean))].sort();
-      const etBadge = etapas.map(et=>`<span style="padding:0 5px;border-radius:8px;font-size:0.65rem;font-weight:700;${_COR_ETAPA[et]||''}">${et}ª</span>`).join(' ');
-      html += `<div style="padding:0.3rem 0.75rem;border-bottom:1px solid var(--borda);font-size:0.75rem">
-        <div style="font-family:monospace;font-weight:700;color:var(--azul);font-size:0.72rem">${label}</div>
-        <div style="color:${loc?'var(--texto)':'var(--cinza)'};font-size:0.7rem;margin-top:1px">${loc||'—'}</div>
-        ${etBadge ? `<div style="margin-top:2px">${etBadge}</div>` : ''}
+      const etBadge = etapas.map(et=>`<span style="padding:0 4px;border-radius:6px;font-size:0.6rem;font-weight:700;${_COR_ETAPA[et]||''}">${et}ª</span>`).join(' ');
+      html += `<div style="padding:0.2rem 0.6rem;border-bottom:1px solid var(--borda)">
+        <div style="font-family:monospace;font-weight:700;color:var(--azul);font-size:0.65rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
+        <div style="color:${loc?'var(--texto)':'var(--cinza)'};font-size:0.65rem">${loc||'—'}</div>
+        ${etBadge ? `<div>${etBadge}</div>` : ''}
       </div>`;
     }
   }
