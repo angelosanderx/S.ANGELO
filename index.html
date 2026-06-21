@@ -3049,12 +3049,16 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
     } catch(e) { morCount[d.id] = 0; }
   }));
 
-  // Ordena por setor → domicilio_num
+  // Ordena igual à view principal: Semana → UPA → Setor → Dom
   lista.sort((a, b) => {
+    const semDiff = parseInt(a.semana||0) - parseInt(b.semana||0);
+    if (semDiff !== 0) return semDiff;
+    const upaDiff = (a.upa||'').localeCompare(b.upa||'');
+    if (upaDiff !== 0) return upaDiff;
     const sA = a.controle ? a.controle.slice(0,-1) : (a.upa||'');
     const sB = b.controle ? b.controle.slice(0,-1) : (b.upa||'');
-    const cmp = sA.localeCompare(sB);
-    if (cmp !== 0) return cmp;
+    const setDiff = sA.localeCompare(sB);
+    if (setDiff !== 0) return setDiff;
     return parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0);
   });
 
