@@ -3355,7 +3355,7 @@ window.gerarRoteiroCarta = async (idsOverride, tableId) => {
 
     return `<div class="dom-entry">
   <div class="dom-info">
-    <div class="dom-hd"><span class="dom-num">Dom. ${num}</span><span class="dom-ant">${ant}</span><span class="dom-chks">☐ Entregue &nbsp;☐ Ausente &nbsp;☐ Recusa</span></div>
+    <div class="dom-hd"><span class="dom-num">Dom. ${num}</span><span class="dom-ant">${ant}</span><span class="dom-chks">☐ Entregue em mãos &nbsp;☐ Caixa de correios &nbsp;☐ Outros: <span class="bl bl-res"></span></span></div>
     <div class="dom-sub">Setor: ${setor}${entr ? ' · ' + entr : ''}</div>
     <div class="dom-end">${endFmt}</div>
     <div class="dom-meta">CNEFE: ${cnefe||'—'} · Tel: ${tel}</div>
@@ -3423,6 +3423,7 @@ window.gerarRoteiroCarta = async (idsOverride, tableId) => {
   .dom-obs { font-size:7pt; display:flex; align-items:baseline; gap:3px; }
   .bl { display:inline-block; border-bottom:1px solid #444; vertical-align:bottom; }
   .bl-obs { flex:1; }
+  .bl-res { min-width:40px; }
   .bl-dt { min-width:55px; }
   .bl-sup { min-width:90px; }
   .toolbar { position:fixed; top:0; left:0; right:0; background:#1a3a5c; color:#fff; padding:0.4rem 1rem; display:flex; align-items:center; gap:0.75rem; font-size:0.82rem; z-index:999; }
