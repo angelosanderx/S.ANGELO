@@ -385,6 +385,12 @@
     border: 1px solid var(--borda);
   }
 
+  .dropdown-listagens { position:relative; display:inline-block; }
+  .dropdown-listagens-menu { display:none; position:absolute; right:0; top:calc(100% + 4px); background:var(--branco); border:1.5px solid var(--borda); border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.12); z-index:300; min-width:200px; overflow:hidden; }
+  .dropdown-listagens.aberto .dropdown-listagens-menu { display:block; }
+  .dropdown-listagens-menu button { display:block; width:100%; text-align:left; padding:0.55rem 1rem; background:none; border:none; font-size:0.85rem; font-family:var(--fonte); color:var(--texto); cursor:pointer; white-space:nowrap; }
+  .dropdown-listagens-menu button:hover { background:var(--cinza-claro); }
+
   .btn-acao.secundario:hover { background: var(--borda); }
 
   table {
@@ -1013,9 +1019,14 @@
         <span>⚠️ Pendências</span>
         <div style="display:flex;gap:0.5rem">
           <button class="btn-acao secundario" onclick="gerarEtiquetas(null,'pag-pendencias-tabela')" style="font-size:0.85rem">🏷️ Etiquetas</button>
-          <button class="btn-acao secundario" onclick="gerarCartoes(null,'pag-pendencias-tabela')" style="font-size:0.85rem">🗂️ Cartões</button>
-          <button class="btn-acao secundario" onclick="gerarDiarioCampo(null,'pag-pendencias-tabela')" style="font-size:0.85rem">📋 Diário</button>
-          <button class="btn-acao secundario" onclick="gerarRoteiroCarta(null,'pag-pendencias-tabela')" style="font-size:0.85rem">✉️ Cartas</button>
+          <div class="dropdown-listagens">
+            <button class="btn-acao secundario" onclick="toggleListagens(this)" style="font-size:0.85rem">📋 Listagens ▾</button>
+            <div class="dropdown-listagens-menu">
+              <button onclick="gerarCartoes(null,'pag-pendencias-tabela')">🗂️ Listagem</button>
+              <button onclick="gerarDiarioCampo(null,'pag-pendencias-tabela')">📋 Listagem simples</button>
+              <button onclick="gerarRoteiroCarta(null,'pag-pendencias-tabela')">✉️ Primeira entrevista</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1168,9 +1179,14 @@
           </select>
           <button class="btn-acao secundario" onclick="limparFiltros()">Limpar</button>
           <button class="btn-acao secundario" onclick="gerarEtiquetas(null,'tabela-domicilios')" title="Gerar etiquetas de endereço">🏷️ Etiquetas</button>
-          <button class="btn-acao secundario" onclick="gerarCartoes(null,'tabela-domicilios')" title="Gerar cartões de campo para impressão">🗂️ Cartões</button>
-          <button class="btn-acao secundario" onclick="gerarDiarioCampo(null,'tabela-domicilios')" title="Gerar diário de campo compacto (14 por folha)">📋 Diário</button>
-          <button class="btn-acao secundario" onclick="gerarRoteiroCarta(null,'tabela-domicilios')" title="Gerar roteiro de entrega de cartas (etapa 1, 7 por folha)">✉️ Cartas</button>
+          <div class="dropdown-listagens">
+            <button class="btn-acao secundario" onclick="toggleListagens(this)">📋 Listagens ▾</button>
+            <div class="dropdown-listagens-menu">
+              <button onclick="gerarCartoes(null,'tabela-domicilios')">🗂️ Listagem</button>
+              <button onclick="gerarDiarioCampo(null,'tabela-domicilios')">📋 Listagem simples</button>
+              <button onclick="gerarRoteiroCarta(null,'tabela-domicilios')">✉️ Primeira entrevista</button>
+            </div>
+          </div>
           <button class="btn-acao" onclick="abrirModalDomicilio()">+ Novo</button>
         </div>
       </div>
@@ -1194,9 +1210,14 @@
           <h3>⚠️ Domicílios Pendentes</h3>
           <div style="display:flex;gap:0.5rem">
             <button class="btn-acao secundario" onclick="gerarEtiquetas(null,'painel-pendentes-tabela')" style="font-size:0.82rem">🏷️ Etiquetas</button>
-            <button class="btn-acao secundario" onclick="gerarCartoes(null,'painel-pendentes-tabela')" style="font-size:0.82rem">🗂️ Cartões</button>
-            <button class="btn-acao secundario" onclick="gerarDiarioCampo(null,'painel-pendentes-tabela')" style="font-size:0.82rem">📋 Diário</button>
-            <button class="btn-acao secundario" onclick="gerarRoteiroCarta(null,'painel-pendentes-tabela')" style="font-size:0.82rem">✉️ Cartas</button>
+            <div class="dropdown-listagens">
+              <button class="btn-acao secundario" onclick="toggleListagens(this)" style="font-size:0.82rem">📋 Listagens ▾</button>
+              <div class="dropdown-listagens-menu">
+                <button onclick="gerarCartoes(null,'painel-pendentes-tabela')">🗂️ Listagem</button>
+                <button onclick="gerarDiarioCampo(null,'painel-pendentes-tabela')">📋 Listagem simples</button>
+                <button onclick="gerarRoteiroCarta(null,'painel-pendentes-tabela')">✉️ Primeira entrevista</button>
+              </div>
+            </div>
           </div>
         </div>
         <div id="painel-pendentes-tabela"><div class="loader">Carregando...</div></div>
@@ -2232,6 +2253,17 @@ window.fecharSidebar = () => {
   document.getElementById('sidebar').classList.remove('aberta');
   document.getElementById('overlay').classList.remove('visivel');
 };
+
+window.toggleListagens = (btn) => {
+  const wrap = btn.closest('.dropdown-listagens');
+  const aberto = wrap.classList.contains('aberto');
+  document.querySelectorAll('.dropdown-listagens.aberto').forEach(d => d.classList.remove('aberto'));
+  if (!aberto) wrap.classList.add('aberto');
+};
+document.addEventListener('click', e => {
+  if (!e.target.closest('.dropdown-listagens'))
+    document.querySelectorAll('.dropdown-listagens.aberto').forEach(d => d.classList.remove('aberto'));
+});
 
 // ── MODAIS ──
 window.fecharModal = (id) => {
