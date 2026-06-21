@@ -3114,16 +3114,15 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
     const num = d.domicilio_num || d.numero_sequencial || '—';
     return `<div class="dom-entry">
       <div class="dom-info">
-        <div class="dom-hd"><span class="dom-num">Dom. ${num}</span> <span class="dom-st">${status}</span></div>
+        <div class="dom-hd">
+          <span class="dom-num">Dom. ${num}</span>
+          <span class="dom-st">${status}</span>
+          <span class="dom-chks">☐ Realizada &nbsp; ☐ <span class="bl bl-res"></span> &nbsp; ☐ <span class="bl bl-res"></span></span>
+        </div>
         <div class="dom-end">${endFmt}</div>
         <div class="dom-meta">${resp?'Resp: '+resp+' · ':''}${mc} mor. · Ant: ${ant}</div>
         <div class="dom-tel">Tel: ${tel}</div>
-        <div class="dom-obs">Campo: <span class="bl bl-lg"></span></div>
-      </div>
-      <div class="dom-result">
-        <div>☐ Realizada</div>
-        <div>☐ <span class="bl bl-res"></span></div>
-        <div>☐ <span class="bl bl-res"></span></div>
+        <div class="dom-obs">Campo: <span class="bl bl-campo"></span></div>
       </div>
     </div>`;
   };
@@ -3186,23 +3185,24 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
   .setor-sep { text-align:center; font-size:5.5pt; font-weight:700; letter-spacing:0.5px; padding:1px 0; border-top:1px solid #666; border-bottom:1px solid #666; flex-shrink:0; }
   .dom-entry { display:flex; border-bottom:1px solid #bbb; flex:1; min-height:0; overflow:hidden; }
   .dom-entry:last-child { border-bottom:none; }
-  .dom-info { flex:3; padding:1mm 2mm; border-right:1px solid #ccc; display:flex; flex-direction:column; justify-content:space-around; overflow:hidden; }
-  .dom-result { flex:2; padding:1mm 2mm; display:flex; flex-direction:column; justify-content:space-around; font-size:6.5pt; overflow:hidden; }
-  .dom-hd { display:flex; gap:3px; align-items:baseline; }
-  .dom-num { font-weight:800; font-size:8pt; }
-  .dom-st { font-size:5.5pt; font-weight:700; letter-spacing:0.2px; }
-  .dom-end { font-size:6.5pt; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .dom-meta { font-size:5.5pt; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dom-info { padding:1mm 2mm; display:flex; flex-direction:column; justify-content:space-around; overflow:hidden; width:100%; }
+  .dom-hd { display:flex; align-items:baseline; gap:3px; }
+  .dom-num { font-weight:800; font-size:8pt; flex-shrink:0; }
+  .dom-st { font-size:5.5pt; font-weight:700; letter-spacing:0.2px; flex-shrink:0; }
+  .dom-chks { margin-left:auto; font-size:6pt; white-space:nowrap; flex-shrink:0; }
+  .dom-end { font-size:7pt; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dom-meta { font-size:6pt; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .dom-tel, .dom-obs { font-size:6.5pt; }
   .bl { display:inline-block; border-bottom:1px solid #444; vertical-align:bottom; }
-  .bl-xs  { min-width:14px; }
-  .bl-sm  { min-width:24px; }
-  .bl-md  { min-width:48px; }
-  .bl-lg  { min-width:80px; }
-  .bl-res { min-width:58px; }
-  .bl-dt  { min-width:55px; }
-  .bl-sup { min-width:90px; }
-  .bl-tel { min-width:65px; }
+  .bl-xs    { min-width:14px; }
+  .bl-sm    { min-width:24px; }
+  .bl-md    { min-width:48px; }
+  .bl-lg    { min-width:80px; }
+  .bl-res   { min-width:45px; }
+  .bl-campo { min-width:120px; }
+  .bl-dt    { min-width:55px; }
+  .bl-sup   { min-width:90px; }
+  .bl-tel   { min-width:65px; }
   .bl-assin { min-width:90px; }
   .rodape { margin-top:1.5mm; flex-shrink:0; border-top:1px solid #000; padding-top:1mm; }
   .rod-tbl { width:100%; border-collapse:collapse; font-size:6.5pt; }
