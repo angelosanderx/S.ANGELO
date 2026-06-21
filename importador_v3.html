@@ -982,7 +982,7 @@ async function importarAM() {
 
   for (let i = 0; i < _amRegistros.length; i++) {
     const r = _amRegistros[i];
-    const docId = `${r.upa}_${r.ano}_${r.trimestre}`;
+    const docId = `${r.upa}_${r.codigo_controle || 'S'}_${r.ano}_${r.trimestre}`;
     const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/amostra_mestra/${docId}`;
 
     const fields = {};

@@ -4240,18 +4240,23 @@ window.renderAmostraMestra = () => {
       const regs = grupos[mes][sem].slice().sort((a,b) =>
         (a.upa||'').localeCompare(b.upa||'') || (a.codigo_controle||'').localeCompare(b.codigo_controle||'')
       );
+      // Agrupa por UPA dentro da semana
+      const porUpa = {};
+      regs.forEach(r => { const k = r.upa||'—'; (porUpa[k]=porUpa[k]||[]).push(r); });
+      const nUpas = Object.keys(porUpa).length;
+
       const inf = _SEMANAS_CAL[mes]?.[sem];
       const dataBadge = inf
         ? `<span style="font-weight:400;font-size:0.78rem;margin-left:0.5rem;opacity:0.85">${inf.cod} · ${inf.de} a ${inf.ate}</span>`
         : '';
       html += `<div style="background:var(--azul-claro);padding:0.4rem 1.1rem;font-weight:700;font-size:0.82rem;color:var(--azul);border-bottom:2px solid var(--azul-medio);display:flex;justify-content:space-between;align-items:center">
         <span>Semana ${sem}${dataBadge}</span>
-        <span style="font-weight:400;font-size:0.78rem;color:var(--cinza)">${regs.length} UPA${regs.length!==1?'s':''}</span>
+        <span style="font-weight:400;font-size:0.78rem;color:var(--cinza)">${nUpas} UPA${nUpas!==1?'s':''} · ${regs.length} setor${regs.length!==1?'es':''}</span>
       </div>
       <table style="min-width:700px;width:100%;table-layout:fixed">
         <thead><tr>
-          <th style="width:120px">UPA</th>
-          <th style="width:130px">Cód. Controle</th>
+          <th style="width:160px">UPA</th>
+          <th style="width:120px">Cód. Controle</th>
           <th>Município</th>
           <th style="width:60px;text-align:center">Etapa</th>
           <th style="width:80px">Situação</th>
@@ -4259,26 +4264,32 @@ window.renderAmostraMestra = () => {
           <th style="width:90px">Saída</th>
         </tr></thead>
         <tbody>`;
-      regs.forEach(r => {
-        const etapa = r.numero_entrevista;
-        const etBadge = etapa
-          ? `<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;${_COR_ETAPA[etapa]||''}">${etapa}ª</span>`
-          : '—';
-        const sit = r.situacao_tipo ? (String(r.situacao_tipo)[0]==='1' ? 'Urbano' : 'Rural') : '—';
-        const entrada = r.ano_entrada ? `${r.ano_entrada}T${r.trimestre_entrada}` : '—';
-        const saida   = r.ano_saida   ? `${r.ano_saida}T${r.trimestre_saida}`     : '—';
-        const saidaStyle = (r.ano_saida === r.ano && r.trimestre_saida === r.trimestre)
-          ? 'color:var(--vermelho);font-weight:700' : '';
-        html += `<tr>
-          <td style="font-weight:700;color:var(--azul);font-size:0.82rem">${r.upa||'—'}</td>
-          <td style="font-family:monospace;font-size:0.8rem">${r.codigo_controle||'—'}</td>
-          <td style="font-size:0.82rem">${r.nome_municipio||'—'}</td>
-          <td style="text-align:center">${etBadge}</td>
-          <td style="font-size:0.78rem;color:var(--cinza)">${sit}</td>
-          <td style="font-size:0.78rem">${entrada}</td>
-          <td style="font-size:0.78rem;${saidaStyle}">${saida}</td>
-        </tr>`;
-      });
+      for (const [upa, setores] of Object.entries(porUpa).sort()) {
+        setores.forEach((r, idx) => {
+          const etapa = r.numero_entrevista;
+          const etBadge = etapa
+            ? `<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;${_COR_ETAPA[etapa]||''}">${etapa}ª</span>`
+            : '—';
+          const sit = r.situacao_tipo ? (String(r.situacao_tipo)[0]==='1' ? 'Urbano' : 'Rural') : '—';
+          const entrada = r.ano_entrada ? `${r.ano_entrada}T${r.trimestre_entrada}` : '—';
+          const saida   = r.ano_saida   ? `${r.ano_saida}T${r.trimestre_saida}`     : '—';
+          const saidaStyle = (r.ano_saida === r.ano && r.trimestre_saida === r.trimestre)
+            ? 'color:var(--vermelho);font-weight:700' : '';
+          // Mostra UPA só na primeira linha do grupo
+          const upaCel = idx === 0
+            ? `<td rowspan="${setores.length}" style="font-weight:700;color:var(--azul);font-size:0.8rem;vertical-align:top;border-right:2px solid var(--azul-claro)">${upa}</td>`
+            : '';
+          html += `<tr${idx===0?' style="border-top:2px solid var(--borda)"':''}>
+            ${upaCel}
+            <td style="font-family:monospace;font-size:0.8rem">${r.codigo_controle||'—'}</td>
+            <td style="font-size:0.82rem">${r.nome_municipio||'—'}</td>
+            <td style="text-align:center">${etBadge}</td>
+            <td style="font-size:0.78rem;color:var(--cinza)">${sit}</td>
+            <td style="font-size:0.78rem">${entrada}</td>
+            <td style="font-size:0.78rem;${saidaStyle}">${saida}</td>
+          </tr>`;
+        });
+      }
       html += '</tbody></table>';
     }
   }
