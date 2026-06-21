@@ -2551,12 +2551,13 @@ window.limparFiltros = () => {
 // ── ETIQUETAS DE ENDEREÇO (Pimaco 6181 — 2×7 = 14 por folha A4) ──
 window.gerarEtiquetas = async (idsOverride) => {
   let lista = [];
+  let usarSelecao = false;
   if (idsOverride && idsOverride.length > 0) {
     lista = idsOverride.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
   } else {
     const checkboxes = document.querySelectorAll('.chk-dom');
     const selecionados = [...document.querySelectorAll('.chk-dom:checked')].map(c => c.value);
-    const usarSelecao = selecionados.length > 0;
+    usarSelecao = selecionados.length > 0;
     if (usarSelecao) {
       lista = selecionados.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
     } else {
@@ -2725,12 +2726,13 @@ ${paginas}
 // ── CARTÕES DE CAMPO (4 por folha A4) ──
 window.gerarCartoes = async (idsOverride) => {
   let lista = [];
+  let usarSelecao = false;
   if (idsOverride && idsOverride.length > 0) {
     lista = idsOverride.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
   } else {
     const checkboxes = document.querySelectorAll('.chk-dom');
     const selecionados = [...document.querySelectorAll('.chk-dom:checked')].map(c => c.value);
-    const usarSelecao = selecionados.length > 0;
+    usarSelecao = selecionados.length > 0;
     if (usarSelecao) {
       lista = selecionados.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
     } else {
