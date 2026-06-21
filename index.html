@@ -1217,7 +1217,7 @@
           Cole aqui o conteúdo copiado do SIGC (pressione <strong>Ctrl+A</strong> e depois <strong>Ctrl+C</strong> dentro do questionário). O sistema identificará automaticamente o <strong>Controle</strong> e o <strong>Domicílio</strong> para salvar as informações e atualizar os moradores no local correto, independentemente da ordem.
         </p>
         <div class="form-grupo full" style="margin-bottom:1rem">
-          <textarea id="central-sigc-texto" style="width:100%;height:250px;padding:0.75rem;border:1.5px solid var(--borda);border-radius:8px;font-size:0.82rem;font-family:monospace;resize:vertical;background:var(--cinza-claro)" placeholder="Cole aqui o conteúdo copiado do SIGC..."></textarea>
+          <textarea id="central-sigc-texto" style="width:100%;height:250px;padding:0.75rem;border:1.5px solid var(--borda);border-radius:8px;font-size:0.82rem;font-family:monospace;resize:vertical;background:var(--cinza-claro)" placeholder="Cole aqui o conteúdo copiado do SIGC (Ctrl+V processa automaticamente)..." onpaste="setTimeout(processarCentralSIGC, 50)"></textarea>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:0.75rem">
           <button class="btn-acao secundario" onclick="limparCentralSIGC()">Limpar</button>
