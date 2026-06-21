@@ -1501,9 +1501,6 @@
           <div class="card-tabela-header">
             <h3>Setores CNEFE</h3>
             <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
-              <select id="cnefe-filtro-mes" onchange="renderCnefeSetores()" style="font-size:0.82rem;padding:0.3rem 0.65rem;border:1px solid var(--borda);border-radius:6px;background:var(--fundo);color:var(--texto)">
-                <option value="">Todos os meses</option>
-              </select>
               <label class="btn-acao secundario" style="cursor:pointer;margin:0">
                 📥 Indicadores Gerenciais
                 <input type="file" accept=".csv" style="display:none" onchange="importarIndicadoresGerenciais(this)">
@@ -8292,7 +8289,10 @@ window.processarCentralSIGC = async () => {
 
 // ── MÓDULO CNEFE ──────────────────────────────────────────────────────────────
 
-let _cnefeAgentesCache = null;
+let _cnefeAgentesCache  = null;
+let _cnefeMesesUnicos   = [];
+const _cnefeFiltros     = { setor:'', pesquisa:'', agente:'', mes:'', status:'' };
+window.setCnefeFiltro   = (c, v) => { _cnefeFiltros[c] = v; renderCnefeSetores(); };
 let _cnefeMapInstance  = null;
 let _cnefeMapLayers    = { contorno: null, faces: null, pontos: null };
 const _cnefeKmlCache   = {};
@@ -8419,20 +8419,13 @@ async function carregarCnefeSetores() {
       });
     });
 
-    // Popula dropdown de meses uma única vez (sem tocar no valor selecionado depois)
-    const selMes = document.getElementById('cnefe-filtro-mes');
-    const mesesUnicos = [...new Map(
+    // Salva meses disponíveis para o select inline do thead
+    _cnefeMesesUnicos = [...new Map(
       _cnefeSetoresList
         .filter(s => s.mesCnefe)
         .map(s => [`${s.anoCnefe}_${String(s.mesCnefe).padStart(2,'0')}`, s])
         .sort((a, b) => a[0].localeCompare(b[0]))
     )].map(([k, s]) => ({ key: k, mes: s.mesCnefe, ano: s.anoCnefe }));
-    if (selMes) {
-      selMes.innerHTML = '<option value="">Todos os meses</option>' +
-        mesesUnicos.map(m =>
-          `<option value="${m.key}">${_CNEFE_MESES[m.mes-1]} ${m.ano}</option>`
-        ).join('');
-    }
 
     renderCnefeSetores();
   } catch(e) {
@@ -8447,7 +8440,6 @@ window.renderCnefeSetores = () => {
   if (!el || !_cnefeSetoresList.length) return;
 
   const hoje = new Date(); hoje.setHours(0,0,0,0);
-  const mesFiltro = document.getElementById('cnefe-filtro-mes')?.value || '';
 
   const calcStatus = s => {
     if (s.concluido) return 'concluido';
@@ -8456,6 +8448,9 @@ window.renderCnefeSetores = () => {
     return 'a_iniciar';
   };
 
+  const primeiroNome = nome => (nome || '—').split(' ')[0];
+
+  // Atualiza cards de estatísticas (sobre toda a lista, sem filtro)
   const total      = _cnefeSetoresList.length;
   const concluidos = _cnefeSetoresList.filter(s => s.concluido).length;
   const atrasados  = _cnefeSetoresList.filter(s => !s.concluido && s.prazoFinal && s.prazoFinal < hoje).length;
@@ -8464,15 +8459,33 @@ window.renderCnefeSetores = () => {
   document.getElementById('cnefe-stat-atrasados').textContent = atrasados;
   document.getElementById('cnefe-stat-concluidos').textContent = concluidos;
 
-  const lista = mesFiltro
-    ? _cnefeSetoresList.filter(s => `${s.anoCnefe}_${String(s.mesCnefe).padStart(2,'0')}` === mesFiltro)
-    : _cnefeSetoresList;
+  // Valores distintos para os selects dos filtros
+  const pesquisas = [...new Set(_cnefeSetoresList.map(s => s.pesquisa).filter(Boolean))].sort();
+  const agentes   = [...new Set(_cnefeSetoresList.map(s => primeiroNome(s.agente_nome || (_cnefeAgentesCache?.find(a => a.id === s.agente_id)?.nome))).filter(n => n !== '—'))].sort();
+
+  // Aplica filtros
+  const fS = (_cnefeFiltros.setor   || '').toLowerCase();
+  const fP = _cnefeFiltros.pesquisa || '';
+  const fA = (_cnefeFiltros.agente  || '').toLowerCase();
+  const fM = _cnefeFiltros.mes      || '';
+  const fSt= _cnefeFiltros.status   || '';
+
+  const lista = _cnefeSetoresList.filter(s => {
+    if (fS && !s.setor.toLowerCase().includes(fS)) return false;
+    if (fP && s.pesquisa !== fP) return false;
+    const agNome = s.agente_nome || (_cnefeAgentesCache?.find(a => a.id === s.agente_id)?.nome) || '';
+    if (fA && !primeiroNome(agNome).toLowerCase().includes(fA)) return false;
+    if (fM && `${s.anoCnefe}_${String(s.mesCnefe).padStart(2,'0')}` !== fM) return false;
+    if (fSt && calcStatus(s) !== fSt) return false;
+    return true;
+  });
 
   if (!lista.length) {
-    el.innerHTML = '<div class="vazio"><div class="icone-vazio">📍</div>Nenhum setor para o mês selecionado.</div>';
+    el.innerHTML = '<div class="vazio"><div class="icone-vazio">📍</div>Nenhum setor para os filtros selecionados.</div>';
     return;
   }
 
+  // Agrupa por mês CNEFE
   const grupos = new Map();
   lista.slice().sort((a, b) => {
     const ka = `${a.anoCnefe}_${String(a.mesCnefe).padStart(2,'0')}`;
@@ -8486,50 +8499,53 @@ window.renderCnefeSetores = () => {
 
   const stLabel = { a_iniciar:'A iniciar', em_andamento:'Em andamento', concluido:'Concluído', atrasado:'Atrasado' };
   const stBadge = { a_iniciar:'badge-cinza', em_andamento:'badge-azul', concluido:'badge-verde', atrasado:'badge-vermelho' };
+  const fi = `style="width:100%;font-size:0.72rem;padding:2px 4px;border:1px solid var(--borda);border-radius:4px;background:var(--fundo);color:var(--texto);margin-top:3px"`;
 
-  const ibgeBadge = v => {
-    const u = (v || '').toUpperCase();
-    if (u === 'REALIZADA')    return `<span class="badge badge-verde" style="font-size:0.7rem">Realizada</span>`;
-    if (u === 'EM ANDAMENTO') return `<span class="badge badge-azul"  style="font-size:0.7rem">Em andamento</span>`;
-    if (u === 'PARALISADO')   return `<span class="badge badge-vermelho" style="font-size:0.7rem">Paralisado</span>`;
-    if (u === 'NAO INICIADA' || u === 'NÃO INICIADA') return `<span class="badge badge-cinza" style="font-size:0.7rem">Não iniciada</span>`;
-    return v ? `<span class="badge badge-cinza" style="font-size:0.7rem">${v}</span>` : '—';
-  };
-  const avalBadge = v => {
-    const u = (v || '').toUpperCase();
-    if (u.includes('ACEITO'))   return `<span class="badge badge-verde" style="font-size:0.7rem">Aceito</span>`;
-    if (u.includes('NAO AVALIADO') || u.includes('NÃO AVALIADO')) return `<span class="badge badge-cinza" style="font-size:0.7rem">Pendente</span>`;
-    if (!v) return '—';
-    const resumo = v.length > 20 ? v.slice(0, 20) + '…' : v;
-    return `<span class="badge badge-amarelo" style="font-size:0.7rem" title="${v.replace(/"/g,'&quot;')}">${resumo}</span>`;
-  };
+  // Linha de filtros do thead
+  const optMeses   = `<option value="">Todos</option>` + _cnefeMesesUnicos.map(m =>
+    `<option value="${m.key}"${m.key===fM?' selected':''}>${_CNEFE_MESES[m.mes-1]} ${m.ano}</option>`).join('');
+  const optPesq    = `<option value="">Todas</option>` + pesquisas.map(p =>
+    `<option value="${p}"${p===fP?' selected':''}>${p}</option>`).join('');
+  const optAgentes = `<option value="">Todos</option>` + agentes.map(a =>
+    `<option value="${a}"${a.toLowerCase()===fA?' selected':''}>${a}</option>`).join('');
+  const optStatus  = `<option value="">Todos</option>
+    <option value="a_iniciar"${fSt==='a_iniciar'?' selected':''}>A iniciar</option>
+    <option value="em_andamento"${fSt==='em_andamento'?' selected':''}>Em andamento</option>
+    <option value="concluido"${fSt==='concluido'?' selected':''}>Concluído</option>
+    <option value="atrasado"${fSt==='atrasado'?' selected':''}>Atrasado</option>`;
+
+  const filterRow = `<tr style="background:var(--azul-claro)">
+    <th><input ${fi} placeholder="Buscar setor…" value="${fS}" oninput="setCnefeFiltro('setor',this.value)"></th>
+    <th><select ${fi} onchange="setCnefeFiltro('pesquisa',this.value)">${optPesq}</select></th>
+    <th><select ${fi} onchange="setCnefeFiltro('agente',this.value)">${optAgentes}</select></th>
+    <th><select ${fi} onchange="setCnefeFiltro('mes',this.value)">${optMeses}</select></th>
+    <th></th>
+    <th><select ${fi} onchange="setCnefeFiltro('status',this.value)">${optStatus}</select></th>
+    <th></th>
+  </tr>`;
 
   let tbody = '';
   for (const [mes, grp] of grupos) {
     tbody += `<tr style="background:var(--azul-claro)">
-      <td colspan="10" style="font-size:0.75rem;font-weight:700;color:var(--azul);padding:0.35rem 0.9rem;letter-spacing:0.3px">
+      <td colspan="7" style="font-size:0.75rem;font-weight:700;color:var(--azul);padding:0.35rem 0.9rem;letter-spacing:0.3px">
         📅 ${mes} — ${grp.length} setor${grp.length !== 1 ? 'es' : ''}
       </td></tr>`;
     grp.forEach(s => {
       const st    = calcStatus(s);
       const mcLbl = s.mesCnefe ? `${_CNEFE_MESES[s.mesCnefe-1]}/${s.anoCnefe}` : '—';
-      const mpLbl = s.mesPnad  ? `${_CNEFE_MESES[s.mesPnad-1]}/${s.anoPnad}`   : '—';
       const pzLbl = s.prazoFinal instanceof Date ? s.prazoFinal.toLocaleDateString('pt-BR') : '—';
       const agNome = s.agente_nome || (_cnefeAgentesCache?.find(a => a.id === s.agente_id)?.nome) || '—';
       tbody += `<tr>
         <td><code style="font-size:0.78rem">${s.setor}</code></td>
         <td style="font-size:0.82rem">${s.pesquisa}</td>
-        <td style="font-size:0.82rem">${agNome}</td>
+        <td style="font-size:0.82rem">${primeiroNome(agNome)}</td>
         <td style="font-size:0.82rem">${mcLbl}</td>
-        <td style="font-size:0.82rem">${mpLbl}</td>
         <td style="font-size:0.82rem">${pzLbl}</td>
-        <td>${ibgeBadge(s.status_listagem_ibge)}</td>
-        <td>${avalBadge(s.status_avaliacao_ibge)}</td>
         <td><span class="badge ${stBadge[st]}">${stLabel[st]}</span></td>
         <td>
           <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
             <button class="btn-acao secundario" style="font-size:0.75rem;padding:0.25rem 0.6rem"
-              onclick="abrirCnefeListagem('${s.setor}')">📋 Listagem</button>
+              onclick="abrirCnefeListagem('${s.setor}')">📋</button>
             <button class="btn-acao secundario" style="font-size:0.75rem;padding:0.25rem 0.6rem"
               onclick="editarCnefeSetor('${s.setor}','${s.docId||''}','${s.agente_id||''}',${s.concluido})">✏️</button>
           </div>
@@ -8538,10 +8554,10 @@ window.renderCnefeSetores = () => {
     });
   }
 
-  el.innerHTML = '<div style="overflow-x:auto"><table style="min-width:1000px"><thead><tr>' +
-    '<th>Setor</th><th>Pesquisa</th><th>Agente</th><th>Mês CNEFE</th><th>Mês Pesquisa</th><th>Prazo Final</th>' +
-    '<th>Status IBGE</th><th>Avaliação IBGE</th><th>Status</th><th>Ações</th>' +
-    '</tr></thead><tbody>' + tbody + '</tbody></table></div>';
+  el.innerHTML = `<div style="overflow-x:auto"><table style="min-width:720px"><thead>
+    <tr>
+      <th>Setor</th><th>Pesquisa</th><th>Agente</th><th>Mês CNEFE</th><th>Prazo Final</th><th>Status</th><th>Ações</th>
+    </tr>${filterRow}</thead><tbody>${tbody}</tbody></table></div>`;
 };
 
 window.importarIndicadoresGerenciais = (input) => {
