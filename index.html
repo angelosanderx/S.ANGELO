@@ -4671,7 +4671,7 @@ function _cronRenderPainelMes(mes) {
       const etBadge = etapas.map(et=>`<span style="padding:0 5px;border-radius:8px;font-size:0.65rem;font-weight:700;${_COR_ETAPA[et]||''}">${et}ª</span>`).join(' ');
       html += `<div style="padding:0.3rem 0.75rem;border-bottom:1px solid var(--borda);font-size:0.75rem">
         <div style="font-family:monospace;font-weight:700;color:var(--azul);font-size:0.72rem">${label}</div>
-        ${loc ? `<div style="color:var(--cinza);font-size:0.7rem">${loc}</div>` : ''}
+        <div style="color:${loc?'var(--texto)':'var(--cinza)'};font-size:0.7rem;margin-top:1px">${loc||'—'}</div>
         ${etBadge ? `<div style="margin-top:2px">${etBadge}</div>` : ''}
       </div>`;
     }
