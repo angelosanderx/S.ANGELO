@@ -4157,6 +4157,30 @@ window.limparFiltrosSetores = () => {
 
 // ── Amostra Mestra ──────────────────────────────────────
 let _amCache = null;
+let _localidadesCache = null; // { upa: 'texto' }
+
+async function _carregarLocalidades() {
+  if (_localidadesCache) return;
+  try {
+    const snap = await getDocs(collection(db, 'localidades_upa'));
+    _localidadesCache = {};
+    snap.docs.forEach(d => { _localidadesCache[d.id] = d.data().localidade || ''; });
+  } catch(e) {
+    _localidadesCache = {};
+    console.warn('localidades_upa:', e);
+  }
+}
+
+window.salvarLocalidadeUPA = async (upa, valor) => {
+  if (!_localidadesCache) _localidadesCache = {};
+  _localidadesCache[upa] = valor;
+  try {
+    await setDoc(doc(db, 'localidades_upa', upa), { localidade: valor }, { merge: true });
+  } catch(e) {
+    console.error('Erro ao salvar localidade:', e);
+    mostrarToast('Erro ao salvar localidade', 'erro');
+  }
+};
 
 const _NOMES_MES = {7:'Julho',8:'Agosto',9:'Setembro',10:'Outubro',11:'Novembro',12:'Dezembro'};
 
@@ -4185,10 +4209,13 @@ const _COR_ETAPA = {
 async function carregarAmostraMestra() {
   const el = document.getElementById('tabela-am-calendario');
   if (!el) return;
-  if (_amCache) { renderAmostraMestra(); return; }
+  if (_amCache) { await _carregarLocalidades(); renderAmostraMestra(); return; }
   el.innerHTML = '<div class="loader">Carregando amostra mestra...</div>';
   try {
-    const snap = await getDocs(collection(db, 'amostra_mestra'));
+    const [snap] = await Promise.all([
+      getDocs(collection(db, 'amostra_mestra')),
+      _carregarLocalidades()
+    ]);
     _amCache = snap.docs.map(d => d.data());
     renderAmostraMestra();
   } catch(e) {
@@ -4268,7 +4295,8 @@ window.renderAmostraMestra = () => {
       <table style="min-width:500px;width:100%;table-layout:fixed">
         <thead><tr>
           <th>UPA / Controle</th>
-          <th>Município</th>
+          <th style="width:130px">Município</th>
+          <th>Localidade</th>
           <th style="width:70px;text-align:center">Etapa</th>
         </tr></thead>
         <tbody>`;
@@ -4284,9 +4312,17 @@ window.renderAmostraMestra = () => {
         const etapas = etapasUnicas.length === 0 ? '—' : etapasUnicas.map(et =>
           `<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;${_COR_ETAPA[et]||''};margin:1px">${et}ª</span>`
         ).join(' ');
+        const upaEsc = upa.replace(/'/g, "\\'");
+        const locAtual = (_localidadesCache||{})[upa] || '';
         html += `<tr style="border-top:2px solid var(--borda)">
           <td style="vertical-align:middle">${upaCell}</td>
           <td style="font-size:0.82rem;vertical-align:middle">${setores[0]?.nome_municipio||'—'}</td>
+          <td style="vertical-align:middle"><input type="text" value="${locAtual.replace(/"/g,'&quot;')}"
+            placeholder="Localidade..."
+            onblur="salvarLocalidadeUPA('${upaEsc}', this.value)"
+            style="width:100%;border:1px solid var(--borda);border-radius:4px;padding:3px 7px;font-size:0.82rem;background:#fafafa;outline:none"
+            onfocus="this.style.borderColor='var(--azul)';this.style.background='#fff'"
+            onblur="this.style.borderColor='var(--borda)';this.style.background='#fafafa';salvarLocalidadeUPA('${upaEsc}',this.value)"></td>
           <td style="text-align:center;vertical-align:middle">${etapas}</td>
         </tr>`;
       }
