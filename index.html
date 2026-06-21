@@ -1022,9 +1022,9 @@
           <div class="dropdown-listagens">
             <button class="btn-acao secundario" onclick="toggleListagens(this)" style="font-size:0.85rem">📋 Listagens ▾</button>
             <div class="dropdown-listagens-menu">
-              <button onclick="gerarCartoes(null,'pag-pendencias-tabela')">🗂️ Listagem</button>
-              <button onclick="gerarDiarioCampo(null,'pag-pendencias-tabela')">📋 Listagem simples</button>
-              <button onclick="gerarRoteiroCarta(null,'pag-pendencias-tabela')">✉️ Primeira entrevista</button>
+              <button onclick="gerarCartoes(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem</button>
+              <button onclick="gerarDiarioCampo(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples</button>
+              <button onclick="gerarRoteiroCarta(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">✉️ Primeira entrevista</button>
             </div>
           </div>
         </div>
@@ -1182,9 +1182,9 @@
           <div class="dropdown-listagens">
             <button class="btn-acao secundario" onclick="toggleListagens(this)">📋 Listagens ▾</button>
             <div class="dropdown-listagens-menu">
-              <button onclick="gerarCartoes(null,'tabela-domicilios')">🗂️ Listagem</button>
-              <button onclick="gerarDiarioCampo(null,'tabela-domicilios')">📋 Listagem simples</button>
-              <button onclick="gerarRoteiroCarta(null,'tabela-domicilios')">✉️ Primeira entrevista</button>
+              <button onclick="gerarCartoes(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem</button>
+              <button onclick="gerarDiarioCampo(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples</button>
+              <button onclick="gerarRoteiroCarta(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">✉️ Primeira entrevista</button>
             </div>
           </div>
           <button class="btn-acao" onclick="abrirModalDomicilio()">+ Novo</button>
@@ -1213,9 +1213,9 @@
             <div class="dropdown-listagens">
               <button class="btn-acao secundario" onclick="toggleListagens(this)" style="font-size:0.82rem">📋 Listagens ▾</button>
               <div class="dropdown-listagens-menu">
-                <button onclick="gerarCartoes(null,'painel-pendentes-tabela')">🗂️ Listagem</button>
-                <button onclick="gerarDiarioCampo(null,'painel-pendentes-tabela')">📋 Listagem simples</button>
-                <button onclick="gerarRoteiroCarta(null,'painel-pendentes-tabela')">✉️ Primeira entrevista</button>
+                <button onclick="gerarCartoes(null,'painel-pendentes-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem</button>
+                <button onclick="gerarDiarioCampo(null,'painel-pendentes-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples</button>
+                <button onclick="gerarRoteiroCarta(null,'painel-pendentes-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">✉️ Primeira entrevista</button>
               </div>
             </div>
           </div>
@@ -2255,6 +2255,7 @@ window.fecharSidebar = () => {
 };
 
 window.toggleListagens = (btn) => {
+  event.stopPropagation();
   const wrap = btn.closest('.dropdown-listagens');
   const aberto = wrap.classList.contains('aberto');
   document.querySelectorAll('.dropdown-listagens.aberto').forEach(d => d.classList.remove('aberto'));
