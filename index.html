@@ -2815,64 +2815,65 @@ window.gerarCartoes = async (idsOverride) => {
     if (mEnd) endFmt = titleCase(mEnd[1]) + ', ' + (mEnd[2]==='0'?'s/n':mEnd[2]);
     if (compRaw) endFmt += ', ' + titleCase(compRaw);
 
-    // Moradores PNAD
-    let tblMoradores = '';
-    if (moradores.length > 0) {
-      tblMoradores = `<table class="tbl-mor">
-        <thead><tr><th>Nome</th><th>Idade</th><th>Condição</th><th>Cor/Raça</th></tr></thead>
-        <tbody>${moradores.map(m => `<tr>
-          <td>${titleCase(m.nome||'—')}</td>
-          <td>${m.idade!=null ? m.idade+'a' : '—'}</td>
-          <td style="font-size:0.7em">${m.condicao||'—'}</td>
-          <td>${m.raca||m.cor_raca||'—'}</td>
-        </tr>`).join('')}</tbody>
-      </table>`;
-    } else {
-      tblMoradores = '<div class="sem-dados">Nenhum morador PNAD cadastrado</div>';
-    }
-
-    // Observações por etapa
-    let obsHTML = '';
-    const etapasComObs = especies.filter(h => {
-      const t = telPorEtapa[String(h.entrevista)];
-      return (t && t.observacao) || h.resultado;
-    });
-    if (etapasComObs.length > 0) {
-      obsHTML = etapasComObs.map(h => {
-        const t = telPorEtapa[String(h.entrevista)];
-        const obs = t ? (t.observacao || '') : '';
-        const entr = (h.entrevistador && h.entrevistador !== 'Não informado') ? h.entrevistador : '';
-        return `<div class="obs-linha">
-          <span class="obs-num">${h.entrevista}ª</span>
-          ${entr ? `<span class="obs-entr">(${entr})</span>` : ''}
-          <span class="obs-txt">${obs || '—'}</span>
+    // Histórico compacto (todas as etapas com resultado)
+    let obsHistHtml = '';
+    if (especies.length > 0) {
+      obsHistHtml = especies.map(h => {
+        const t    = telPorEtapa[String(h.entrevista)];
+        const obs  = t?.observacao ? ` · ${t.observacao}` : '';
+        const entr = (h.entrevistador && h.entrevistador !== 'Não informado')
+          ? h.entrevistador.split(' ')[0] : '';
+        return `<div class="c-hist-linha">
+          <span class="c-hist-num">${h.entrevista}ª</span>
+          <span class="c-hist-res">${h.resultado||'—'}${obs}</span>
+          ${entr ? `<span class="c-hist-entr">${entr}</span>` : ''}
         </div>`;
       }).join('');
     } else {
-      obsHTML = '<div class="sem-dados">—</div>';
+      obsHistHtml = '<div class="sem-dados">—</div>';
     }
 
+    // Moradores compactos
+    const morLista = moradores.length > 0
+      ? moradores.map(m =>
+          `<div class="c-mor-linha">${titleCase(m.nome||'—')}<span class="c-mor-age">${m.idade!=null?' · '+m.idade+'a':''}</span></div>`
+        ).join('')
+      : '<div class="sem-dados">—</div>';
+
     return `<div class="cartao">
-      <div class="cartao-header">
-        <div class="cartao-codigo">${codigo}</div>
-        <div class="cartao-status">${STATUS_LABEL[d.status_atual] || d.status_atual || 'Não visitado'}</div>
+      <div class="c-hd">
+        <div class="c-cod">${codigo}</div>
+        <div class="c-status">${STATUS_LABEL[d.status_atual] || d.status_atual || 'Não visitado'}</div>
       </div>
-      <div class="cartao-endereco">${endFmt}</div>
-      <div class="cartao-info">
-        <span>Sem.: <strong>${d.semana||'—'}</strong></span>
-        <span>Etapa: <strong>${d.visita_etapa||'—'}ª</strong></span>
-        <span>Trim. ant.: <strong>${situacaoAnterior}</strong></span>
-        ${d.entrevistador_nome ? `<span>Entr.: <strong>${d.entrevistador_nome}</strong></span>` : ''}
+      <div class="c-end">${endFmt}</div>
+      <div class="c-info">
+        <span>Sem. <strong>${d.semana||'—'}</strong></span>
+        <span>Etapa <strong>${d.visita_etapa||'—'}ª</strong></span>
+        <span>Ant.: <strong>${situacaoAnterior}</strong></span>
+        ${d.entrevistador_nome ? `<span>Entr.: <strong>${(d.entrevistador_nome||'').split(' ')[0]}</strong></span>` : ''}
       </div>
-      ${d.morador_cnefe||d.morador ? `<div class="cartao-cnefe">👤 ${titleCase(d.morador_cnefe||d.morador||'')}</div>` : ''}
-      <div class="cartao-secao">MORADORES PNAD</div>
-      ${tblMoradores}
-      <div class="cartao-secao">OBSERVAÇÕES</div>
-      <div class="cartao-obs">${obsHTML}</div>
+      ${d.morador_cnefe||d.morador ? `<div class="c-cnefe">👤 ${titleCase(d.morador_cnefe||d.morador||'')}</div>` : ''}
+      <div class="c-body">
+        <div class="c-col-mor">
+          <div class="c-lbl">Moradores PNAD</div>
+          ${morLista}
+        </div>
+        <div class="c-col-obs">
+          <div class="c-lbl">Histórico</div>
+          ${obsHistHtml}
+          <div class="c-lbl" style="margin-top:4px">Obs. da equipe</div>
+          <div class="c-obs-lines">
+            <div class="c-obs-line"></div>
+            <div class="c-obs-line"></div>
+            <div class="c-obs-line"></div>
+            <div class="c-obs-line"></div>
+          </div>
+        </div>
+      </div>
     </div>`;
   };
 
-  const POR_PAGINA = 4;
+  const POR_PAGINA = 6;
   let paginas = '';
   for (let i = 0; i < lista.length; i += POR_PAGINA) {
     const fatia = lista.slice(i, i+POR_PAGINA);
@@ -2889,80 +2890,105 @@ window.gerarCartoes = async (idsOverride) => {
 <title>Cartões de Campo — PNAD-C</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; background: #fff; font-size: 9pt; padding-top: 46px; }
+  body { font-family: Arial, sans-serif; background: #fff; font-size: 7.5pt; padding-top: 44px; }
+
   .pagina {
     width: 297mm;
     min-height: 210mm;
-    padding: 8mm;
+    padding: 5mm;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     grid-template-rows: 1fr 1fr;
-    gap: 5mm;
+    gap: 3.5mm;
     page-break-after: always;
   }
+
   .cartao {
-    border: 2px solid #1a3a5c;
-    border-radius: 6px;
-    padding: 5mm 5mm 4mm;
+    border: 1.5px solid #1a3a5c;
+    border-radius: 5px;
+    padding: 3mm 3.5mm 2.5mm;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
     overflow: hidden;
   }
-  .cartao-vazio { border: 1px dashed #ccc; }
-  .cartao-header {
+  .cartao-vazio { border: 1px dashed #ccc; background: #fafafa; }
+
+  .c-hd {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding-bottom: 2.5px;
+    border-bottom: 1.5px solid #1a3a5c;
     margin-bottom: 2px;
   }
-  .cartao-codigo { font-size: 11pt; font-weight: 800; color: #1a3a5c; }
-  .cartao-status {
-    font-size: 7.5pt; font-weight: 700;
+  .c-cod { font-size: 10pt; font-weight: 800; color: #1a3a5c; letter-spacing: 0.3px; }
+  .c-status {
+    font-size: 6pt; font-weight: 700;
     background: #e8f0fb; color: #2563a8;
-    padding: 2px 7px; border-radius: 10px;
+    padding: 1.5px 6px; border-radius: 8px; white-space: nowrap;
   }
-  .cartao-endereco { font-size: 8.5pt; font-weight: 600; color: #1e293b; line-height: 1.3; }
-  .cartao-info {
-    display: flex; flex-wrap: wrap; gap: 6px;
-    font-size: 7.5pt; color: #64748b;
+
+  .c-end {
+    font-size: 7.5pt; font-weight: 600; color: #1e293b;
+    line-height: 1.25; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .c-info {
+    display: flex; flex-wrap: wrap; gap: 2px 7px;
+    font-size: 6.5pt; color: #64748b;
     border-top: 1px solid #e2e8f0;
     border-bottom: 1px solid #e2e8f0;
-    padding: 3px 0; margin: 2px 0;
+    padding: 2px 0; margin: 1px 0;
   }
-  .cartao-info span strong { color: #1e293b; }
-  .cartao-cnefe { font-size: 8pt; color: #1e293b; font-style: italic; }
-  .cartao-secao {
-    font-size: 6.5pt; font-weight: 700;
+  .c-info strong { color: #1e293b; }
+
+  .c-cnefe { font-size: 6.5pt; color: #374151; font-style: italic; }
+
+  .c-body { display: flex; gap: 3.5mm; flex: 1; min-height: 0; }
+  .c-col-mor { flex: 3; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  .c-col-obs {
+    flex: 2; display: flex; flex-direction: column; min-width: 0;
+    border-left: 1px solid #e2e8f0; padding-left: 3mm;
+  }
+
+  .c-lbl {
+    font-size: 5.5pt; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.5px;
-    color: #64748b; margin-top: 3px;
+    color: #94a3b8; margin-bottom: 1.5px; margin-top: 3px;
   }
-  .tbl-mor { width: 100%; border-collapse: collapse; font-size: 7.5pt; margin-top: 2px; }
-  .tbl-mor th {
-    background: #f1f5f9; padding: 2px 4px;
-    text-align: left; font-size: 6.5pt;
-    font-weight: 700; color: #64748b;
-    text-transform: uppercase;
+  .c-lbl:first-child { margin-top: 0; }
+
+  .c-mor-linha {
+    font-size: 7pt; color: #1e293b; line-height: 1.3;
+    padding: 1px 0; border-bottom: 1px dotted #e2e8f0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .tbl-mor td { padding: 2px 4px; border-bottom: 1px solid #f1f5f9; }
-  .cartao-obs { font-size: 7.5pt; margin-top: 2px; flex: 1; }
-  .obs-linha {
-    display: flex; gap: 4px; align-items: baseline;
-    padding: 2px 0; border-bottom: 1px dotted #e2e8f0;
-    line-height: 1.3;
+  .c-mor-age { color: #64748b; }
+
+  .c-hist-linha {
+    display: flex; gap: 2px; align-items: baseline;
+    font-size: 6.5pt; padding: 1px 0;
+    border-bottom: 1px dotted #e2e8f0; line-height: 1.3;
   }
-  .obs-num { font-weight: 800; color: #2563a8; min-width: 16px; flex-shrink: 0; }
-  .obs-entr { color: #64748b; font-style: italic; flex-shrink: 0; }
-  .obs-txt { color: #1e293b; }
-  .sem-dados { font-size: 7.5pt; color: #94a3b8; font-style: italic; padding: 2px 0; }
+  .c-hist-num { font-weight: 800; color: #2563a8; min-width: 12px; flex-shrink: 0; }
+  .c-hist-res { color: #1e293b; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .c-hist-entr { color: #94a3b8; font-style: italic; flex-shrink: 0; font-size: 6pt; }
+
+  .c-obs-lines { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; }
+  .c-obs-line { flex: 1; border-bottom: 1px solid #cbd5e1; min-height: 4.5mm; }
+
+  .sem-dados { font-size: 6.5pt; color: #94a3b8; font-style: italic; }
+
   .toolbar {
     position: fixed; top: 0; left: 0; right: 0;
     background: #1a3a5c; color: #fff;
-    padding: 0.5rem 1rem; display: flex;
+    padding: 0.45rem 1rem; display: flex;
     align-items: center; gap: 0.75rem;
-    font-size: 0.85rem; z-index: 999;
+    font-size: 0.82rem; z-index: 999;
   }
-  .toolbar button { background: #2563a8; border: none; color: #fff; padding: 0.3rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-family: Arial; }
+  .toolbar button { background: #2563a8; border: none; color: #fff; padding: 0.28rem 0.9rem; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: Arial; }
   .toolbar button.sec { background: rgba(255,255,255,0.15); }
   @media print {
     @page { size: A4 landscape; margin: 0; }
@@ -4441,7 +4467,10 @@ const _CORES_EQUIPE  = ['#64748b','#0d9488','#ea580c','#7c3aed','#db2777','#ca8a
 
 function _migrarParaEquipes(ln) {
   if (!ln || typeof ln !== 'object') return { equipes: [{ entrevistadores:'', upas:[''], localidades:[''], tipos:[''] }] };
-  if (ln.tipo_card === 'periodo_livre') return ln;
+  if (ln.tipo_card === 'periodo_livre') {
+    if (!ln.equipes) ln.equipes = [{ entrevistadores:'', upas:[''], localidades:[''], tipos:[''] }];
+    return ln;
+  }
   if (ln.equipes) return ln;
   return {
     data: ln.data || '',
@@ -4583,25 +4612,29 @@ function _cronRenderTabela() {
   _cronLinhas.forEach((ln, i) => {
     if (!ln) return;
 
-    // — PERÍODO LIVRE —
-    if (ln.tipo_card === 'periodo_livre') {
-      cards += `<div class="cron-card cron-card-periodo" data-i="${i}">
-        <div class="cron-card-top">
+    // — CABEÇALHO: período livre vs data fixa —
+    const isPeriodo = ln.tipo_card === 'periodo_livre';
+    const cardClass = isPeriodo ? 'cron-card cron-card-periodo' : 'cron-card';
+    const cardHeader = isPeriodo
+      ? `<div class="cron-card-top">
           <input type="date" value="${ln.data_inicio||''}" onchange="cronSet(${i},'data_inicio',this.value)"
             style="border:1px solid var(--borda);border-radius:4px;padding:3px 7px;font-size:0.88rem;background:transparent;flex-shrink:0">
           <span style="font-size:0.72rem;color:var(--cinza);flex-shrink:0">até</span>
           <input type="date" value="${ln.data_fim||''}" onchange="cronSet(${i},'data_fim',this.value)"
             style="border:1px solid var(--borda);border-radius:4px;padding:3px 7px;font-size:0.88rem;background:transparent;flex-shrink:0">
-          <span style="font-size:0.72rem;color:var(--cinza-escuro);flex-shrink:0">horário a combinar</span>
-          <span style="padding:1px 8px;border-radius:10px;font-size:0.65rem;font-weight:700;background:#FAC77522;color:#b45309;border:1px solid #FAC77577;white-space:nowrap;flex-shrink:0">período livre</span>
           <div style="flex:1"></div>
           <button onclick="cronDelRow(${i})" style="background:none;border:none;cursor:pointer;color:var(--cinza);font-size:0.95rem;padding:0 2px;flex-shrink:0" title="Remover">🗑️</button>
-        </div>
-      </div>`;
-      return;
-    }
+        </div>`
+      : `<div class="cron-card-top">
+          <input type="date" value="${ln.data||''}" onchange="cronSet(${i},'data',this.value)"
+            style="border:1px solid var(--borda);border-radius:4px;padding:3px 7px;font-size:0.88rem;background:transparent;flex-shrink:0">
+          <input type="time" value="${ln.hora||''}" onchange="cronSet(${i},'hora',this.value)"
+            style="border:1px solid var(--borda);border-radius:4px;padding:1px 4px;font-size:0.75rem;background:transparent;flex-shrink:0">
+          <div style="flex:1"></div>
+          <button onclick="cronDelRow(${i})" style="background:none;border:none;cursor:pointer;color:var(--cinza);font-size:0.95rem;padding:0 2px;flex-shrink:0" title="Remover">🗑️</button>
+        </div>`;
 
-    // — DATA FIXA —
+    // — EQUIPES (comuns aos dois tipos) —
     const equipes = ln.equipes || [];
     let equipesHtml = '';
 
@@ -4633,10 +4666,8 @@ function _cronRenderTabela() {
         const etBadge = etapas.length
           ? etapas.map(et=>`<span style="padding:1px 5px;border-radius:8px;font-size:0.65rem;font-weight:700;${_COR_ETAPA[et]||''}">${et}ª</span>`).join(' ')
           : '<span style="color:var(--cinza);font-size:0.7rem">—</span>';
-        const setorOpts = ['', ..._cronSetores.map(s=>s.upa)].map((v,k) =>
-          `<option value="${v}"${v===u?' selected':''}>${k===0?'Setor...':_cronSetores[k-1].label}</option>`
-        ).join('');
         const locVal   = (locs[si] ?? '').replace(/"/g,'&quot;');
+        const upaVal   = (u || '').replace(/"/g,'&quot;');
         const tc       = _tipoCor(tiposAl[si]);
         const tipoText = tiposAl[si] || '＋ tipo';
         const tipoCss  = tiposAl[si]
@@ -4647,8 +4678,9 @@ function _cronRenderTabela() {
           ? `<button onclick="cronRemoveSetorEq(${i},${j},${si})" style="background:none;border:none;cursor:pointer;color:var(--cinza);font-size:0.75rem;padding:0 2px" title="Remover">×</button>`
           : '<span style="width:14px;display:inline-block"></span>';
         setorCells += `
-          <select onchange="cronSetorEq(${i},${j},${si},this.value)"
-            style="border:1px solid var(--borda);border-left:3px solid ${tc};border-radius:4px;padding:1px 3px;font-size:0.68rem;background:#fafafa;font-family:monospace;min-width:0">${setorOpts}</select>
+          <input type="text" value="${upaVal}" placeholder="Setor..." list="cron-dl-setores"
+            onblur="cronSetorEq(${i},${j},${si},this.value)"
+            style="border:1px solid var(--borda);border-left:3px solid ${tc};border-radius:4px;padding:1px 4px;font-size:0.68rem;background:#fafafa;font-family:monospace;min-width:0">
           <input type="text" value="${locVal}" placeholder="Localidade..."
             onblur="cronSetLocalidadeEq(${i},${j},${si},this.value)"
             style="border:1px solid var(--borda);border-radius:4px;padding:1px 4px;font-size:0.68rem;background:#fafafa;min-width:0">
@@ -4679,15 +4711,8 @@ function _cronRenderTabela() {
       </div>`;
     });
 
-    cards += `<div class="cron-card" data-i="${i}" style="border-left:none">
-      <div class="cron-card-top">
-        <input type="date" value="${ln.data||''}" onchange="cronSet(${i},'data',this.value)"
-          style="border:1px solid var(--borda);border-radius:4px;padding:3px 7px;font-size:0.88rem;background:transparent;flex-shrink:0">
-        <input type="time" value="${ln.hora||''}" onchange="cronSet(${i},'hora',this.value)"
-          style="border:1px solid var(--borda);border-radius:4px;padding:1px 4px;font-size:0.75rem;background:transparent;flex-shrink:0">
-        <div style="flex:1"></div>
-        <button onclick="cronDelRow(${i})" style="background:none;border:none;cursor:pointer;color:var(--cinza);font-size:0.95rem;padding:0 2px;flex-shrink:0" title="Remover">🗑️</button>
-      </div>
+    cards += `<div class="${cardClass}" data-i="${i}" style="border-left:none">
+      ${cardHeader}
       ${equipesHtml}
       <button onclick="cronAddEquipe(${i})" class="cron-add-equipe-btn">＋ equipe</button>
     </div>`;
@@ -4704,6 +4729,7 @@ function _cronRenderTabela() {
       </div>
     </div>
     <div style="padding:0.6rem 0.85rem 0.5rem">
+      <datalist id="cron-dl-setores">${_cronSetores.map(s=>`<option value="${s.upa}">${s.label||s.upa}</option>`).join('')}</datalist>
       ${cards}
       <div style="display:flex;gap:0.5rem;margin-top:0.35rem">
         <button onclick="cronAddDataFixa()" style="flex:1;padding:0.45rem;border:1.5px dashed var(--azul);border-radius:8px;color:var(--azul);background:#f0f7ff;cursor:pointer;font-size:0.8rem;font-weight:500">＋ data fixa</button>
@@ -4735,7 +4761,6 @@ function _cronRenderVistaGlobal(mes, semanas, dadosPorSemana) {
           <div class="cron-card-top">
             <span style="font-size:0.82rem;font-weight:600;color:#92400e">${ln.data_inicio||'?'} até ${ln.data_fim||'?'}</span>
             <span style="font-size:0.72rem;color:var(--cinza)">horário a combinar</span>
-            <span style="padding:1px 8px;border-radius:10px;font-size:0.65rem;font-weight:700;background:#FAC77522;color:#b45309;border:1px solid #FAC77577">período livre</span>
           </div>
         </div>`;
         return;
@@ -4886,7 +4911,7 @@ window.renderCronograma = async () => {
       const snap = await getDoc(doc(db, 'cronograma', `${mes}_${semana}`));
       _cronLinhas = snap.exists() ? (snap.data().linhas || []) : [];
     } catch(e) { _cronLinhas = []; console.warn('cron load:', e); }
-    while (_cronLinhas.length < 5) _cronLinhas.push({});
+    if (_cronLinhas.length === 0) _cronLinhas.push({});
     _cronLinhas = _cronLinhas.map(_migrarParaEquipes);
     _buildCronSetores(mes, semana);
     _cronRenderTabela();
@@ -5027,7 +5052,14 @@ window.cronRemoveTipo = (rowIdx, tipoIdx) => {
 window.cronAbrirMsel = (btn) => {
   document.querySelectorAll('.cron-msel-list').forEach(el => { el.style.display = 'none'; });
   const list = btn.nextElementSibling;
-  list.style.display = list.style.display === 'none' ? 'block' : 'none';
+  if (list.style.display === 'block') { list.style.display = 'none'; return; }
+  const r = btn.getBoundingClientRect();
+  list.style.position  = 'fixed';
+  list.style.top       = (r.bottom + 2) + 'px';
+  list.style.left      = r.left + 'px';
+  list.style.zIndex    = '9999';
+  list.style.maxHeight = Math.min(320, window.innerHeight - r.bottom - 8) + 'px';
+  list.style.display   = 'block';
 };
 
 // Toggle entrevistador numa equipe específica (atualiza chips sem re-render completo)
@@ -5112,7 +5144,7 @@ window.cronAddDataFixa = () => {
 };
 
 window.cronAddPeriodoLivre = () => {
-  _cronLinhas.push({ tipo_card:'periodo_livre', data_inicio:'', data_fim:'' });
+  _cronLinhas.push({ tipo_card:'periodo_livre', data_inicio:'', data_fim:'', equipes:[{ entrevistadores:'', upas:[''], localidades:[''], tipos:[''] }] });
   _cronScheduleSave(); _cronRenderTabela();
 };
 
