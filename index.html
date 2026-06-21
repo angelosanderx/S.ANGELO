@@ -3122,7 +3122,7 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
         <div class="dom-end">${endFmt}</div>
         <div class="dom-meta">${resp?'Resp: '+resp+' · ':''}${mc} mor. · Ant: ${ant}</div>
         <div class="dom-tel">Tel: ${tel}</div>
-        <div class="dom-obs">Campo: <span class="bl bl-campo"></span></div>
+        <div class="dom-obs">Obs.: <span class="bl bl-campo"></span></div>
       </div>
     </div>`;
   };
@@ -3175,7 +3175,7 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
 <title>Diário de Campo — PNAD-C</title>
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:Arial,sans-serif; font-size:7pt; background:#fff; color:#000; padding-top:40px; }
+  body { font-family:Arial,sans-serif; font-size:8pt; background:#fff; color:#000; padding-top:40px; }
   .pagina { width:297mm; height:210mm; padding:4mm 5mm 3mm; display:flex; flex-direction:column; page-break-after:always; overflow:hidden; }
   .cabecalho { border:1px solid #000; padding:1.5mm 3mm; margin-bottom:1.5mm; flex-shrink:0; }
   .hd-tbl { width:100%; border-collapse:collapse; font-size:7pt; }
@@ -3187,12 +3187,12 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
   .dom-entry:last-child { border-bottom:none; }
   .dom-info { padding:1mm 2mm; display:flex; flex-direction:column; justify-content:space-around; overflow:hidden; width:100%; }
   .dom-hd { display:flex; align-items:baseline; gap:3px; }
-  .dom-num { font-weight:800; font-size:8pt; flex-shrink:0; }
-  .dom-st { font-size:5.5pt; font-weight:700; letter-spacing:0.2px; flex-shrink:0; }
-  .dom-chks { margin-left:auto; font-size:6pt; white-space:nowrap; flex-shrink:0; }
-  .dom-end { font-size:7pt; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .dom-meta { font-size:6pt; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .dom-tel, .dom-obs { font-size:6.5pt; }
+  .dom-num { font-weight:800; font-size:9.5pt; flex-shrink:0; }
+  .dom-st { font-size:7pt; font-weight:700; letter-spacing:0.2px; flex-shrink:0; }
+  .dom-chks { margin-left:auto; font-size:7pt; white-space:nowrap; flex-shrink:0; }
+  .dom-end { font-size:8pt; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dom-meta { font-size:7pt; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dom-tel, .dom-obs { font-size:7.5pt; }
   .bl { display:inline-block; border-bottom:1px solid #444; vertical-align:bottom; }
   .bl-xs    { min-width:14px; }
   .bl-sm    { min-width:24px; }
