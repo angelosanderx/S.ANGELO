@@ -8625,12 +8625,10 @@ window.importarIndicadoresGerenciais = (input) => {
 
         if (isPnad && d.periodo) {
           const partes = d.periodo.trim().split(/\s+/);
-          mesPnad  = MESES_PT[normStr(partes[0])] || 0;
-          anoPnad  = parseInt(partes[1]) || new Date().getFullYear();
-          if (mesPnad) {
-            mesCnefe   = mesPnad > 3 ? mesPnad - 3 : mesPnad + 9;
-            anoCnefe   = mesPnad > 3 ? anoPnad : anoPnad - 1;
-            prazoFinal = new Date(anoPnad, mesPnad - 1, 0); // último dia do mês anterior
+          mesCnefe = MESES_PT[normStr(partes[0])] || 0; // PERIODO já é o mês do CNEFE
+          anoCnefe = parseInt(partes[1]) || new Date().getFullYear();
+          if (mesCnefe) {
+            prazoFinal = new Date(anoCnefe, mesCnefe, 0); // último dia do mês CNEFE
           }
         }
 
