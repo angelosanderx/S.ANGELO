@@ -3339,7 +3339,7 @@ window.gerarRoteiroCarta = async (idsOverride, tableId) => {
       const endR = r.endereco ? (tc(r.endereco) + (r.complemento ? ', '+r.complemento : '')) : '—';
       const seq  = r.seq_visita || r.dom || '';
       const mor  = r.morador ? tc(r.morador) : '';
-      return `<tr class="rot-${tipo}"><td class="rot-tipo">${tipo==='antes'?'←':tipo==='depois'?'→':'🎯'}</td><td class="rot-seq">${seq}</td><td class="rot-end">${endR}${mor ? '<br><span class="rot-mor">'+mor+'</span>' : ''}</td></tr>`;
+      return `<tr class="rot-${tipo}"><td class="rot-tipo">${tipo==='antes'?'←':tipo==='depois'?'→':'🎯'}</td><td class="rot-seq">${seq}</td><td class="rot-end">${endR}${mor ? ' <span class="rot-mor">— '+mor+'</span>' : ''}</td></tr>`;
     };
 
     let rotHtml = '';
@@ -3412,13 +3412,13 @@ window.gerarRoteiroCarta = async (idsOverride, tableId) => {
   .dom-meta { font-size:6.5pt; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .dom-sub { font-size:6.5pt; color:#555; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .dom-rot { margin-top:0.5mm; }
-  .rot-tbl { width:100%; border-collapse:collapse; font-size:6pt; line-height:1.3; }
-  .rot-tbl td { padding:0.2mm 1mm; vertical-align:top; }
-  .rot-tipo { width:12px; color:#666; white-space:nowrap; }
-  .rot-seq { width:20px; font-weight:600; }
+  .rot-tbl { width:100%; border-collapse:collapse; font-size:6pt; line-height:1.3; table-layout:fixed; }
+  .rot-tbl td { padding:0.2mm 1mm; vertical-align:middle; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .rot-tipo { width:12px; color:#666; }
+  .rot-seq { width:18px; font-weight:600; }
   .rot-end { color:#333; }
   .rot-alvo td { background:#e8f0fb; font-weight:700; color:#1a3a5c; }
-  .rot-mor { font-style:italic; color:#555; }
+  .rot-mor { font-style:italic; color:#777; }
   .rot-vazio { font-size:6pt; color:#aaa; font-style:italic; }
   .dom-obs { font-size:7pt; display:flex; align-items:baseline; gap:3px; }
   .bl { display:inline-block; border-bottom:1px solid #444; vertical-align:bottom; }
