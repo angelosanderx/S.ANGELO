@@ -3333,6 +3333,7 @@ window.gerarRoteiroCarta = async (idsOverride, tableId) => {
     const tel    = d.telefone || '—';
     const endFmt = parsearEnd(d.endereco_custom || d.endereco, d.complemento) || '—';
     const num    = domNum || '—';
+    const entr   = d.entrevistador_nome ? tc(d.entrevistador_nome) : '';
 
     const rotRow = (r, tipo) => {
       const endR = r.endereco ? (tc(r.endereco) + (r.complemento ? ', '+r.complemento : '')) : '—';
@@ -3354,6 +3355,7 @@ window.gerarRoteiroCarta = async (idsOverride, tableId) => {
     return `<div class="dom-entry">
   <div class="dom-info">
     <div class="dom-hd"><span class="dom-num">Dom. ${num}</span><span class="dom-ant">${ant}</span><span class="dom-chks">☐ Entregue &nbsp;☐ Ausente &nbsp;☐ Recusa</span></div>
+    <div class="dom-sub">Setor: ${setor}${entr ? ' · ' + entr : ''}</div>
     <div class="dom-end">${endFmt}</div>
     <div class="dom-meta">CNEFE: ${cnefe||'—'} · Tel: ${tel}</div>
     <div class="dom-rot">${rotHtml}</div>
@@ -3392,7 +3394,7 @@ window.gerarRoteiroCarta = async (idsOverride, tableId) => {
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:Arial,sans-serif; font-size:8pt; background:#fff; color:#000; padding-top:40px; }
-  .pagina { width:210mm; min-height:297mm; padding:5mm 6mm 4mm; display:flex; flex-direction:column; page-break-after:always; }
+  .pagina { width:210mm; height:297mm; padding:5mm 6mm 4mm; display:flex; flex-direction:column; page-break-after:always; overflow:hidden; }
   .cabecalho { border:1px solid #000; padding:1.5mm 3mm; margin-bottom:2mm; flex-shrink:0; }
   .hd-tbl { width:100%; border-collapse:collapse; font-size:7pt; }
   .hd-tbl td { padding:0.5mm 4mm 0.5mm 0; }
@@ -3407,6 +3409,7 @@ window.gerarRoteiroCarta = async (idsOverride, tableId) => {
   .dom-chks { margin-left:auto; font-size:7pt; white-space:nowrap; flex-shrink:0; }
   .dom-end { font-size:8pt; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .dom-meta { font-size:6.5pt; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dom-sub { font-size:6.5pt; color:#555; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .dom-rot { margin-top:0.5mm; }
   .rot-tbl { width:100%; border-collapse:collapse; font-size:6pt; line-height:1.3; }
   .rot-tbl td { padding:0.2mm 1mm; vertical-align:top; }
