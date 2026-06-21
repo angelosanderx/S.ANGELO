@@ -1015,6 +1015,7 @@
           <button class="btn-acao secundario" onclick="gerarEtiquetas(null,'pag-pendencias-tabela')" style="font-size:0.85rem">🏷️ Etiquetas</button>
           <button class="btn-acao secundario" onclick="gerarCartoes(null,'pag-pendencias-tabela')" style="font-size:0.85rem">🗂️ Cartões</button>
           <button class="btn-acao secundario" onclick="gerarDiarioCampo(null,'pag-pendencias-tabela')" style="font-size:0.85rem">📋 Diário</button>
+          <button class="btn-acao secundario" onclick="gerarRoteiroCarta(null,'pag-pendencias-tabela')" style="font-size:0.85rem">✉️ Cartas</button>
         </div>
       </div>
 
@@ -1169,6 +1170,7 @@
           <button class="btn-acao secundario" onclick="gerarEtiquetas(null,'tabela-domicilios')" title="Gerar etiquetas de endereço">🏷️ Etiquetas</button>
           <button class="btn-acao secundario" onclick="gerarCartoes(null,'tabela-domicilios')" title="Gerar cartões de campo para impressão">🗂️ Cartões</button>
           <button class="btn-acao secundario" onclick="gerarDiarioCampo(null,'tabela-domicilios')" title="Gerar diário de campo compacto (14 por folha)">📋 Diário</button>
+          <button class="btn-acao secundario" onclick="gerarRoteiroCarta(null,'tabela-domicilios')" title="Gerar roteiro de entrega de cartas (etapa 1, 7 por folha)">✉️ Cartas</button>
           <button class="btn-acao" onclick="abrirModalDomicilio()">+ Novo</button>
         </div>
       </div>
@@ -1194,6 +1196,7 @@
             <button class="btn-acao secundario" onclick="gerarEtiquetas(null,'painel-pendentes-tabela')" style="font-size:0.82rem">🏷️ Etiquetas</button>
             <button class="btn-acao secundario" onclick="gerarCartoes(null,'painel-pendentes-tabela')" style="font-size:0.82rem">🗂️ Cartões</button>
             <button class="btn-acao secundario" onclick="gerarDiarioCampo(null,'painel-pendentes-tabela')" style="font-size:0.82rem">📋 Diário</button>
+            <button class="btn-acao secundario" onclick="gerarRoteiroCarta(null,'painel-pendentes-tabela')" style="font-size:0.82rem">✉️ Cartas</button>
           </div>
         </div>
         <div id="painel-pendentes-tabela"><div class="loader">Carregando...</div></div>
@@ -3172,7 +3175,7 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
       if (fd) { const s = fd.d.controle ? fd.d.controle.slice(0,-1) : (fd.d.upa||''); c2 = [{type:'setor',code:s,etapa:fd.d.visita_etapa||''},...c2]; }
     }
     const renderCol = col => col.map(it => it.type==='setor' ? renderSetor(it.code, it.etapa) : renderDom(it.d)).join('');
-    paginas += `<div class="pagina">${cabecalho}<div class="corpo"><div class="coluna">${renderCol(c1)}</div><div class="coluna">${renderCol(c2)}</div></div>${rodape}</div>`;
+    paginas += `<div class="pagina">${cabecalho}<div class="corpo"><div class="coluna">${renderCol(c1)}</div><div class="coluna">${renderCol(c2)}</div></div></div>`;
   }
 
   const win = window.open('', '_blank');
@@ -3230,6 +3233,207 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
 <body>
 <div class="toolbar">
   <span>📋 Diário de Campo — <strong>${lista.length}</strong> domicílio(s)${usarSelecao?' — seleção manual':' — filtro atual'}</span>
+  <button onclick="window.print()">🖨️ Imprimir</button>
+  <button class="sec" onclick="window.close()">Fechar</button>
+</div>
+${paginas}
+</body>
+</html>`);
+  win.document.close();
+};
+
+window.gerarRoteiroCarta = async (idsOverride, tableId) => {
+  const scope = tableId ? (document.getElementById(tableId) || document) : document;
+  const checkboxes = scope.querySelectorAll('.chk-dom');
+  const selecionados = [...scope.querySelectorAll('.chk-dom:checked')].map(c => c.value);
+  const usarSelecao = !idsOverride && selecionados.length > 0;
+
+  let lista;
+  if (idsOverride) {
+    lista = idsOverride.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
+  } else if (usarSelecao) {
+    lista = selecionados.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
+  } else {
+    lista = [...checkboxes].map(c => todosdomicilios.find(d => d.id === c.value)).filter(Boolean);
+  }
+  if (lista.length === 0) { mostrarToast('Nenhum domicílio para imprimir', 'aviso'); return; }
+
+  lista.sort((a, b) => {
+    const semDiff = parseInt(a.semana||0) - parseInt(b.semana||0);
+    if (semDiff !== 0) return semDiff;
+    const upaDiff = (a.upa||'').localeCompare(b.upa||'');
+    if (upaDiff !== 0) return upaDiff;
+    const sA = a.controle ? a.controle.slice(0,-1) : (a.upa||'');
+    const sB = b.controle ? b.controle.slice(0,-1) : (b.upa||'');
+    const setDiff = sA.localeCompare(sB);
+    if (setDiff !== 0) return setDiff;
+    return parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0);
+  });
+
+  const tc = s => s ? s.replace(/\w\S*/g, t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()) : '';
+
+  // Carrega enderecos_setor para todos os setores da lista
+  const setoresNeeded = [...new Set(lista.map(d => d.controle ? d.controle.slice(0,-1) : (d.upa||'')).filter(Boolean))];
+  const enderecosPorSetor = {};
+  await Promise.all(setoresNeeded.map(async setor => {
+    if (listagemSetor && listagemSetor[setor]) { enderecosPorSetor[setor] = listagemSetor[setor]; return; }
+    try {
+      const snap = await getDoc(doc(db, 'enderecos_setor', setor));
+      enderecosPorSetor[setor] = snap.exists() ? (snap.data().registros || []) : [];
+    } catch(e) { enderecosPorSetor[setor] = []; }
+  }));
+
+  const items = [];
+  let lastSetor = null;
+  lista.forEach(d => {
+    const setor = d.controle ? d.controle.slice(0,-1) : (d.upa||'');
+    if (setor !== lastSetor) { items.push({type:'setor', code:setor, etapa:d.visita_etapa||''}); lastSetor = setor; }
+    items.push({type:'dom', d});
+  });
+
+  const sliceCol = (arr, n) => {
+    let count = 0, i = 0;
+    while (i < arr.length && count < n) { if (arr[i].type==='dom') count++; i++; }
+    return [arr.slice(0, i), arr.slice(i)];
+  };
+
+  const renderSetor = (code, etapa) =>
+    `<div class="setor-sep">──── ${code}${etapa ? ' — Etapa '+etapa+'ª' : ''} ────</div>`;
+
+  const parsearEnd = (end, comp) => {
+    if (!end) return comp ? tc(comp) : '';
+    const m = end.match(/^(.+?),\s*(\d+)\s*$/);
+    let log, num;
+    if (m) { log = m[1].trim(); num = m[2]==='0' ? 's/n' : m[2]; }
+    else { log = end; num = 's/n'; }
+    const partes = [tc(log), num];
+    if (comp) partes.push(tc(comp));
+    return partes.filter(Boolean).join(', ');
+  };
+
+  const renderDom = d => {
+    const setor = d.controle ? d.controle.slice(0,-1) : (d.upa||'');
+    const lista_setor = enderecosPorSetor[setor] || [];
+    const domNum = String(d.domicilio_num || d.numero_sequencial || '');
+    let idx = lista_setor.findIndex(r => r.dom === domNum);
+    if (idx < 0) idx = lista_setor.findIndex(r => r.seq_visita === domNum);
+    if (idx < 0) idx = lista_setor.findIndex(r => parseInt(r.dom||'') === parseInt(domNum) || parseInt(r.seq_visita||'') === parseInt(domNum));
+    const antes  = idx > 0             ? lista_setor.slice(Math.max(0, idx-3), idx) : [];
+    const depois = idx >= 0            ? lista_setor.slice(idx+1, Math.min(lista_setor.length, idx+4)) : [];
+    const alvo   = idx >= 0            ? lista_setor[idx] : null;
+
+    const esp = (d.historico_especies||[]).slice().sort((a,b)=>parseInt(a.entrevista)-parseInt(b.entrevista));
+    const etaAtual = parseInt(d.visita_etapa||0);
+    const etaAnt = etaAtual > 1 ? esp.find(h=>parseInt(h.entrevista)===etaAtual-1) : null;
+    const antRes = etaAnt ? (etaAnt.resultado||'—') : '—';
+    const antPer = etaAnt?.mes_ano || '';
+    const ant = antRes !== '—' ? (antPer ? `${antRes} (${antPer})` : antRes) : '1ª visita';
+
+    const cnefe  = tc(d.morador_cnefe||d.morador||'');
+    const tel    = d.telefone || '—';
+    const endFmt = parsearEnd(d.endereco_custom || d.endereco, d.complemento) || '—';
+    const num    = domNum || '—';
+
+    const rotRow = (r, tipo) => {
+      const endR = r.endereco ? (tc(r.endereco) + (r.complemento ? ', '+r.complemento : '')) : '—';
+      const seq  = r.seq_visita || r.dom || '';
+      return `<tr class="rot-${tipo}"><td class="rot-tipo">${tipo==='antes'?'←':tipo==='depois'?'→':'🎯'}</td><td class="rot-seq">${seq}</td><td class="rot-end">${endR}</td></tr>`;
+    };
+
+    let rotHtml = '';
+    if (lista_setor.length > 0) {
+      rotHtml = '<table class="rot-tbl">';
+      antes.forEach(r => rotHtml += rotRow(r, 'antes'));
+      rotHtml += alvo ? rotRow(alvo, 'alvo') : `<tr class="rot-alvo"><td class="rot-tipo">🎯</td><td class="rot-seq">${num}</td><td class="rot-end">${endFmt}</td></tr>`;
+      depois.forEach(r => rotHtml += rotRow(r, 'depois'));
+      rotHtml += '</table>';
+    } else {
+      rotHtml = '<div class="rot-vazio">(Importe o Endereço Completo do setor nos Setores para ver o roteiro)</div>';
+    }
+
+    return `<div class="dom-entry">
+  <div class="dom-info">
+    <div class="dom-hd"><span class="dom-num">Dom. ${num}</span><span class="dom-ant">${ant}</span><span class="dom-chks">☐ Entregue &nbsp;☐ Ausente &nbsp;☐ Recusa</span></div>
+    <div class="dom-end">${endFmt}</div>
+    <div class="dom-meta">CNEFE: ${cnefe||'—'} · Tel: ${tel}</div>
+    <div class="dom-rot">${rotHtml}</div>
+    <div class="dom-obs">Obs.: <span class="bl bl-obs"></span></div>
+  </div>
+</div>`;
+  };
+
+  const now = new Date();
+  const trimestre = lista[0]?.trimestre || '';
+  const semana = lista[0]?.semana || '';
+  const cabecalho = `<div class="cabecalho"><table class="hd-tbl"><tr>
+    <td><strong>PNAD-C Campos — Roteiro de Entrega de Cartas</strong></td>
+    <td>Trim.: <strong>${trimestre}</strong></td>
+    <td>Sem.: <strong>${semana}</strong></td>
+    <td>Data: <span class="bl bl-dt"></span></td>
+    <td>Entrev.: <span class="bl bl-sup"></span></td>
+  </tr></table></div>`;
+
+  const DOMS_POR_PAG = 7;
+  let remaining = [...items];
+  let paginas = '';
+  while (remaining.some(it => it.type==='dom')) {
+    let [col, newRemaining] = sliceCol(remaining, DOMS_POR_PAG);
+    remaining = newRemaining;
+    const renderCol = col => col.map(it => it.type==='setor' ? renderSetor(it.code, it.etapa) : renderDom(it.d)).join('');
+    paginas += `<div class="pagina">${cabecalho}<div class="corpo">${renderCol(col)}</div></div>`;
+  }
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Roteiro de Cartas — PNAD-C</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:Arial,sans-serif; font-size:8pt; background:#fff; color:#000; padding-top:40px; }
+  .pagina { width:210mm; min-height:297mm; padding:5mm 6mm 4mm; display:flex; flex-direction:column; page-break-after:always; }
+  .cabecalho { border:1px solid #000; padding:1.5mm 3mm; margin-bottom:2mm; flex-shrink:0; }
+  .hd-tbl { width:100%; border-collapse:collapse; font-size:7pt; }
+  .hd-tbl td { padding:0.5mm 4mm 0.5mm 0; }
+  .corpo { border:1px solid #000; flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .setor-sep { text-align:center; font-size:7.5pt; font-weight:700; letter-spacing:0.4px; padding:1.5px 0; border-top:1px solid #555; border-bottom:1px solid #555; flex-shrink:0; }
+  .dom-entry { border-bottom:1px solid #bbb; }
+  .dom-entry:last-child { border-bottom:none; }
+  .dom-info { padding:1mm 2.5mm 0.8mm; display:flex; flex-direction:column; gap:0.6mm; }
+  .dom-hd { display:flex; align-items:baseline; gap:5px; }
+  .dom-num { font-weight:800; font-size:9.5pt; flex-shrink:0; }
+  .dom-ant { font-size:7pt; color:#333; flex-shrink:0; }
+  .dom-chks { margin-left:auto; font-size:7pt; white-space:nowrap; flex-shrink:0; }
+  .dom-end { font-size:8pt; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dom-meta { font-size:6.5pt; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dom-rot { margin-top:0.5mm; }
+  .rot-tbl { width:100%; border-collapse:collapse; font-size:6pt; line-height:1.3; }
+  .rot-tbl td { padding:0.2mm 1mm; vertical-align:top; }
+  .rot-tipo { width:12px; color:#666; white-space:nowrap; }
+  .rot-seq { width:20px; font-weight:600; }
+  .rot-end { color:#333; }
+  .rot-alvo td { background:#e8f0fb; font-weight:700; color:#1a3a5c; }
+  .rot-vazio { font-size:6pt; color:#aaa; font-style:italic; }
+  .dom-obs { font-size:7pt; display:flex; align-items:baseline; gap:3px; }
+  .bl { display:inline-block; border-bottom:1px solid #444; vertical-align:bottom; }
+  .bl-obs { flex:1; }
+  .bl-dt { min-width:55px; }
+  .bl-sup { min-width:90px; }
+  .toolbar { position:fixed; top:0; left:0; right:0; background:#1a3a5c; color:#fff; padding:0.4rem 1rem; display:flex; align-items:center; gap:0.75rem; font-size:0.82rem; z-index:999; }
+  .toolbar button { background:#2563a8; border:none; color:#fff; padding:0.25rem 0.85rem; border-radius:6px; cursor:pointer; font-size:0.82rem; font-family:Arial; }
+  .toolbar button.sec { background:rgba(255,255,255,0.15); }
+  @media print {
+    @page { size:A4 portrait; margin:0; }
+    body { padding-top:0; }
+    .toolbar { display:none; }
+    .pagina { page-break-after:always; }
+  }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <span>✉️ Roteiro de Cartas — <strong>${lista.length}</strong> domicílio(s)${usarSelecao?' — seleção manual':' — filtro atual'}</span>
   <button onclick="window.print()">🖨️ Imprimir</button>
   <button class="sec" onclick="window.close()">Fechar</button>
 </div>
@@ -6624,8 +6828,11 @@ function parsearEnderecoCSV(texto) {
   const sep = linhas[0].includes(';') ? ';' : ',';
   const cabecalho = linhas[0].split(sep).map(c => c.trim().replace(/^"|"$/g,''));
   const idx = (nome) => cabecalho.findIndex(c => c.toLowerCase() === nome.toLowerCase());
-  const iControle = idx('Controle'), iSeq = idx('SeqVisita'), iDom = idx('Dom.');
-  const iEnd = idx('Endereço'), iCompl = idx('Complemento'), iMorador = idx('Morador');
+  const iControle = idx('Controle');
+  const iSeq = idx('SeqVisita') >= 0 ? idx('SeqVisita') : idx('Seq. Visita');
+  const iDom = idx('Dom.') >= 0 ? idx('Dom.') : idx('Dom');
+  const iEnd = idx('Endereço') >= 0 ? idx('Endereço') : idx('Endereco');
+  const iCompl = idx('Complemento'), iMorador = idx('Morador');
   if (iControle < 0 || iSeq < 0) return [];
 
   const parseLinha = (l) => {
