@@ -737,12 +737,10 @@
   .cron-card:hover .cron-add-setor:hover { opacity:1;background:#e8f0fe; }
   /* Cronograma — cards */
   .cron-card { background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,0.08);margin-bottom:0.8rem;overflow:hidden;border-left:4px solid var(--borda); }
-  .cron-card-top { display:flex;align-items:flex-start;gap:0.6rem;padding:0.5rem 0.85rem;background:#f8fafc;border-bottom:1px solid #edf2f7;flex-wrap:wrap; }
-  .cron-card-body { display:flex;gap:0;padding:0.65rem 0.85rem 0.6rem;align-items:flex-start; }
-  .cron-card-setores { flex:1;min-width:0; }
-  .cron-card-entrevs { width:148px;flex-shrink:0;border-left:1px solid var(--borda);padding-left:0.75rem;margin-left:0.75rem; }
-  .cron-chip { display:inline-block;padding:2px 8px;border-radius:10px;background:#eff6ff;color:var(--azul);font-size:0.72rem;font-weight:600;margin:1px 2px; }
-  .cron-chips { margin-top:5px;min-height:18px; }
+  .cron-card-top { display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.85rem;background:#f8fafc;border-bottom:1px solid #edf2f7;flex-wrap:wrap; }
+  .cron-card-body { padding:0.5rem 0.85rem 0.5rem; }
+  .cron-chip { display:inline-block;padding:1px 7px;border-radius:10px;background:#eff6ff;color:var(--azul);font-size:0.71rem;font-weight:600;margin:1px 2px; }
+  .cron-chips { display:inline; }
   /* Cronograma — painel lateral accordion */
   .cron-acc-hd { cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;padding:0.28rem 0.65rem;background:var(--azul-claro);font-size:0.68rem;font-weight:700;color:var(--azul);border-top:1px solid var(--azul-medio); }
   .cron-acc-hd:hover { background:var(--azul-medio); }
@@ -4524,33 +4522,21 @@ function _cronRenderTabela() {
   const inf = _SEMANAS_CAL[mes]?.[semana];
   const periodo = inf ? `${inf.de} a ${inf.ate}` : '—';
 
-  const _tipoCor = t => ({'Coleta PNAD-C':'#2563a8','Coleta CNEFE':'#16a34a','Entregar cartas':'#d97706','Pendências':'#dc2626'}[t] || '#94a3b8');
-  const hdrCss = 'font-size:0.62rem;color:var(--cinza);font-weight:600;text-transform:uppercase;letter-spacing:0.03em;padding-bottom:3px';
+  const _tipoCor = t => ({'Coleta PNAD-C':'#2563a8','Coleta CNEFE':'#16a34a','Entregar cartas':'#d97706','Pendências':'#dc2626'}[t]||'#94a3b8');
+  const hdrCss = 'font-size:0.6rem;color:var(--cinza);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;padding-bottom:2px';
 
   let cards = '';
   _cronLinhas.forEach((ln, i) => {
     const upas  = _getUpas(ln);
     const locs  = _getLocs(ln);
     const tipos = ln.tipos || (ln.tipo ? [ln.tipo] : ['']);
+    // Alinha tipos[] com upas[] para retrocompatibilidade
+    const tiposAl = upas.map((_, si) => tipos[si] || tipos[0] || '');
     const entrevSel = ln.entrevistadores ? ln.entrevistadores.split(',').map(s=>s.trim()).filter(Boolean) : [];
-    const borderCor = _tipoCor(tipos[0]);
+    const borderCor = _tipoCor(tiposAl[0]);
+    const chips = entrevSel.map(n => `<span class="cron-chip">${_primeiroNome(n)}</span>`).join('');
 
-    // Tipos (top bar)
-    const tipoCels = tipos.map((t, ti) => {
-      const cor = t === 'Pendências' ? 'color:var(--vermelho);font-weight:700;' : '';
-      const delBtn = tipos.length > 1
-        ? `<button onclick="cronRemoveTipo(${i},${ti})" style="background:none;border:none;cursor:pointer;color:var(--cinza);font-size:0.75rem;padding:0 2px;line-height:1" title="Remover tipo">×</button>`
-        : '';
-      const tipoOpts = ['', ..._TIPOS_SERVICO].map(t2 =>
-        `<option value="${t2}"${t2===t?' selected':''}>${t2||'Tipo...'}</option>`
-      ).join('');
-      return `<div style="display:flex;align-items:center;gap:2px;margin-bottom:2px">
-        <select onchange="cronSetTipoItem(${i},${ti},this.value)" style="border:1px solid var(--borda);border-radius:4px;padding:2px 5px;font-size:0.78rem;background:#fafafa;${cor}">${tipoOpts}</select>${delBtn}
-      </div>`;
-    }).join('');
-    const btnAddTipo = `<button onclick="cronAddTipo(${i})" style="font-size:0.7rem;padding:0 4px;border:none;border-radius:3px;color:var(--azul);background:transparent;cursor:pointer;opacity:0.45;line-height:1.5" title="Adicionar tipo">＋ tipo</button>`;
-
-    // Setores grid cells
+    // Células de cada setor
     let setorCells = '';
     upas.forEach((u, si) => {
       const sinf = _cronSetores.find(s => s.upa === u);
@@ -4558,49 +4544,62 @@ function _cronRenderTabela() {
       const etBadge = etapas.length
         ? etapas.map(et=>`<span style="padding:1px 5px;border-radius:8px;font-size:0.65rem;font-weight:700;${_COR_ETAPA[et]||''}">${et}ª</span>`).join(' ')
         : '<span style="color:var(--cinza);font-size:0.7rem">—</span>';
-      const opts = ['', ..._cronSetores.map(s=>s.upa)].map((v,k) =>
+      const setorOpts = ['', ..._cronSetores.map(s=>s.upa)].map((v,k) =>
         `<option value="${v}"${v===u?' selected':''}>${k===0?'Setor...':_cronSetores[k-1].label}</option>`
       ).join('');
       const locVal = (locs[si] ?? '').replace(/"/g,'&quot;');
       const delBtn = upas.length > 1
         ? `<button onclick="cronRemoveSetor(${i},${si})" style="background:none;border:none;cursor:pointer;color:var(--cinza);font-size:0.75rem;padding:0 2px" title="Remover">×</button>`
         : '<span style="width:14px;display:inline-block"></span>';
+      const tc = _tipoCor(tiposAl[si]);
+      const tipoOpts = ['', ..._TIPOS_SERVICO].map(t =>
+        `<option value="${t}"${t===tiposAl[si]?' selected':''}>${t||'Tipo...'}</option>`
+      ).join('');
       setorCells += `
+        <select onchange="cronSetTipoParaSetor(${i},${si},this.value)"
+          style="border:1px solid var(--borda);border-left:3px solid ${tc};border-radius:4px;padding:2px 4px;font-size:0.7rem;font-weight:600;color:${tc};background:#fafafa;min-width:90px">${tipoOpts}</select>
         <select onchange="cronSetorItem(${i},${si},this.value)"
-          style="border:1px solid var(--borda);border-radius:4px;padding:2px 4px;font-size:0.72rem;background:#fafafa;font-family:monospace;min-width:0;overflow:hidden;text-overflow:ellipsis">${opts}</select>
+          style="border:1px solid var(--borda);border-radius:4px;padding:2px 4px;font-size:0.72rem;background:#fafafa;font-family:monospace;min-width:0">${setorOpts}</select>
         <input type="text" value="${locVal}" placeholder="Localidade..."
           onblur="cronSetLocalidade(${i},${si},this.value)"
           style="border:1px solid var(--borda);border-radius:4px;padding:2px 5px;font-size:0.72rem;background:#fafafa;min-width:0">
-        <div style="text-align:center;padding:0 3px">${etBadge}</div>
-        <div style="text-align:center">${delBtn}</div>`;
+        <div style="text-align:center;padding:0 3px;white-space:nowrap">${etBadge}</div>
+        <div>${delBtn}</div>`;
     });
+
+    // Msel entrevistadores inline no header
+    const mselChecks = _cronEntrevs.map(u => {
+      const ok = entrevSel.includes(u.nome) ? 'checked' : '';
+      const ne = u.nome.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      return `<label><input type="checkbox" ${ok} onchange="cronToggleEntrev(${i},'${ne}',this.checked)" onclick="event.stopPropagation()"> ${_primeiroNome(u.nome)}</label>`;
+    }).join('');
+    const mselLabel = entrevSel.length ? `${entrevSel.length} selecionado${entrevSel.length>1?'s':''}` : 'Equipe...';
 
     cards += `<div class="cron-card" data-i="${i}" style="border-left-color:${borderCor}">
       <div class="cron-card-top">
-        <div style="flex:1">${tipoCels}${btnAddTipo}</div>
-        <div style="display:flex;gap:0.4rem;align-items:center;flex-shrink:0;margin-left:auto">
-          <input type="date" value="${ln.data||''}" onchange="cronSet(${i},'data',this.value)"
-            style="border:1px solid var(--borda);border-radius:4px;padding:2px 5px;font-size:0.78rem;background:transparent">
-          <input type="time" value="${ln.hora||''}" onchange="cronSet(${i},'hora',this.value)"
-            style="border:1px solid var(--borda);border-radius:4px;padding:2px 5px;font-size:0.78rem;background:transparent">
-          <button onclick="cronDelRow(${i})" style="background:none;border:none;cursor:pointer;color:var(--cinza);font-size:0.95rem;padding:0 3px" title="Remover">🗑️</button>
+        <input type="date" value="${ln.data||''}" onchange="cronSet(${i},'data',this.value)"
+          style="border:1px solid var(--borda);border-radius:4px;padding:2px 5px;font-size:0.78rem;background:transparent;flex-shrink:0">
+        <input type="time" value="${ln.hora||''}" onchange="cronSet(${i},'hora',this.value)"
+          style="border:1px solid var(--borda);border-radius:4px;padding:2px 5px;font-size:0.78rem;background:transparent;flex-shrink:0">
+        <div style="flex:1;display:flex;align-items:center;flex-wrap:wrap;gap:3px;min-width:0">
+          <div id="cron-chips-${i}" class="cron-chips">${chips}</div>
+          <div class="cron-msel" onclick="event.stopPropagation()">
+            <div class="cron-msel-btn" onclick="cronAbrirMsel(this)" style="font-size:0.72rem;padding:2px 6px">${mselLabel} ▾</div>
+            <div class="cron-msel-list" style="display:none">${mselChecks}</div>
+          </div>
         </div>
+        <button onclick="cronDelRow(${i})" style="background:none;border:none;cursor:pointer;color:var(--cinza);font-size:0.95rem;padding:0 2px;flex-shrink:0" title="Remover">🗑️</button>
       </div>
       <div class="cron-card-body">
-        <div class="cron-card-setores">
-          <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:3px 6px;align-items:center">
-            <div style="${hdrCss}">Setor</div>
-            <div style="${hdrCss}">Localidade</div>
-            <div style="${hdrCss};text-align:center">Etapa</div>
-            <div></div>
-            ${setorCells}
-          </div>
-          <button onclick="cronAddSetor(${i})" class="cron-add-setor" title="Adicionar setor">＋ setor</button>
+        <div style="display:grid;grid-template-columns:auto 1fr 1fr auto auto;gap:3px 6px;align-items:center">
+          <div style="${hdrCss}">Tipo</div>
+          <div style="${hdrCss}">Setor</div>
+          <div style="${hdrCss}">Localidade</div>
+          <div style="${hdrCss};text-align:center">Etapa</div>
+          <div></div>
+          ${setorCells}
         </div>
-        <div class="cron-card-entrevs">
-          <div style="${hdrCss};margin-bottom:4px">Entrevistadores</div>
-          ${_cronMselHtml(i, entrevSel)}
-        </div>
+        <button onclick="cronAddSetor(${i})" class="cron-add-setor" title="Adicionar setor">＋ setor</button>
       </div>
     </div>`;
   });
@@ -4750,12 +4749,28 @@ window.cronSetLocalidade = (rowIdx, setorIdx, val) => {
   _cronScheduleSave();
 };
 
+window.cronSetTipoParaSetor = (rowIdx, setorIdx, val) => {
+  const ln = _cronLinhas[rowIdx]; if (!ln) return;
+  const upas = _getUpas(ln);
+  const tipos = ln.tipos || (ln.tipo ? [ln.tipo] : ['']);
+  const tiposAl = upas.map((_, si) => tipos[si] || tipos[0] || '');
+  tiposAl[setorIdx] = val;
+  ln.tipos = tiposAl; delete ln.tipo;
+  _cronScheduleSave();
+  const _tipoCor = t => ({'Coleta PNAD-C':'#2563a8','Coleta CNEFE':'#16a34a','Entregar cartas':'#d97706','Pendências':'#dc2626'}[t]||'#94a3b8');
+  const card = document.querySelector(`div[data-i="${rowIdx}"]`);
+  if (card) card.style.borderLeftColor = _tipoCor(tiposAl[0]);
+};
+
 window.cronAddSetor = (rowIdx) => {
   const ln = _cronLinhas[rowIdx]; if (!ln) return;
   const upas = _getUpas(ln); upas.push('');
   ln.upas = upas; delete ln.upa;
   const locs = _getLocs(ln); locs.push('');
   ln.localidades = locs; delete ln.localidade;
+  const tipos = ln.tipos || (ln.tipo ? [ln.tipo] : ['']);
+  tipos.push(tipos[0] || '');
+  ln.tipos = tipos; delete ln.tipo;
   _cronScheduleSave();
   _cronRenderTabela();
 };
@@ -4766,6 +4781,9 @@ window.cronRemoveSetor = (rowIdx, setorIdx) => {
   ln.upas = upas.length ? upas : ['']; delete ln.upa;
   const locs = _getLocs(ln); locs.splice(setorIdx, 1);
   ln.localidades = locs.length ? locs : ['']; delete ln.localidade;
+  const tipos = ln.tipos || (ln.tipo ? [ln.tipo] : ['']);
+  tipos.splice(setorIdx, 1);
+  ln.tipos = tipos.length ? tipos : ['']; delete ln.tipo;
   _cronScheduleSave();
   _cronRenderTabela();
 };
