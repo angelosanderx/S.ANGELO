@@ -3338,7 +3338,8 @@ window.gerarRoteiroCarta = async (idsOverride, tableId) => {
     const rotRow = (r, tipo) => {
       const endR = r.endereco ? (tc(r.endereco) + (r.complemento ? ', '+r.complemento : '')) : '—';
       const seq  = r.seq_visita || r.dom || '';
-      return `<tr class="rot-${tipo}"><td class="rot-tipo">${tipo==='antes'?'←':tipo==='depois'?'→':'🎯'}</td><td class="rot-seq">${seq}</td><td class="rot-end">${endR}</td></tr>`;
+      const mor  = r.morador ? tc(r.morador) : '';
+      return `<tr class="rot-${tipo}"><td class="rot-tipo">${tipo==='antes'?'←':tipo==='depois'?'→':'🎯'}</td><td class="rot-seq">${seq}</td><td class="rot-end">${endR}${mor ? '<br><span class="rot-mor">'+mor+'</span>' : ''}</td></tr>`;
     };
 
     let rotHtml = '';
@@ -3417,6 +3418,7 @@ window.gerarRoteiroCarta = async (idsOverride, tableId) => {
   .rot-seq { width:20px; font-weight:600; }
   .rot-end { color:#333; }
   .rot-alvo td { background:#e8f0fb; font-weight:700; color:#1a3a5c; }
+  .rot-mor { font-style:italic; color:#555; }
   .rot-vazio { font-size:6pt; color:#aaa; font-style:italic; }
   .dom-obs { font-size:7pt; display:flex; align-items:baseline; gap:3px; }
   .bl { display:inline-block; border-bottom:1px solid #444; vertical-align:bottom; }
