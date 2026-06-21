@@ -4406,6 +4406,8 @@ async function _carregarEntrevsLista() {
   try {
     const snap = await getDocs(collection(db, 'usuarios'));
     _cronEntrevs = snap.docs.map(d => d.data()).filter(u => u.nome).sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+    // Lucas é do CNEFE — não está em usuarios, mas aparece no cronograma
+    if (!_cronEntrevs.some(u => u.nome === 'Lucas')) _cronEntrevs.push({ nome: 'Lucas' });
     _cronEntrevsOk = true;
   } catch(e) { console.warn('usuarios cron:', e); }
 }
@@ -4450,15 +4452,20 @@ document.addEventListener('click', () => {
   document.querySelectorAll('.cron-msel-list').forEach(el => { el.style.display = 'none'; });
 });
 
+const _primeiroNome = n => (n||'').split(' ')[0];
+
 function _cronMselHtml(rowIdx, selecionados) {
-  const label = selecionados.length ? selecionados.join(', ') : 'Selecione...';
+  // Exibe apenas primeiro nome, um por linha
+  const btnLabel = selecionados.length
+    ? selecionados.map(_primeiroNome).join('<br>')
+    : 'Selecione...';
   const checks = _cronEntrevs.map(u => {
     const ok = selecionados.includes(u.nome) ? 'checked' : '';
     const ne = u.nome.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-    return `<label><input type="checkbox" ${ok} onchange="cronToggleEntrev(${rowIdx},'${ne}',this.checked)" onclick="event.stopPropagation()"> ${u.nome}</label>`;
+    return `<label><input type="checkbox" ${ok} onchange="cronToggleEntrev(${rowIdx},'${ne}',this.checked)" onclick="event.stopPropagation()"> ${_primeiroNome(u.nome)}</label>`;
   }).join('');
   return `<div class="cron-msel" onclick="event.stopPropagation()">
-    <div class="cron-msel-btn" onclick="cronAbrirMsel(this)">${label} ▾</div>
+    <div class="cron-msel-btn" onclick="cronAbrirMsel(this)" style="white-space:normal;line-height:1.5">${btnLabel} ▾</div>
     <div class="cron-msel-list" style="display:none">${checks}</div>
   </div>`;
 }
@@ -4642,7 +4649,7 @@ window.cronToggleEntrev = (rowIdx, nome, checked) => {
   else { const idx = arr.indexOf(nome); if (idx>=0) arr.splice(idx,1); }
   _cronLinhas[rowIdx].entrevistadores = arr.join(', ');
   const btn = document.querySelector(`tr[data-i="${rowIdx}"] .cron-msel-btn`);
-  if (btn) btn.textContent = (arr.length ? arr.join(', ') : 'Selecione...') + ' ▾';
+  if (btn) btn.innerHTML = (arr.length ? arr.map(_primeiroNome).join('<br>') : 'Selecione...') + ' ▾';
   _cronScheduleSave();
 };
 
