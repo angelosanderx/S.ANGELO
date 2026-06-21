@@ -4470,12 +4470,34 @@ function _cronMselHtml(rowIdx, selecionados) {
   </div>`;
 }
 
-function _cronSetorSelHtml(rowIdx, setorIdx, upaVal) {
+const _stDel = `background:none;border:none;cursor:pointer;color:var(--cinza);font-size:0.8rem;padding:0 2px;line-height:1;vertical-align:middle;flex-shrink:0`;
+
+function _cronSetorSelHtml(rowIdx, setorIdx, upaVal, total) {
   const opts = ['', ..._cronSetores.map(s=>s.upa)].map((v, k) =>
     `<option value="${v}"${v===upaVal?' selected':''}>${k===0?'Setor...':_cronSetores[k-1].label}</option>`
   ).join('');
-  return `<select onchange="cronSetorItem(${rowIdx},${setorIdx},this.value)"
-    style="width:100%;border:1px solid var(--borda);border-radius:4px;padding:3px 5px;font-size:0.75rem;background:#fafafa;font-family:monospace;margin-bottom:2px">${opts}</select>`;
+  const delBtn = total > 1
+    ? `<button onclick="cronRemoveSetor(${rowIdx},${setorIdx})" style="${_stDel}" title="Remover setor">×</button>`
+    : '';
+  return `<div style="display:flex;align-items:center;gap:2px;margin-bottom:2px">
+    <select onchange="cronSetorItem(${rowIdx},${setorIdx},this.value)"
+      style="flex:1;border:1px solid var(--borda);border-radius:4px;padding:3px 5px;font-size:0.75rem;background:#fafafa;font-family:monospace">${opts}</select>${delBtn}
+  </div>`;
+}
+
+function _cronTipoSelHtml(rowIdx, tipoIdx, val, total) {
+  const tipoOpts = ['', ..._TIPOS_SERVICO].map(t => {
+    const cor = t === 'Pendências' ? ' style="color:var(--vermelho);font-weight:700"' : '';
+    return `<option value="${t}"${cor}>${t||'Tipo...'}</option>`;
+  }).join('');
+  const cor = val === 'Pendências' ? 'color:var(--vermelho);font-weight:700;' : '';
+  const delBtn = total > 1
+    ? `<button onclick="cronRemoveTipo(${rowIdx},${tipoIdx})" style="${_stDel}" title="Remover tipo">×</button>`
+    : '';
+  return `<div style="display:flex;align-items:center;gap:2px;margin-bottom:2px">
+    <select onchange="cronSetTipoItem(${rowIdx},${tipoIdx},this.value);this.style.color=this.value==='Pendências'?'var(--vermelho)':'';this.style.fontWeight=this.value==='Pendências'?'700':'normal'"
+      style="flex:1;border:1px solid var(--borda);border-radius:4px;padding:3px 5px;font-size:0.78rem;background:#fafafa;${cor}" data-ti="${tipoIdx}">${tipoOpts}</select>${delBtn}
+  </div>`;
 }
 
 function _cronRenderTabela() {
@@ -4506,15 +4528,13 @@ function _cronRenderTabela() {
     const loc = ln.localidade !== undefined ? ln.localidade : locAuto;
 
     // Seletores de setor + botão "+"
-    const setorCels = upas.map((u,si) => _cronSetorSelHtml(i, si, u)).join('');
+    const setorCels = upas.map((u,si) => _cronSetorSelHtml(i, si, u, upas.length)).join('');
     const btnAddSetor = `<button onclick="cronAddSetor(${i})" title="Adicionar setor" class="cron-add-setor">＋</button>`;
 
-    // Tipo de serviço — opções com Pendências em vermelho
-    const tipoOpts = ['', ..._TIPOS_SERVICO].map(t => {
-      const cor = t === 'Pendências' ? ' style="color:var(--vermelho);font-weight:700"' : '';
-      return `<option value="${t}"${cor}>${t||'Tipo...'}</option>`;
-    }).join('');
-    const tipoColor = ln.tipo === 'Pendências' ? 'color:var(--vermelho);font-weight:700;' : '';
+    // Tipos de serviço (array) com retrocompat para campo único
+    const tipos = ln.tipos || (ln.tipo ? [ln.tipo] : ['']);
+    const tipoCels = tipos.map((t,ti) => _cronTipoSelHtml(i, ti, t, tipos.length)).join('');
+    const btnAddTipo = `<button onclick="cronAddTipo(${i})" title="Adicionar tipo" class="cron-add-setor">＋</button>`;
 
     // Entrevistadores selecionados
     const entrevSel = ln.entrevistadores ? ln.entrevistadores.split(',').map(s=>s.trim()).filter(Boolean) : [];
@@ -4525,8 +4545,7 @@ function _cronRenderTabela() {
         <input type="time" value="${ln.hora||''}" onchange="cronSet(${i},'hora',this.value)" style="${styleInp}">
       </td>
       <td style="min-width:130px;padding:4px 6px">
-        <select onchange="cronSet(${i},'tipo',this.value);this.style.color=this.value==='Pendências'?'var(--vermelho)':'';this.style.fontWeight=this.value==='Pendências'?'700':''"
-          style="${styleSel};${tipoColor}">${tipoOpts}</select>
+        ${tipoCels}${btnAddTipo}
       </td>
       <td style="min-width:180px;padding:4px 6px">
         ${setorCels}${btnAddSetor}
@@ -4574,12 +4593,15 @@ function _cronRenderTabela() {
     </div>
   </div>`;
 
-  // Restaura valor do select de tipo (option selecionada)
+  // Restaura valores dos selects de tipo
   _cronLinhas.forEach((ln, i) => {
     const tr = el.querySelector(`tr[data-i="${i}"]`);
-    if (!tr || !ln.tipo) return;
-    const tipoSel = tr.querySelector('select');
-    if (tipoSel) { tipoSel.value = ln.tipo; }
+    if (!tr) return;
+    const tipos = ln.tipos || (ln.tipo ? [ln.tipo] : []);
+    tr.querySelectorAll('select[data-ti]').forEach(sel => {
+      const ti = parseInt(sel.dataset.ti);
+      if (tipos[ti]) { sel.value = tipos[ti]; }
+    });
   });
 }
 
@@ -4632,6 +4654,45 @@ window.cronAddSetor = (rowIdx) => {
   upas.push('');
   _cronLinhas[rowIdx].upas = upas;
   delete _cronLinhas[rowIdx].upa;
+  _cronScheduleSave();
+  _cronRenderTabela();
+};
+
+window.cronRemoveSetor = (rowIdx, setorIdx) => {
+  const ln = _cronLinhas[rowIdx]; if (!ln) return;
+  const upas = ln.upas || (ln.upa ? [ln.upa] : ['']);
+  upas.splice(setorIdx, 1);
+  ln.upas = upas.length ? upas : [''];
+  delete ln.upa;
+  _cronScheduleSave();
+  _cronRenderTabela();
+};
+
+window.cronSetTipoItem = (rowIdx, tipoIdx, val) => {
+  const ln = _cronLinhas[rowIdx]; if (!ln) return;
+  const tipos = ln.tipos || (ln.tipo ? [ln.tipo] : ['']);
+  tipos[tipoIdx] = val;
+  ln.tipos = tipos;
+  delete ln.tipo;
+  _cronScheduleSave();
+};
+
+window.cronAddTipo = (rowIdx) => {
+  const ln = _cronLinhas[rowIdx]; if (!ln) return;
+  const tipos = ln.tipos || (ln.tipo ? [ln.tipo] : ['']);
+  tipos.push('');
+  ln.tipos = tipos;
+  delete ln.tipo;
+  _cronScheduleSave();
+  _cronRenderTabela();
+};
+
+window.cronRemoveTipo = (rowIdx, tipoIdx) => {
+  const ln = _cronLinhas[rowIdx]; if (!ln) return;
+  const tipos = ln.tipos || (ln.tipo ? [ln.tipo] : ['']);
+  tipos.splice(tipoIdx, 1);
+  ln.tipos = tipos.length ? tipos : [''];
+  delete ln.tipo;
   _cronScheduleSave();
   _cronRenderTabela();
 };
