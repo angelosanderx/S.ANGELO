@@ -3121,10 +3121,9 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
         <div class="dom-obs">Campo: <span class="bl bl-lg"></span></div>
       </div>
       <div class="dom-result">
-        <div>Hora: <span class="bl bl-md"></span></div>
         <div>☐ Realizada</div>
-        <div>☐ Não realizada: <span class="bl bl-md"></span></div>
-        <div>Retornar: <span class="bl bl-sm"></span> às <span class="bl bl-sm"></span></div>
+        <div>☐ <span class="bl bl-res"></span></div>
+        <div>☐ <span class="bl bl-res"></span></div>
       </div>
     </div>`;
   };
@@ -3200,6 +3199,7 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
   .bl-sm  { min-width:24px; }
   .bl-md  { min-width:48px; }
   .bl-lg  { min-width:80px; }
+  .bl-res { min-width:58px; }
   .bl-dt  { min-width:55px; }
   .bl-sup { min-width:90px; }
   .bl-tel { min-width:65px; }
