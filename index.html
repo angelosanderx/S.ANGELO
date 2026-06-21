@@ -1503,6 +1503,10 @@
               <select id="cnefe-filtro-mes" onchange="renderCnefeSetores()" style="font-size:0.82rem;padding:0.3rem 0.65rem;border:1px solid var(--borda);border-radius:6px;background:var(--fundo);color:var(--texto)">
                 <option value="">Todos os meses</option>
               </select>
+              <label class="btn-acao secundario" style="cursor:pointer;margin:0">
+                📥 Indicadores Gerenciais
+                <input type="file" accept=".csv" style="display:none" onchange="importarIndicadoresGerenciais(this)">
+              </label>
               <button class="btn-acao" onclick="abrirModalCnefeSetorNovo()">+ Adicionar setor</button>
             </div>
           </div>
@@ -8308,6 +8312,8 @@ async function carregarCnefeSetores() {
           agente_id: manual?.agente_id || '', agente_nome: manual?.agente_nome || '',
           mesCnefe, anoCnefe, prazoFinal, mesPnad, anoPnad,
           concluido: manual?.concluido || false,
+          status_listagem_ibge:  manual?.status_listagem_ibge  || '',
+          status_avaliacao_ibge: manual?.status_avaliacao_ibge || '',
           origem: 'pnad', docId: manual?.id || null,
         });
       });
@@ -8343,6 +8349,8 @@ async function carregarCnefeSetores() {
           agente_id: manual?.agente_id || '', agente_nome: manual?.agente_nome || '',
           mesCnefe, anoCnefe, prazoFinal, mesPnad, anoPnad,
           concluido: manual?.concluido || false,
+          status_listagem_ibge:  manual?.status_listagem_ibge  || '',
+          status_avaliacao_ibge: manual?.status_avaliacao_ibge || '',
           origem: 'pnad', docId: manual?.id || null,
         });
         vistosDom.add(upa);
@@ -8359,6 +8367,8 @@ async function carregarCnefeSetores() {
         mesCnefe: s.mes_cnefe || 0, anoCnefe: s.ano_cnefe || hoje.getFullYear(),
         prazoFinal: pf, mesPnad: 0, anoPnad: 0,
         concluido: s.concluido || false,
+        status_listagem_ibge:  s.status_listagem_ibge  || '',
+        status_avaliacao_ibge: s.status_avaliacao_ibge || '',
         origem: 'manual', docId: s.id,
       });
     });
@@ -8431,10 +8441,27 @@ window.renderCnefeSetores = () => {
   const stLabel = { a_iniciar:'A iniciar', em_andamento:'Em andamento', concluido:'Concluído', atrasado:'Atrasado' };
   const stBadge = { a_iniciar:'badge-cinza', em_andamento:'badge-azul', concluido:'badge-verde', atrasado:'badge-vermelho' };
 
+  const ibgeBadge = v => {
+    const u = (v || '').toUpperCase();
+    if (u === 'REALIZADA')    return `<span class="badge badge-verde" style="font-size:0.7rem">Realizada</span>`;
+    if (u === 'EM ANDAMENTO') return `<span class="badge badge-azul"  style="font-size:0.7rem">Em andamento</span>`;
+    if (u === 'PARALISADO')   return `<span class="badge badge-vermelho" style="font-size:0.7rem">Paralisado</span>`;
+    if (u === 'NAO INICIADA' || u === 'NÃO INICIADA') return `<span class="badge badge-cinza" style="font-size:0.7rem">Não iniciada</span>`;
+    return v ? `<span class="badge badge-cinza" style="font-size:0.7rem">${v}</span>` : '—';
+  };
+  const avalBadge = v => {
+    const u = (v || '').toUpperCase();
+    if (u.includes('ACEITO'))   return `<span class="badge badge-verde" style="font-size:0.7rem">Aceito</span>`;
+    if (u.includes('NAO AVALIADO') || u.includes('NÃO AVALIADO')) return `<span class="badge badge-cinza" style="font-size:0.7rem">Pendente</span>`;
+    if (!v) return '—';
+    const resumo = v.length > 20 ? v.slice(0, 20) + '…' : v;
+    return `<span class="badge badge-amarelo" style="font-size:0.7rem" title="${v.replace(/"/g,'&quot;')}">${resumo}</span>`;
+  };
+
   let tbody = '';
   for (const [mes, grp] of grupos) {
     tbody += `<tr style="background:var(--azul-claro)">
-      <td colspan="8" style="font-size:0.75rem;font-weight:700;color:var(--azul);padding:0.35rem 0.9rem;letter-spacing:0.3px">
+      <td colspan="10" style="font-size:0.75rem;font-weight:700;color:var(--azul);padding:0.35rem 0.9rem;letter-spacing:0.3px">
         📅 ${mes} — ${grp.length} setor${grp.length !== 1 ? 'es' : ''}
       </td></tr>`;
     grp.forEach(s => {
@@ -8450,6 +8477,8 @@ window.renderCnefeSetores = () => {
         <td style="font-size:0.82rem">${mcLbl}</td>
         <td style="font-size:0.82rem">${mpLbl}</td>
         <td style="font-size:0.82rem">${pzLbl}</td>
+        <td>${ibgeBadge(s.status_listagem_ibge)}</td>
+        <td>${avalBadge(s.status_avaliacao_ibge)}</td>
         <td><span class="badge ${stBadge[st]}">${stLabel[st]}</span></td>
         <td>
           <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
@@ -8463,9 +8492,122 @@ window.renderCnefeSetores = () => {
     });
   }
 
-  el.innerHTML = '<div style="overflow-x:auto"><table style="min-width:780px"><thead><tr>' +
-    '<th>Setor</th><th>Pesquisa</th><th>Agente</th><th>Mês CNEFE</th><th>Mês Pesquisa</th><th>Prazo Final</th><th>Status</th><th>Ações</th>' +
+  el.innerHTML = '<div style="overflow-x:auto"><table style="min-width:1000px"><thead><tr>' +
+    '<th>Setor</th><th>Pesquisa</th><th>Agente</th><th>Mês CNEFE</th><th>Mês Pesquisa</th><th>Prazo Final</th>' +
+    '<th>Status IBGE</th><th>Avaliação IBGE</th><th>Status</th><th>Ações</th>' +
     '</tr></thead><tbody>' + tbody + '</tbody></table></div>';
+};
+
+window.importarIndicadoresGerenciais = (input) => {
+  const file = input.files[0]; if (!file) return;
+  input.value = '';
+  const MESES_PT = {
+    janeiro:1, fevereiro:2, marco:3, abril:4, maio:5, junho:6,
+    julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12,
+  };
+  const normStr = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const linhas = e.target.result.split(/\r?\n/);
+      // Linha 0 = título, Linha 1 = cabeçalho
+      const cabLinha = linhas.find((l, i) => i >= 1 && l.toUpperCase().includes('SETOR'));
+      if (!cabLinha) { mostrarToast('Cabeçalho SETOR não encontrado no CSV', 'erro'); return; }
+      const sep = cabLinha.includes(';') ? ';' : ',';
+      const cab = cabLinha.split(sep).map(c => normStr(c));
+      const ix  = n => cab.indexOf(normStr(n));
+
+      const iSetor  = ix('SETOR');
+      const iMunic  = ix('MUNICIPIO');
+      const iStLis  = ix('STATUS LISTAGEM');
+      const iStAval = ix('STATUS AVALIACAO');
+      const iPesq   = ix('PESQUISA');
+      const iPer    = ix('PERIODO');
+      const iVers   = ix('VERSAO');
+      const iSubst  = ix('SUBSTITUIDO');
+      const iBog    = ix('STATUS NA BOG');
+
+      const cabIdx = linhas.indexOf(cabLinha);
+      const dados  = [];
+      for (let i = cabIdx + 1; i < linhas.length; i++) {
+        const l = linhas[i].trim(); if (!l) continue;
+        const c = l.split(sep).map(x => x.trim().replace(/^"|"$/g,''));
+        const v = ii => ii >= 0 ? (c[ii] || '') : '';
+        dados.push({
+          setor:               v(iSetor).trim(),
+          municipio:           v(iMunic),
+          status_listagem_ibge:  v(iStLis).trim().toUpperCase(),
+          status_avaliacao_ibge: v(iStAval).trim().toUpperCase(),
+          pesquisa:            v(iPesq).trim(),
+          periodo:             v(iPer).trim(),
+          versao:              v(iVers),
+          substituido:         v(iSubst),
+          status_bog:          v(iBog),
+        });
+      }
+      if (!dados.length) { mostrarToast('Nenhum dado encontrado no CSV', 'aviso'); return; }
+
+      // Monta mapa setor → docId a partir do cache (evita N queries)
+      if (!_cnefeSetoresCache) {
+        const snap = await getDocs(collection(db, 'cnefe_setores'));
+        _cnefeSetoresCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      }
+      const setorMap = new Map(_cnefeSetoresCache.map(s => [s.setor, s.id]));
+
+      let criados = 0, atualizados = 0;
+      for (const d of dados) {
+        if (!d.setor) continue;
+        const isPnad = /pnad.?contin/i.test(d.pesquisa);
+        let mesCnefe = 0, anoCnefe = 0, prazoFinal = null, mesPnad = 0, anoPnad = 0;
+
+        if (isPnad && d.periodo) {
+          const partes = d.periodo.trim().split(/\s+/);
+          mesPnad  = MESES_PT[normStr(partes[0])] || 0;
+          anoPnad  = parseInt(partes[1]) || new Date().getFullYear();
+          if (mesPnad) {
+            mesCnefe   = mesPnad > 3 ? mesPnad - 3 : mesPnad + 9;
+            anoCnefe   = mesPnad > 3 ? anoPnad : anoPnad - 1;
+            prazoFinal = new Date(anoPnad, mesPnad - 1, 0); // último dia do mês anterior
+          }
+        }
+
+        const ibgeFields = {
+          status_listagem_ibge:  d.status_listagem_ibge,
+          status_avaliacao_ibge: d.status_avaliacao_ibge,
+          status_bog:            d.status_bog,
+          municipio:             d.municipio,
+          substituido:           d.substituido,
+          versao:                d.versao,
+        };
+
+        const docId = setorMap.get(d.setor);
+        if (docId) {
+          // Atualiza só campos do IBGE — preserva agente, observações, concluido
+          await setDoc(doc(db, 'cnefe_setores', docId), ibgeFields, { merge: true });
+          atualizados++;
+        } else {
+          const novo = {
+            setor: d.setor, pesquisa: d.pesquisa, periodo: d.periodo,
+            ...ibgeFields,
+            mes_cnefe: mesCnefe, ano_cnefe: anoCnefe,
+            prazo_final: prazoFinal,
+            origem: isPnad ? 'automatico' : 'manual',
+            agente_id: '', agente_nome: '', concluido: false,
+            importadoEm: serverTimestamp(),
+          };
+          const ref = await addDoc(collection(db, 'cnefe_setores'), novo);
+          setorMap.set(d.setor, ref.id);
+          criados++;
+        }
+      }
+
+      _cnefeSetoresCache = null; // força reload
+      mostrarToast(`${criados} setores importados, ${atualizados} atualizados`, 'sucesso');
+      carregarCnefeSetores();
+    } catch(err) { console.error(err); mostrarToast('Erro: ' + err.message, 'erro'); }
+  };
+  reader.readAsText(file, 'UTF-8');
 };
 
 window.editarCnefeSetor = (setor, docId, agId, concluido) => {
