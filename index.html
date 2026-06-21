@@ -1299,8 +1299,11 @@
         </div>
       </div>
 
-      <div id="cron-conteudo">
-        <div class="vazio"><div class="icone-vazio">📅</div>Selecione o mês e a semana para gerar o cronograma.</div>
+      <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
+        <div id="cron-conteudo" style="flex:1;min-width:0">
+          <div class="vazio"><div class="icone-vazio">📅</div>Selecione o mês e a semana para gerar o cronograma.</div>
+        </div>
+        <div id="cron-painel-mes" style="width:260px;flex-shrink:0"></div>
       </div>
     </div>
 
@@ -4610,6 +4613,73 @@ function _cronRenderTabela() {
   });
 }
 
+function _cronRenderPainelMes(mes) {
+  const painel = document.getElementById('cron-painel-mes');
+  if (!painel || !mes || !_amCache) { if (painel) painel.innerHTML = ''; return; }
+
+  // Agrupa todos os setores do mês por semana, deduplica por UPA+controle
+  const porSemana = {};
+  const seen = new Map();
+  _amCache.filter(r => r.mes === mes).forEach(r => {
+    const k = `${r.upa||''}|${r.codigo_controle||''}`;
+    if (!seen.has(k) || seen.get(k).semana > r.semana) seen.set(k, r);
+  });
+  // Reagrupa por semana
+  seen.forEach(r => {
+    const s = r.semana ?? 0; if (!s) return;
+    if (!porSemana[s]) porSemana[s] = [];
+    porSemana[s].push(r);
+  });
+  // Re-deduplica por semana separadamente
+  const porSemanaFinal = {};
+  _amCache.filter(r => r.mes === mes && r.semana).forEach(r => {
+    const s = r.semana;
+    if (!porSemanaFinal[s]) porSemanaFinal[s] = new Map();
+    const k = `${r.upa||''}|${r.codigo_controle||''}`;
+    if (!porSemanaFinal[s].has(k)) porSemanaFinal[s].set(k, r);
+  });
+
+  const ctrl4 = c => String(c||'').slice(-4);
+  let html = `<div class="card-tabela" style="position:sticky;top:1rem">
+    <div class="card-tabela-header" style="padding:0.55rem 0.85rem">
+      <h3 style="font-size:0.88rem">📆 ${_NOMES_MES[mes]||'Mês '+mes} — Visão global</h3>
+    </div>
+    <div style="overflow-y:auto;max-height:calc(100vh - 220px)">`;
+
+  for (const sem of Object.keys(porSemanaFinal).map(Number).sort((a,b)=>a-b)) {
+    const inf = _SEMANAS_CAL[mes]?.[sem];
+    const periodo = inf ? `${inf.de} a ${inf.ate}` : '';
+    // Agrupa por UPA
+    const porUpa = new Map();
+    [...porSemanaFinal[sem].values()]
+      .sort((a,b) => (a.upa||'').localeCompare(b.upa||'') || (a.codigo_controle||'').localeCompare(b.codigo_controle||''))
+      .forEach(r => {
+        if (!porUpa.has(r.upa)) porUpa.set(r.upa, []);
+        porUpa.get(r.upa).push(r);
+      });
+
+    html += `<div style="background:var(--azul-claro);padding:0.3rem 0.75rem;font-size:0.78rem;font-weight:700;color:var(--azul);border-top:1px solid var(--azul-medio)">
+      Semana ${sem}${periodo ? `<span style="font-weight:400;margin-left:0.4rem;opacity:0.8">${periodo}</span>` : ''}
+    </div>`;
+
+    for (const [upa, setores] of [...porUpa.entries()].sort()) {
+      const upaSuf  = ctrl4(upa);
+      const extras  = setores.filter(r => ctrl4(r.codigo_controle) !== upaSuf);
+      const label   = extras.length === 0 ? upa : `${upa}/<b>${extras.map(r=>ctrl4(r.codigo_controle)).join('/')}</b>`;
+      const loc     = (_localidadesCache||{})[upa] || '';
+      const etapas  = [...new Set(setores.map(r=>r.numero_entrevista).filter(Boolean))].sort();
+      const etBadge = etapas.map(et=>`<span style="padding:0 5px;border-radius:8px;font-size:0.65rem;font-weight:700;${_COR_ETAPA[et]||''}">${et}ª</span>`).join(' ');
+      html += `<div style="padding:0.3rem 0.75rem;border-bottom:1px solid var(--borda);font-size:0.75rem">
+        <div style="font-family:monospace;font-weight:700;color:var(--azul);font-size:0.72rem">${label}</div>
+        ${loc ? `<div style="color:var(--cinza);font-size:0.7rem">${loc}</div>` : ''}
+        ${etBadge ? `<div style="margin-top:2px">${etBadge}</div>` : ''}
+      </div>`;
+    }
+  }
+  html += '</div></div>';
+  painel.innerHTML = html;
+}
+
 window.renderCronograma = async () => {
   const el = document.getElementById('cron-conteudo');
   if (!el) return;
@@ -4617,6 +4687,8 @@ window.renderCronograma = async () => {
   const semana = parseInt(document.getElementById('cron-filtro-semana')?.value) || null;
   if (mes)    localStorage.setItem('pnad_cron_mes', mes);
   if (semana) localStorage.setItem('pnad_cron_semana', semana);
+  // Painel lateral atualiza com qualquer mudança de mês
+  _cronRenderPainelMes(mes);
   if (!mes || !semana) {
     el.innerHTML = '<div class="vazio"><div class="icone-vazio">📅</div>Selecione o mês e a semana para gerar o cronograma.</div>';
     return;
