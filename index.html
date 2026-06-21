@@ -6947,23 +6947,52 @@ window.importarEnderecoCompleto = (input) => {
     try {
       const texto = e.target.result;
       const linhas = texto.split(/\r?\n/);
+      if (linhas.length < 2) { mostrarToast('CSV sem dados', 'erro'); return; }
       const sep = linhas[0].includes(';') ? ';' : ',';
-      const cabecalho = linhas[0].split(sep).map(c => c.trim().replace(/^"|"$/g,''));
-      const iControle = cabecalho.findIndex(c => c.toLowerCase() === 'controle');
+      const cab = linhas[0].split(sep).map(c => c.trim().replace(/^"|"$/g,''));
+      const idxCol = (nome) => cab.findIndex(c => c.toLowerCase() === nome.toLowerCase());
 
+      const iControle = idxCol('Controle');
+      const iSeq  = idxCol('SeqVisita') >= 0 ? idxCol('SeqVisita') : idxCol('Seq. Visita');
+      const iDom  = idxCol('Dom.') >= 0 ? idxCol('Dom.') : idxCol('Dom');
+      const iEnd  = idxCol('Endereço') >= 0 ? idxCol('Endereço') : idxCol('Endereco');
+      const iCompl = idxCol('Complemento');
+      const iMor  = idxCol('Morador');
+
+      if (iControle < 0 || iSeq < 0) { mostrarToast('CSV sem colunas Controle/SeqVisita', 'erro'); return; }
+
+      const parseLinha = (l) => {
+        const res = []; let cur = '', inQ = false;
+        for (const ch of l) {
+          if (ch === '"') inQ = !inQ;
+          else if (ch === sep && !inQ) { res.push(cur.trim()); cur = ''; }
+          else cur += ch;
+        }
+        res.push(cur.trim()); return res;
+      };
+
+      // Uma única passagem: extrai controle e campos juntos
       const novo = {};
-      const registros = parsearEnderecoCSV(texto);
-      registros.forEach(r => {
-        // Detecta setor pelo controle da linha original — agrupa
-        const linhaIdx = registros.indexOf(r) + 1;
-        const cols = linhas[linhaIdx]?.split(sep) || [];
-        const controle = (cols[iControle] || '').trim().replace(/[A-Za-z]$/, '');
-        if (!controle) return;
-        if (!novo[controle]) novo[controle] = [];
-        novo[controle].push(r);
-      });
+      let total = 0;
+      for (let i = 1; i < linhas.length; i++) {
+        const l = linhas[i].trim(); if (!l) continue;
+        const cols = parseLinha(l);
+        const setor = (cols[iControle] || '').trim().replace(/[A-Za-z]$/, '');
+        if (!setor) continue;
+        if (!novo[setor]) novo[setor] = [];
+        novo[setor].push({
+          seq_visita:  (cols[iSeq]  || '').trim(),
+          dom:         iDom  >= 0 ? (cols[iDom]  || '').trim() : '',
+          endereco:    iEnd  >= 0 ? (cols[iEnd]  || '').trim() : '',
+          complemento: iCompl >= 0 ? (cols[iCompl] || '').trim() : '',
+          morador:     iMor  >= 0 ? (cols[iMor]  || '').trim() : '',
+        });
+        total++;
+      }
 
-      // Salva cada setor no Firestore e no cache
+      const setoresCount = Object.keys(novo).length;
+      if (setoresCount === 0) { mostrarToast('Nenhum registro encontrado — verifique as colunas do CSV', 'erro'); return; }
+
       for (const [setor, regs] of Object.entries(novo)) {
         await setDoc(doc(db, 'enderecos_setor', setor), {
           registros: regs, atualizado_em: serverTimestamp(), total: regs.length,
@@ -6971,7 +7000,8 @@ window.importarEnderecoCompleto = (input) => {
         listagemSetor[setor] = regs;
       }
 
-      mostrarToast(`Importado: ${registros.length} endereços em ${Object.keys(novo).length} setor(es)`, 'sucesso');
+      mostrarToast(`Importado: ${total} endereços em ${setoresCount} setor(es)`, 'sucesso');
+      carregarSetores(); // atualiza ✅ na tabela de setores
       if (domicilioAtualId) {
         const dom = todosdomicilios.find(d => d.id === domicilioAtualId);
         if (dom) { const s = dom.controle ? dom.controle.slice(0,-1) : dom.upa; carregarRoteiroSetor(s, dom); }
