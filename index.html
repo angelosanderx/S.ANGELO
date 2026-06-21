@@ -9069,11 +9069,11 @@ async function carregarCnefeQualidade() {
       }
     });
 
-    const STATUS_OK = new Set(['realizada', 'ausente', 'recusa']);
-    const ST_LABEL  = {
-      nao_visitado: 'Não visitado', agendado: 'Agendado',
-      carta_solicitada: 'Carta solicitada', supervisao: 'Supervisão',
-    };
+    // Qualidade baseada no historico_especies na entrevista 1
+    // Erro CNEFE = o endereço estava vago/inapto/inexistente/fechado/demolido na 1ª visita
+    const getEsp1   = d => (d.historico_especies || []).find(h => String(h.entrevista) === '1');
+    const isErroCnefe = esp => esp && /vago|inapt|fechad|demol|inexist/i.test(esp.resultado || '');
+    const resumoEsp = r => (r || '').split(/\s*[-–]\s*/)[0].trim() || r || '?';
 
     const comUpa = pnadSetores.filter(s => s._upaEfetiva);
     const semUpa = pnadSetores.filter(s => !s._upaEfetiva);
@@ -9146,8 +9146,9 @@ async function carregarCnefeQualidade() {
             </td></tr>`;
         }
 
-        // Domicílios da UPA inteira (visita_etapa = 1)
-        const domsUpa = todosdomicilios.filter(d => d.upa === upaId && parseInt(d.visita_etapa) === 1);
+        // Todos os domicílios da UPA — verificamos a entrevista 1 do historico_especies
+        // independentemente da etapa atual (cobre setores de qualquer mês CNEFE)
+        const domsUpa = todosdomicilios.filter(d => d.upa === upaId);
 
         // Setores (codigo_controle) desta UPA segundo a amostra_mestra
         const todosSetoresAm = amUpa2Ctrl.has(upaId) ? [...amUpa2Ctrl.get(upaId)].sort() : [];
@@ -9198,42 +9199,65 @@ async function carregarCnefeQualidade() {
         // Agente CNEFE (do primeiro setor associado)
         const agentePrincipal = (setores[0]?.agente_nome || '—').split(' ')[0];
 
-        // Linha por setor (não mais linha agregada de UPA)
+        // Linha por setor
         for (const ctrl of setoresParaExibir) {
-          // Ordena domicílios numericamente
           const domsSetor = (domsPorSetor.get(ctrl) || [])
             .sort((a, b) => parseInt(a.domicilio_num || 0) - parseInt(b.domicilio_num || 0));
-          const errosSetor  = domsSetor.filter(d => !STATUS_OK.has(d.status_atual || 'nao_visitado'));
-          const totalSetor  = domsSetor.length;
-          const pctAcerto   = totalSetor > 0 ? Math.round((totalSetor - errosSetor.length) / totalSetor * 100) : 100;
-          const corPct      = pctAcerto >= 90 ? 'var(--verde)' : pctAcerto >= 70 ? 'var(--amarelo)' : 'var(--vermelho)';
-          const rotulo      = isSingleSetor ? 'Setor' : 'Setor';
 
-          // Acumula por agente
+          // Separa por disponibilidade de espécies na entrevista 1
+          const comEsp1  = domsSetor.filter(d => getEsp1(d));
+          const semEsp1  = domsSetor.filter(d => !getEsp1(d));
+          const errosSetor = comEsp1.filter(d => isErroCnefe(getEsp1(d)));
+          const okSetor    = comEsp1.filter(d => !isErroCnefe(getEsp1(d)));
+
+          const totalSetor  = domsSetor.length;
+          const totalComDados = comEsp1.length;
+          // % acerto calculado apenas sobre domicílios com dados de espécie
+          const pctAcerto = totalComDados > 0
+            ? Math.round(okSetor.length / totalComDados * 100) : null;
+          const corPct = pctAcerto === null ? 'var(--texto-secundario)'
+            : pctAcerto >= 90 ? 'var(--verde)' : pctAcerto >= 70 ? 'var(--amarelo)' : 'var(--vermelho)';
+
+          // Acumula por agente (apenas sobre domicílios com dados)
           const ag = setores[0]?.agente_nome || '—';
           if (!qualAgente[ag]) qualAgente[ag] = { erros: 0, total: 0, upas: new Set() };
           qualAgente[ag].upas.add(upaId);
-          qualAgente[ag].total += totalSetor;
+          qualAgente[ag].total += totalComDados;
           qualAgente[ag].erros += errosSetor.length;
 
-          const errosList = errosSetor.map(d =>
-            `<span style="display:inline-block;margin:1px 3px;font-size:0.72rem;background:var(--vermelho-claro);border:1px solid var(--vermelho);border-radius:4px;padding:1px 5px">
-              Dom ${d.domicilio_num||'?'} — ${ST_LABEL[d.status_atual]||d.status_atual||'Não visitado'}
-            </span>`
-          ).join('');
+          const errosList = errosSetor.map(d => {
+            const esp1 = getEsp1(d);
+            return `<span style="display:inline-block;margin:1px 3px;font-size:0.72rem;background:var(--vermelho-claro);border:1px solid var(--vermelho);border-radius:4px;padding:1px 5px"
+              title="${esp1?.resultado||''}">
+              Dom ${d.domicilio_num||'?'} — ${resumoEsp(esp1?.resultado)}
+            </span>`;
+          }).join('');
+
+          const semDadosTag = semEsp1.length
+            ? `<span style="font-size:0.7rem;color:var(--texto-secundario);margin-left:0.4rem">(${semEsp1.length} sem espécies)</span>`
+            : '';
+
+          const colErros = totalComDados
+            ? `<span style="font-weight:700;color:${errosSetor.length>0?'var(--vermelho)':'var(--verde)'}">${errosSetor.length}</span>${semEsp1.length?` <span style="font-size:0.7rem;color:var(--amarelo)" title="${semEsp1.length} sem dados de espécie">+${semEsp1.length}?</span>`:''}`
+            : '—';
 
           html += `<tr>
-            <td style="padding-left:1.5rem;font-size:0.82rem">${rotulo} <code style="font-size:0.78rem">${ctrl}</code></td>
+            <td style="padding-left:1.5rem;font-size:0.82rem">Setor <code style="font-size:0.78rem">${ctrl}</code></td>
             <td style="font-size:0.82rem">${agentePrincipal}</td>
             <td style="text-align:center">${mesBadge}</td>
-            <td style="text-align:center;font-weight:600">${totalSetor || '<span style="color:var(--amarelo)" title="Sem domicílios">?</span>'}</td>
-            <td style="text-align:center;font-weight:700;color:${errosSetor.length>0?'var(--vermelho)':'var(--verde)'}">
-              ${totalSetor ? errosSetor.length : '—'}
+            <td style="text-align:center;font-weight:600">
+              ${totalSetor || '<span style="color:var(--amarelo)">?</span>'}
+              ${semDadosTag}
             </td>
-            <td style="text-align:center;font-weight:700;color:${totalSetor?corPct:'var(--texto-secundario)'}">
-              ${totalSetor ? pctAcerto + '%' : '—'}
+            <td style="text-align:center">${colErros}</td>
+            <td style="text-align:center;font-weight:700;color:${corPct}">
+              ${pctAcerto !== null ? pctAcerto + '%' : '<span style="color:var(--texto-secundario)">—</span>'}
             </td>
-            <td style="font-size:0.8rem">${totalSetor ? (errosList || '<span style="color:var(--verde)">✅ Sem erros</span>') : '<span style="color:var(--texto-secundario);font-size:0.78rem">—</span>'}</td>
+            <td style="font-size:0.8rem">
+              ${totalComDados
+                ? (errosList || '<span style="color:var(--verde)">✅ Sem erros</span>')
+                : '<span style="color:var(--texto-secundario);font-size:0.78rem">Importar Acompanhar Espécies</span>'}
+            </td>
           </tr>`;
         }
       }
