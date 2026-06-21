@@ -4500,6 +4500,9 @@ function _cronTipoSelHtml(rowIdx, tipoIdx, val, total) {
   </div>`;
 }
 
+const _itemH = `display:flex;align-items:center;min-height:26px;margin-bottom:2px`;
+const _inpSt = `flex:1;border:1px solid var(--borda);border-radius:4px;padding:3px 5px;font-size:0.78rem;background:#fafafa;width:100%`;
+
 function _cronRenderTabela() {
   const el = document.getElementById('cron-conteudo');
   if (!el) return;
@@ -4507,55 +4510,57 @@ function _cronRenderTabela() {
   const inf = _SEMANAS_CAL[mes]?.[semana];
   const periodo = inf ? `${inf.de} a ${inf.ate}` : '—';
 
-  const styleSel = `width:100%;border:1px solid var(--borda);border-radius:4px;padding:3px 5px;font-size:0.78rem;background:#fafafa`;
-  const styleInp = `width:100%;border:1px solid var(--borda);border-radius:4px;padding:3px 5px;font-size:0.78rem;background:#fafafa`;
-
   let rows = '';
   _cronLinhas.forEach((ln, i) => {
-    // Suporte a upas[] (múltiplos setores) e retrocompat com upa (string)
     const upas = ln.upas || (ln.upa ? [ln.upa] : ['']);
+    // localidades: array alinhado com upas, com retrocompat
+    const locs = ln.localidades
+      ? ln.localidades
+      : upas.map((u, si) => si === 0 && ln.localidade !== undefined
+          ? ln.localidade
+          : (_cronSetores.find(s=>s.upa===u)?.localidade || ''));
 
-    // Etapas únicas de todos os setores da linha
-    const todasEtapas = [...new Set(
-      upas.flatMap(u => (_cronSetores.find(s=>s.upa===u)?.etapas || []))
-    )].sort();
-    const etBadge = todasEtapas.length
-      ? todasEtapas.map(et=>`<span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:0.7rem;font-weight:700;${_COR_ETAPA[et]||''}">${et}ª</span>`).join(' ')
-      : '<span style="color:var(--cinza)">—</span>';
+    // Setor + Localidade + Etapa: um item por UPA, alinhados
+    const setorCels    = upas.map((u,si) => _cronSetorSelHtml(i, si, u, upas.length)).join('');
+    const btnAddSetor  = `<button onclick="cronAddSetor(${i})" class="cron-add-setor" title="Adicionar setor">＋</button>`;
 
-    // Localidade: campo editável (auto-preenchido do primeiro setor)
-    const locAuto = _cronSetores.find(s=>s.upa===upas[0])?.localidade || '';
-    const loc = ln.localidade !== undefined ? ln.localidade : locAuto;
+    const localCels = upas.map((u, si) => {
+      const v = (locs[si] ?? '').replace(/"/g,'&quot;');
+      return `<div style="${_itemH}">
+        <input type="text" value="${v}" placeholder="Localidade..."
+          onblur="cronSetLocalidade(${i},${si},this.value)" style="${_inpSt}">
+      </div>`;
+    }).join('');
 
-    // Seletores de setor + botão "+"
-    const setorCels = upas.map((u,si) => _cronSetorSelHtml(i, si, u, upas.length)).join('');
-    const btnAddSetor = `<button onclick="cronAddSetor(${i})" title="Adicionar setor" class="cron-add-setor">＋</button>`;
+    const etapaCels = upas.map(u => {
+      const si = _cronSetores.find(s=>s.upa===u);
+      const badge = si?.etapas?.length
+        ? si.etapas.map(et=>`<span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:0.7rem;font-weight:700;${_COR_ETAPA[et]||''}">${et}ª</span>`).join(' ')
+        : '<span style="color:var(--cinza)">—</span>';
+      return `<div style="${_itemH};justify-content:center">${badge}</div>`;
+    }).join('');
 
-    // Tipos de serviço (array) com retrocompat para campo único
+    // Tipos de serviço
     const tipos = ln.tipos || (ln.tipo ? [ln.tipo] : ['']);
-    const tipoCels = tipos.map((t,ti) => _cronTipoSelHtml(i, ti, t, tipos.length)).join('');
-    const btnAddTipo = `<button onclick="cronAddTipo(${i})" title="Adicionar tipo" class="cron-add-setor">＋</button>`;
+    const tipoCels    = tipos.map((t,ti) => _cronTipoSelHtml(i, ti, t, tipos.length)).join('');
+    const btnAddTipo  = `<button onclick="cronAddTipo(${i})" class="cron-add-setor" title="Adicionar tipo">＋</button>`;
 
-    // Entrevistadores selecionados
     const entrevSel = ln.entrevistadores ? ln.entrevistadores.split(',').map(s=>s.trim()).filter(Boolean) : [];
 
     rows += `<tr data-i="${i}" style="border-top:1px solid var(--borda)">
-      <td style="min-width:95px;padding:4px 6px">
-        <input type="date" value="${ln.data||''}" onchange="cronSet(${i},'data',this.value)" style="${styleInp};margin-bottom:3px">
-        <input type="time" value="${ln.hora||''}" onchange="cronSet(${i},'hora',this.value)" style="${styleInp}">
+      <td style="min-width:95px;padding:4px 6px;vertical-align:top">
+        <input type="date" value="${ln.data||''}" onchange="cronSet(${i},'data',this.value)" style="${_inpSt};margin-bottom:3px">
+        <input type="time" value="${ln.hora||''}" onchange="cronSet(${i},'hora',this.value)" style="${_inpSt}">
       </td>
-      <td style="min-width:130px;padding:4px 6px">
+      <td style="min-width:130px;padding:4px 6px;vertical-align:top">
         ${tipoCels}${btnAddTipo}
       </td>
-      <td style="min-width:180px;padding:4px 6px">
+      <td style="min-width:180px;padding:4px 6px;vertical-align:top">
         ${setorCels}${btnAddSetor}
       </td>
-      <td style="min-width:120px;padding:4px 6px">
-        <input type="text" value="${loc.replace(/"/g,'&quot;')}" placeholder="Localidade..."
-          onblur="cronSet(${i},'localidade',this.value)" style="${styleInp}">
-      </td>
-      <td style="text-align:center;padding:4px 6px;white-space:nowrap">${etBadge}</td>
-      <td style="min-width:150px;padding:4px 6px">${_cronMselHtml(i, entrevSel)}</td>
+      <td style="min-width:120px;padding:4px 6px;vertical-align:top">${localCels}</td>
+      <td style="padding:4px 6px;vertical-align:top;text-align:center">${etapaCels}</td>
+      <td style="min-width:150px;padding:4px 6px;vertical-align:top">${_cronMselHtml(i, entrevSel)}</td>
       <td style="padding:4px 6px;text-align:center">
         <button onclick="cronDelRow(${i})" title="Remover linha"
           style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--cinza)">🗑️</button>
@@ -4633,37 +4638,49 @@ window.cronSet = (i, campo, valor) => {
   _cronScheduleSave();
 };
 
+const _getLocs = ln => ln.localidades || (ln.localidade !== undefined ? [ln.localidade] : []);
+const _getUpas = ln => ln.upas || (ln.upa ? [ln.upa] : ['']);
+
 window.cronSetorItem = (rowIdx, setorIdx, upa) => {
-  if (!_cronLinhas[rowIdx]) _cronLinhas[rowIdx] = {};
-  const upas = _cronLinhas[rowIdx].upas || (_cronLinhas[rowIdx].upa ? [_cronLinhas[rowIdx].upa] : ['']);
+  const ln = _cronLinhas[rowIdx]; if (!ln) return;
+  const upas = _getUpas(ln);
   upas[setorIdx] = upa;
-  _cronLinhas[rowIdx].upas = upas;
-  delete _cronLinhas[rowIdx].upa;
-  // Auto-preenche localidade do primeiro setor se vazio
-  if (setorIdx === 0 && !_cronLinhas[rowIdx].localidade) {
+  ln.upas = upas; delete ln.upa;
+  // Auto-preenche localidade correspondente se vazia
+  const locs = _getLocs(ln);
+  if (!locs[setorIdx]) {
     const si = _cronSetores.find(s => s.upa === upa);
-    if (si) _cronLinhas[rowIdx].localidade = si.localidade;
+    if (si?.localidade) locs[setorIdx] = si.localidade;
   }
+  ln.localidades = locs; delete ln.localidade;
   _cronScheduleSave();
   _cronRenderTabela();
 };
 
+window.cronSetLocalidade = (rowIdx, setorIdx, val) => {
+  const ln = _cronLinhas[rowIdx]; if (!ln) return;
+  const locs = _getLocs(ln);
+  locs[setorIdx] = val;
+  ln.localidades = locs; delete ln.localidade;
+  _cronScheduleSave();
+};
+
 window.cronAddSetor = (rowIdx) => {
-  if (!_cronLinhas[rowIdx]) _cronLinhas[rowIdx] = {};
-  const upas = _cronLinhas[rowIdx].upas || (_cronLinhas[rowIdx].upa ? [_cronLinhas[rowIdx].upa] : ['']);
-  upas.push('');
-  _cronLinhas[rowIdx].upas = upas;
-  delete _cronLinhas[rowIdx].upa;
+  const ln = _cronLinhas[rowIdx]; if (!ln) return;
+  const upas = _getUpas(ln); upas.push('');
+  ln.upas = upas; delete ln.upa;
+  const locs = _getLocs(ln); locs.push('');
+  ln.localidades = locs; delete ln.localidade;
   _cronScheduleSave();
   _cronRenderTabela();
 };
 
 window.cronRemoveSetor = (rowIdx, setorIdx) => {
   const ln = _cronLinhas[rowIdx]; if (!ln) return;
-  const upas = ln.upas || (ln.upa ? [ln.upa] : ['']);
-  upas.splice(setorIdx, 1);
-  ln.upas = upas.length ? upas : [''];
-  delete ln.upa;
+  const upas = _getUpas(ln); upas.splice(setorIdx, 1);
+  ln.upas = upas.length ? upas : ['']; delete ln.upa;
+  const locs = _getLocs(ln); locs.splice(setorIdx, 1);
+  ln.localidades = locs.length ? locs : ['']; delete ln.localidade;
   _cronScheduleSave();
   _cronRenderTabela();
 };
