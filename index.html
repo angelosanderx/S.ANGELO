@@ -4189,8 +4189,11 @@ async function carregarAmostraMestra() {
     _amCache = snap.docs.map(d => d.data());
     renderAmostraMestra();
   } catch(e) {
-    console.error(e);
-    el.innerHTML = '<div class="vazio"><div class="icone-vazio">📅</div>Não foi possível carregar a amostra mestra.</div>';
+    console.error('amostra_mestra erro:', e);
+    el.innerHTML = `<div class="vazio"><div class="icone-vazio">📅</div>
+      <div>Erro ao carregar amostra mestra.</div>
+      <div style="font-size:0.75rem;color:var(--vermelho);margin-top:0.5rem;font-family:monospace">${e?.code || ''} — ${e?.message || String(e)}</div>
+    </div>`;
   }
 }
 
