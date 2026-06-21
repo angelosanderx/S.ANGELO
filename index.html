@@ -2820,13 +2820,16 @@ window.gerarCartoes = async (idsOverride) => {
     if (especies.length > 0) {
       obsHistHtml = especies.map(h => {
         const t    = telPorEtapa[String(h.entrevista)];
-        const obs  = t?.observacao ? ` · ${t.observacao}` : '';
+        const obs  = t?.observacao || '';
         const entr = (h.entrevistador && h.entrevistador !== 'Não informado')
           ? h.entrevistador.split(' ')[0] : '';
-        return `<div class="c-hist-linha">
-          <span class="c-hist-num">${h.entrevista}ª</span>
-          <span class="c-hist-res">${h.resultado||'—'}${obs}</span>
-          ${entr ? `<span class="c-hist-entr">${entr}</span>` : ''}
+        return `<div class="c-hist-bloco">
+          <div class="c-hist-linha">
+            <span class="c-hist-num">${h.entrevista}ª</span>
+            <span class="c-hist-res">${h.resultado||'—'}</span>
+            ${entr ? `<span class="c-hist-entr">${entr}</span>` : ''}
+          </div>
+          ${obs ? `<div class="c-hist-obs">${obs}</div>` : ''}
         </div>`;
       }).join('');
     } else {
@@ -2967,14 +2970,20 @@ window.gerarCartoes = async (idsOverride) => {
   }
   .c-mor-age { color: #64748b; }
 
+  .c-hist-bloco {
+    border-bottom: 1px dotted #e2e8f0; padding: 1.5px 0;
+  }
   .c-hist-linha {
     display: flex; gap: 2px; align-items: baseline;
-    font-size: 6.5pt; padding: 1px 0;
-    border-bottom: 1px dotted #e2e8f0; line-height: 1.3;
+    font-size: 6.5pt; line-height: 1.3;
   }
   .c-hist-num { font-weight: 800; color: #2563a8; min-width: 12px; flex-shrink: 0; }
-  .c-hist-res { color: #1e293b; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .c-hist-res { color: #1e293b; flex: 1; }
   .c-hist-entr { color: #94a3b8; font-style: italic; flex-shrink: 0; font-size: 6pt; }
+  .c-hist-obs {
+    font-size: 6pt; color: #64748b; font-style: italic;
+    padding-left: 14px; line-height: 1.25;
+  }
 
   .c-obs-lines { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; }
   .c-obs-line { flex: 1; border-bottom: 1px solid #cbd5e1; min-height: 4.5mm; }
