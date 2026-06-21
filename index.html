@@ -4381,6 +4381,11 @@ window.limparFiltrosAM = () => {
 let _cronCache = null; // { docId: { entrevistadores, data, horario } }
 
 async function carregarCronograma() {
+  // Restaura último mês/semana selecionados
+  const elMes    = document.getElementById('cron-filtro-mes');
+  const elSemana = document.getElementById('cron-filtro-semana');
+  if (elMes    && !elMes.value)    elMes.value    = localStorage.getItem('pnad_cron_mes')    || '';
+  if (elSemana && !elSemana.value) elSemana.value = localStorage.getItem('pnad_cron_semana') || '';
   if (_cronCache) { renderCronograma(); return; }
   await Promise.all([
     _carregarLocalidades(),
@@ -4404,6 +4409,9 @@ window.renderCronograma = () => {
   if (!el) return;
   const mes    = parseInt(document.getElementById('cron-filtro-mes')?.value) || null;
   const semana = parseInt(document.getElementById('cron-filtro-semana')?.value) || null;
+  // Persiste seleção no localStorage
+  if (mes)    localStorage.setItem('pnad_cron_mes', mes);
+  if (semana) localStorage.setItem('pnad_cron_semana', semana);
   if (!mes || !semana) {
     el.innerHTML = '<div class="vazio"><div class="icone-vazio">📅</div>Selecione o mês e a semana para gerar o cronograma.</div>';
     return;
