@@ -3366,11 +3366,14 @@ window.gerarRoteiroCarta = async (idsOverride, tableId) => {
   };
 
   const now = new Date();
-  const trimestre = lista[0]?.trimestre || '';
   const semana = lista[0]?.semana || '';
-  const cabecalho = `<div class="cabecalho"><table class="hd-tbl"><tr>
+  const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const mesStr = MESES[now.getMonth()] + '/' + now.getFullYear();
+
+  const mkCabecalho = (setorStr) => `<div class="cabecalho"><table class="hd-tbl"><tr>
     <td><strong>PNAD-C Campos — Roteiro de Entrega de Cartas</strong></td>
-    <td>Trim.: <strong>${trimestre}</strong></td>
+    <td>Setor: <strong>${setorStr}</strong></td>
+    <td>Mês: <strong>${mesStr}</strong></td>
     <td>Sem.: <strong>${semana}</strong></td>
     <td>Data: <span class="bl bl-dt"></span></td>
     <td>Entrev.: <span class="bl bl-sup"></span></td>
@@ -3382,8 +3385,13 @@ window.gerarRoteiroCarta = async (idsOverride, tableId) => {
   while (remaining.some(it => it.type==='dom')) {
     let [col, newRemaining] = sliceCol(remaining, DOMS_POR_PAG);
     remaining = newRemaining;
+    if (col.length > 0 && col[0].type !== 'setor') {
+      const fd = col.find(it => it.type==='dom');
+      if (fd) { const s = fd.d.controle ? fd.d.controle.slice(0,-1) : (fd.d.upa||''); col = [{type:'setor',code:s,etapa:fd.d.visita_etapa||''},...col]; }
+    }
+    const setoresDaPag = [...new Set(col.filter(it=>it.type==='dom').map(it=>it.d.controle?it.d.controle.slice(0,-1):(it.d.upa||'')))];
     const renderCol = col => col.map(it => it.type==='setor' ? renderSetor(it.code, it.etapa) : renderDom(it.d)).join('');
-    paginas += `<div class="pagina">${cabecalho}<div class="corpo">${renderCol(col)}</div></div>`;
+    paginas += `<div class="pagina">${mkCabecalho(setoresDaPag.join(' / '))}<div class="corpo">${renderCol(col)}</div></div>`;
   }
 
   const win = window.open('', '_blank');
