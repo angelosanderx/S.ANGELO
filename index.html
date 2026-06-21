@@ -4272,16 +4272,13 @@ window.renderAmostraMestra = () => {
         </tr></thead>
         <tbody>`;
       for (const [upa, setores] of [...porUpa.entries()].sort()) {
-        // Últimos 4 dígitos do controle
         const ctrl4 = c => String(c||'').slice(-4);
-        // Sufixo da própria UPA (últimos 4 dígitos)
         const upaSufixo = ctrl4(upa);
-        // Se único setor e controle == sufixo da UPA → só mostra a UPA
-        const upaCell = setores.length === 1 && ctrl4(setores[0].codigo_controle) === upaSufixo
+        // Exclui setores cujo controle coincide com o sufixo da UPA
+        const extras = setores.filter(r => ctrl4(r.codigo_controle) !== upaSufixo);
+        const upaCell = extras.length === 0
           ? `<span style="font-family:monospace;font-size:0.8rem;font-weight:700;color:var(--azul)">${upa}</span>`
-          : setores.map(r =>
-              `<span style="display:block;font-family:monospace;font-size:0.8rem;font-weight:700;color:var(--azul)">${upa}/<b>${ctrl4(r.codigo_controle)}</b></span>`
-            ).join('');
+          : `<span style="font-family:monospace;font-size:0.8rem;font-weight:700;color:var(--azul)">${upa}/${extras.map(r => `<b>${ctrl4(r.codigo_controle)}</b>`).join('/')}</span>`;
         const etapas = setores.map(r => {
           const et = r.numero_entrevista;
           return et
