@@ -1018,10 +1018,10 @@
       <div class="titulo-pagina" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
         <span>⚠️ Pendências</span>
         <div style="display:flex;gap:0.5rem">
-          <button class="btn-acao secundario" onclick="gerarEtiquetas(null,'pag-pendencias-tabela')" style="font-size:0.85rem">🏷️ Etiquetas</button>
           <div class="dropdown-listagens">
-            <button class="btn-acao secundario" onclick="toggleListagens(this)" style="font-size:0.85rem">📋 Listagens ▾</button>
+            <button class="btn-acao secundario" onclick="toggleListagens(this,event)" style="font-size:0.85rem">📋 Listagens ▾</button>
             <div class="dropdown-listagens-menu">
+              <button onclick="gerarEtiquetas(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">🏷️ Etiquetas</button>
               <button onclick="gerarCartoes(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem</button>
               <button onclick="gerarDiarioCampo(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples</button>
               <button onclick="gerarRoteiroCarta(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">✉️ Primeira entrevista</button>
@@ -1133,7 +1133,7 @@
 
     <div class="pagina" id="pag-domicilios">
       <div class="titulo-pagina">🏠 Domicílios</div>
-      <div class="card-tabela" style="margin-bottom:0.75rem">
+      <div class="card-tabela" style="margin-bottom:0.75rem;overflow:visible">
         <div style="padding:0.85rem 1.25rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
           <select id="filtro-upa" onchange="filtrarPorUpa()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:200px">
             <option value="">Todas as UPAs</option>
@@ -1178,10 +1178,10 @@
             <option value="entrevistador">Agrupar por entrevistador</option>
           </select>
           <button class="btn-acao secundario" onclick="limparFiltros()">Limpar</button>
-          <button class="btn-acao secundario" onclick="gerarEtiquetas(null,'tabela-domicilios')" title="Gerar etiquetas de endereço">🏷️ Etiquetas</button>
           <div class="dropdown-listagens">
-            <button class="btn-acao secundario" onclick="toggleListagens(this)">📋 Listagens ▾</button>
+            <button class="btn-acao secundario" onclick="toggleListagens(this,event)">📋 Listagens ▾</button>
             <div class="dropdown-listagens-menu">
+              <button onclick="gerarEtiquetas(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">🏷️ Etiquetas</button>
               <button onclick="gerarCartoes(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem</button>
               <button onclick="gerarDiarioCampo(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples</button>
               <button onclick="gerarRoteiroCarta(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">✉️ Primeira entrevista</button>
@@ -1205,14 +1205,14 @@
         <div id="tabela-domicilios"><div class="loader">Carregando...</div></div>
       </div>
 
-      <div class="card-tabela" id="card-pendentes-dom" style="margin-top:1.25rem">
+      <div class="card-tabela" id="card-pendentes-dom" style="margin-top:1.25rem;overflow:visible">
         <div class="card-tabela-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
           <h3>⚠️ Domicílios Pendentes</h3>
           <div style="display:flex;gap:0.5rem">
-            <button class="btn-acao secundario" onclick="gerarEtiquetas(null,'painel-pendentes-tabela')" style="font-size:0.82rem">🏷️ Etiquetas</button>
             <div class="dropdown-listagens">
-              <button class="btn-acao secundario" onclick="toggleListagens(this)" style="font-size:0.82rem">📋 Listagens ▾</button>
+              <button class="btn-acao secundario" onclick="toggleListagens(this,event)" style="font-size:0.82rem">📋 Listagens ▾</button>
               <div class="dropdown-listagens-menu">
+                <button onclick="gerarEtiquetas(null,'painel-pendentes-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">🏷️ Etiquetas</button>
                 <button onclick="gerarCartoes(null,'painel-pendentes-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem</button>
                 <button onclick="gerarDiarioCampo(null,'painel-pendentes-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples</button>
                 <button onclick="gerarRoteiroCarta(null,'painel-pendentes-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">✉️ Primeira entrevista</button>
@@ -2254,8 +2254,8 @@ window.fecharSidebar = () => {
   document.getElementById('overlay').classList.remove('visivel');
 };
 
-window.toggleListagens = (btn) => {
-  event.stopPropagation();
+window.toggleListagens = (btn, e) => {
+  e.stopPropagation();
   const wrap = btn.closest('.dropdown-listagens');
   const aberto = wrap.classList.contains('aberto');
   document.querySelectorAll('.dropdown-listagens.aberto').forEach(d => d.classList.remove('aberto'));
