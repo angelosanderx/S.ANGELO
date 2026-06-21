@@ -8689,27 +8689,66 @@ window.imprimirCnefeListagem = () => {
     if (fa!==fb) return fa.localeCompare(fb);
     return parseInt(a.uv||0)-parseInt(b.uv||0);
   });
+
   let lastQF='', rows='';
-  docs.forEach(d => {
+  docs.forEach((d, i) => {
     const qf=`${d.quadra}|${d.face}`;
-    if (qf!==lastQF) { rows+=`<tr style="background:#e8f0fb"><td colspan="9" style="font-size:0.72rem;font-weight:700;color:#1a3a5c;padding:3px 8px">Quadra ${d.quadra} · Face ${d.face}</td></tr>`; lastQF=qf; }
-    rows+=`<tr><td>${d.quadra||''}</td><td>${d.face||''}</td><td>${d.uv||''}</td><td>${d.codigo_endereco||''}</td>
-      <td><strong>${d.logradouro||''}</strong>${d.numero?' nº'+d.numero:''}</td>
-      <td style="font-size:0.72rem">${d.ponto_referencia||''}</td>
-      <td style="font-size:0.7rem">${d.especie||''}</td>
-      <td style="font-size:0.7rem">${d.estabelecimento||''}</td>
-      <td style="font-size:0.72rem">${d.responsavel||''}${d.telefone?' ('+d.telefone+')':''}</td></tr>`;
+    const qfChanged = qf !== lastQF;
+    const bgRow = (i % 2 === 0) ? '' : 'background:#f8fafc';
+    const borderTop = qfChanged && lastQF !== '' ? 'border-top:2px solid #94a3b8' : '';
+    lastQF = qf;
+    rows += `<tr style="${bgRow}${borderTop ? ';'+borderTop : ''}">
+      <td style="white-space:nowrap;font-weight:${qfChanged?'700':'400'};color:${qfChanged?'#1a3a5c':'inherit'}">${d.quadra||''}/${d.face||''}</td>
+      <td>${d.uv||''}</td>
+      <td>${d.codigo_endereco||''}</td>
+      <td>${d.logradouro||''}${d.numero?' nº'+d.numero:''}</td>
+      <td>${d.especie||''}</td>
+      <td>${d.estabelecimento||''}</td>
+      <td>${d.responsavel||''}${d.telefone?' ('+d.telefone+')':''}</td>
+    </tr>`;
   });
-  const win=window.open('','_blank');
-  win.document.write(`<html><head><title>Listagem CNEFE — Setor ${setor}</title>
-  <style>body{font-family:'Segoe UI',sans-serif;font-size:0.82rem;margin:1cm}
-  table{width:100%;border-collapse:collapse}th{background:#e8f0fb;padding:4px 8px;text-align:left;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
-  td{padding:4px 8px;border-bottom:1px solid #e2e8f0}@media print{@page{margin:1cm}}</style></head><body>
-  <h3 style="margin-bottom:4px">Listagem CNEFE — Setor ${setor}</h3>
-  <p style="font-size:0.75rem;color:#64748b;margin-bottom:1rem">${new Date().toLocaleDateString('pt-BR')} · ${docs.length} endereços</p>
-  <table><thead><tr><th>Q</th><th>F</th><th>UV</th><th>CE</th><th>Logradouro / Número</th><th>Ponto Ref.</th><th>Espécie</th><th>Estabelecimento</th><th>Responsável / Tel.</th></tr></thead>
-  <tbody>${rows}</tbody></table></body></html>`);
-  win.document.close(); win.print();
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>CNEFE — Setor ${setor}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    @page { size: A4 landscape; margin: 0.7cm 0.8cm; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 7pt; color: #1e293b; }
+    h3 { font-size: 9pt; margin-bottom: 1px; }
+    .sub { font-size: 6.5pt; color: #64748b; margin-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    col.c-qf  { width: 5%; }
+    col.c-uv  { width: 4%; }
+    col.c-ce  { width: 7%; }
+    col.c-end { width: 38%; }
+    col.c-esp { width: 9%; }
+    col.c-est { width: 19%; }
+    col.c-res { width: 18%; }
+    thead { display: table-header-group; }
+    th { background: #dbeafe; padding: 2px 3px; text-align: left; font-size: 6pt;
+         font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
+         border-bottom: 2px solid #93c5fd; }
+    td { padding: 1px 3px; border-bottom: 1px solid #e2e8f0;
+         overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    tr:nth-child(even) td { background: #f8fafc; }
+  </style></head><body>
+  <h3>Listagem CNEFE — Setor ${setor}</h3>
+  <div class="sub">${new Date().toLocaleDateString('pt-BR')} · ${docs.length} endereços</div>
+  <table>
+    <colgroup>
+      <col class="c-qf"><col class="c-uv"><col class="c-ce">
+      <col class="c-end"><col class="c-esp"><col class="c-est"><col class="c-res">
+    </colgroup>
+    <thead><tr>
+      <th>Q/F</th><th>UV</th><th>Cód. End.</th>
+      <th>Logradouro / Número</th><th>Espécie</th><th>Estabelecimento</th><th>Responsável / Tel.</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  </body></html>`);
+  win.document.close();
+  win.print();
 };
 
 // ── ABA QUALIDADE ─────────────────────────────────────────────────────────────
