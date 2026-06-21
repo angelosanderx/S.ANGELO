@@ -4232,6 +4232,7 @@ window.renderAmostraMestra = () => {
 
   let html = '<div style="overflow-x:auto">';
   for (const mes of Object.keys(grupos).map(Number).sort((a,b)=>a-b)) {
+    if (!_NOMES_MES[mes]) continue;
     const ptAviso = _PT_MES[mes] ? `<div style="background:#fffbeb;color:#92400e;border-left:4px solid #fcd34d;padding:0.4rem 1.1rem;font-size:0.8rem;font-weight:600">${_PT_MES[mes]}</div>` : '';
     html += `<div style="background:var(--azul);color:#fff;padding:0.55rem 1.1rem;font-weight:700;font-size:0.9rem;margin-top:1rem">
       📆 ${_NOMES_MES[mes] || 'Mês '+mes}
