@@ -5787,6 +5787,7 @@ function _cronRenderTabela() {
       </h3>
       <div style="display:flex;gap:0.5rem;align-items:center">
         <span id="cron-status" style="font-size:0.75rem;color:var(--cinza)"></span>
+        <button onclick="gerarProgramacao()" style="padding:0.3rem 0.8rem;border:1px solid var(--borda);border-radius:6px;background:#fff;cursor:pointer;font-size:0.82rem">📋 Programação</button>
         <button onclick="window.print()" style="padding:0.3rem 0.8rem;border:1px solid var(--borda);border-radius:6px;background:#fff;cursor:pointer;font-size:0.82rem">🖨️ Imprimir</button>
       </div>
     </div>
@@ -5800,6 +5801,87 @@ function _cronRenderTabela() {
     </div>
   </div>`;
 }
+
+window.gerarProgramacao = () => {
+  const mes = _cronMes, semana = _cronSemana;
+  if (!mes || !semana) { mostrarToast('Selecione mês e semana primeiro', 'aviso'); return; }
+
+  const inf     = _SEMANAS_CAL[mes]?.[semana];
+  const periodo = inf ? `${inf.de} a ${inf.ate}` : '';
+  const nomeMes = _NOMES_MES[mes] || `Mês ${mes}`;
+
+  const fmtData = iso => { if (!iso) return ''; const p = iso.split('-'); return `${p[2]}/${p[1]}`; };
+  const fmtHora = h => { if (!h) return ''; return h.replace(':00','h').replace(':','h'); };
+
+  // Agrupa atividades por equipe (conjunto de entrevistadores)
+  const equipeMap = new Map();
+  (_cronLinhas || []).forEach(ln => {
+    if (!ln) return;
+    const isPeriodo = ln.tipo_card === 'periodo_livre';
+    (ln.equipes || []).forEach(eq => {
+      const entrevs = (eq.entrevistadores || '').split(',').map(s => s.trim()).filter(Boolean);
+      if (!entrevs.length) return;
+      const key = [...entrevs].sort().join(',');
+      if (!equipeMap.has(key)) equipeMap.set(key, { nomes: entrevs, atividades: [] });
+
+      const upas  = eq.upas        || [''];
+      const locs  = eq.localidades || [''];
+      const tipos = eq.tipos       || [''];
+
+      if (isPeriodo) {
+        const dataStr = [fmtData(ln.data_inicio), fmtData(ln.data_fim)].filter(Boolean).join(' a ');
+        const tipo = tipos[0] || '';
+        equipeMap.get(key).atividades.push({ sortKey: ln.data_inicio || '', texto: `${dataStr}${tipo ? ' — ' + tipo : ''}` });
+      } else {
+        const prefixo = fmtData(ln.data) + (fmtHora(ln.hora) ? ` (${fmtHora(ln.hora)})` : '');
+        const partes = upas.map((u, si) => {
+          const loc   = locs[si] || u || '';
+          if (!loc) return null;
+          const sinf  = _cronSetores.find(s => s.upa === u);
+          const etas  = sinf?.etapas || [];
+          const etStr = etas.length ? ` (${etas.map(e => e + 'ª').join('/')})` : '';
+          return `${loc}${etStr}`;
+        }).filter(Boolean);
+        if (partes.length) equipeMap.get(key).atividades.push({ sortKey: ln.data || '', texto: `${prefixo} — ${partes.join(', ')}` });
+      }
+    });
+  });
+
+  // Monta texto
+  const linhas = [`📋 Programação — ${nomeMes} Semana ${semana}`];
+  if (periodo) linhas.push(periodo);
+  for (const { nomes, atividades } of equipeMap.values()) {
+    linhas.push('');
+    linhas.push(`👥 ${nomes.join(' · ')}`);
+    atividades.sort((a, b) => a.sortKey.localeCompare(b.sortKey)).forEach(a => linhas.push(a.texto));
+  }
+  const texto = linhas.join('\n');
+
+  // Modal reutilizável
+  let overlay = document.getElementById('modal-programacao');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'modal-programacao';
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `<div class="modal" style="max-width:500px">
+      <div class="modal-header">
+        <h3>📋 Programação</h3>
+        <button onclick="fecharModal('modal-programacao')" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--cinza);line-height:1">×</button>
+      </div>
+      <div class="modal-body" style="padding:1rem">
+        <textarea id="prog-texto" rows="18"
+          style="width:100%;font-family:monospace;font-size:0.8rem;border:1px solid var(--borda);border-radius:6px;padding:0.6rem;resize:vertical;line-height:1.55;box-sizing:border-box"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-acao" onclick="navigator.clipboard.writeText(document.getElementById('prog-texto').value).then(()=>mostrarToast('Copiado!','sucesso'))">📋 Copiar</button>
+        <button class="btn-acao secundario" onclick="fecharModal('modal-programacao')">Fechar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+  }
+  document.getElementById('prog-texto').value = texto;
+  abrirModal('modal-programacao');
+};
 
 function _cronRenderVistaGlobal(mes, semanas, dadosPorSemana) {
   const el = document.getElementById('cron-conteudo');
