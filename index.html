@@ -3197,6 +3197,7 @@ window.gerarCartoes = async (idsOverride, tableId) => {
     const telefones = (d.historico_telefones || []);
     const telPorEtapa = {};
     telefones.forEach(t => { telPorEtapa[String(t.entrevista)] = t; });
+    const _temTelCart = (d.tentativas_recentes || []).filter(t => t.origem).some(t => /telefone/i.test(t.origem||''));
 
     // Situação trimestre anterior = última etapa antes da atual
     const etapaAtual = parseInt(d.visita_etapa || 0);
@@ -3257,7 +3258,7 @@ window.gerarCartoes = async (idsOverride, tableId) => {
         <div class="c-status">${STATUS_LABEL[d.status_atual] || d.status_atual || 'Não visitado'}</div>
       </div>
       <div class="c-end">${endFmt}</div>
-      <div class="c-meta">Sem.<strong>${d.semana||'—'}</strong> · Et.<strong>${d.visita_etapa||'—'}ª</strong> · Ant: ${situacaoAnterior}${d.entrevistador_nome ? ' · ' + (d.entrevistador_nome||'').split(' ')[0] : ''}</div>
+      <div class="c-meta">Sem.<strong>${d.semana||'—'}</strong> · Et.<strong>${d.visita_etapa||'—'}ª</strong>${_temTelCart ? '' : ' <span style="color:var(--vermelho);font-weight:800;font-size:0.68rem;letter-spacing:0.2px">SEM TENTATIVAS POR TELEFONE!</span>'} · Ant: ${situacaoAnterior}${d.entrevistador_nome ? ' · ' + (d.entrevistador_nome||'').split(' ')[0] : ''}</div>
       ${d.morador_cnefe||d.morador ? `<div class="c-cnefe">👤 ${titleCase(d.morador_cnefe||d.morador||'')}</div>` : ''}
       <div class="c-sep"></div>
       <div class="c-sec">Moradores</div>
@@ -4020,6 +4021,7 @@ function _badgeEntrevistador(nome, nomeManual = null) {
 }
 
 function _montarLinhaDOM(d, ns = '') {
+  const _temTelLinha = (d.tentativas_recentes || []).filter(t => t.origem).some(t => /telefone/i.test(t.origem||''));
   const setor = d.controle ? d.controle.slice(0,-1) : (d.upa || '-');
   const nomeEntr = d.entrevistador_nome
     ? _badgeEntrevistador(d.entrevistador_nome, d.entrevistador_nome_manual || null)
@@ -4045,7 +4047,10 @@ function _montarLinhaDOM(d, ns = '') {
         ${periodoAtual === 'todos' ? `<div style="font-size:0.6rem;font-weight:700;color:var(--azul-medio);margin-top:1px">${PERIODOS[d.periodo || PERIODO_PADRAO]}</div>` : ''}
       </td>
       <td style="text-align:center;font-size:0.82rem;padding:0.5rem 0.3rem">${d.semana || '-'}</td>
-      <td style="text-align:center;padding:0.5rem 0.3rem"><span class="badge badge-cinza" style="font-size:0.68rem;padding:1px 5px">${d.visita_etapa || '-'}ª</span></td>
+      <td style="text-align:center;padding:0.5rem 0.3rem">
+        <span class="badge badge-cinza" style="font-size:0.68rem;padding:1px 5px">${d.visita_etapa || '-'}ª</span>
+        ${_temTelLinha ? '' : '<div style="font-size:0.58rem;font-weight:800;color:var(--vermelho);margin-top:3px;white-space:nowrap;line-height:1.2">SEM TENT.<br>POR TEL.!</div>'}
+      </td>
       <td style="font-size:0.75rem;padding:0.5rem 0.5rem;word-break:break-word">${nomeEntr}</td>
       <td style="padding:0.5rem 0.6rem">
         <div class="campo-editavel-inline" style="font-size:0.8rem;font-weight:600;display:flex;align-items:center;gap:3px">
