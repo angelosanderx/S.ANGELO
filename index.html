@@ -1059,6 +1059,7 @@
           <div class="dropdown-listagens">
             <button class="btn-acao secundario" onclick="toggleListagens(this,event)" style="font-size:0.85rem">📋 Listagens ▾</button>
             <div class="dropdown-listagens-menu">
+              <button onclick="abrirEditorEnderecos();this.closest('.dropdown-listagens').classList.remove('aberto')">✏️ Editar endereços</button>
               <button onclick="gerarEtiquetas(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">🏷️ Etiquetas</button>
               <button onclick="gerarCartoes(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem</button>
               <button onclick="gerarDiarioCampo(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples</button>
@@ -1236,6 +1237,7 @@
           <div class="dropdown-listagens">
             <button class="btn-acao secundario" onclick="toggleListagens(this,event)">📋 Listagens ▾</button>
             <div class="dropdown-listagens-menu">
+              <button onclick="abrirEditorEnderecos();this.closest('.dropdown-listagens').classList.remove('aberto')">✏️ Editar endereços</button>
               <button onclick="gerarEtiquetas(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">🏷️ Etiquetas</button>
               <button onclick="gerarCartoes(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem</button>
               <button onclick="gerarDiarioCampo(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples</button>
@@ -2432,6 +2434,46 @@
   </div>
 </div>
 
+<!-- Modal: Editor de Endereços -->
+<div class="modal-overlay" id="modal-editor-enderecos" onclick="if(event.target===this)fecharModal('modal-editor-enderecos')">
+  <div class="modal" style="max-width:760px;width:100%;max-height:90vh;display:flex;flex-direction:column">
+    <div class="modal-header" style="padding:1rem 1.25rem;flex-shrink:0">
+      <div>
+        <h3 style="font-size:0.95rem;font-weight:700;color:var(--azul)">✏️ Editar Endereços</h3>
+        <div style="font-size:0.75rem;color:var(--cinza);margin-top:2px">Correção permanente · salvo no Firestore</div>
+      </div>
+      <button class="btn-fechar" onclick="fecharModal('modal-editor-enderecos')">×</button>
+    </div>
+    <div class="modal-body" style="padding:1rem 1.25rem;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:0.9rem">
+      <!-- Seletor de setor -->
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
+        <label style="font-size:0.82rem;font-weight:600;color:var(--cinza-escuro)">Setor:</label>
+        <select id="editor-end-setor" onchange="carregarSetorEditor()" style="font-size:0.85rem;padding:0.3rem 0.6rem;border:1.5px solid var(--borda);border-radius:6px;font-family:var(--fonte);min-width:200px">
+          <option value="">Selecione um setor...</option>
+        </select>
+        <span id="editor-end-info" style="font-size:0.78rem;color:var(--cinza)"></span>
+      </div>
+      <!-- Localizar & Substituir -->
+      <div style="background:var(--cinza-claro);border-radius:8px;padding:0.75rem 1rem;display:flex;gap:0.5rem;align-items:flex-end;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:0.72rem;font-weight:600;color:var(--cinza);margin-bottom:3px">LOCALIZAR</div>
+          <input id="editor-end-localizar" placeholder="ex: RUA MARIO GROSSI" style="width:100%;border:1.5px solid var(--borda);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.83rem;font-family:var(--fonte);box-sizing:border-box">
+        </div>
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:0.72rem;font-weight:600;color:var(--cinza);margin-bottom:3px">SUBSTITUIR POR</div>
+          <input id="editor-end-substituir" placeholder="ex: Rua Mário Grossi" style="width:100%;border:1.5px solid var(--borda);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.83rem;font-family:var(--fonte);box-sizing:border-box">
+        </div>
+        <button onclick="aplicarSubstituicaoEndereco()" style="background:var(--azul);color:white;border:none;border-radius:6px;padding:0.35rem 0.9rem;font-size:0.83rem;font-family:var(--fonte);cursor:pointer;white-space:nowrap;font-weight:600">Aplicar</button>
+      </div>
+      <!-- Tabela -->
+      <div id="editor-end-tabela" style="overflow-x:auto"></div>
+    </div>
+    <div style="padding:0.75rem 1.25rem;border-top:1.5px solid var(--borda);flex-shrink:0;display:flex;justify-content:flex-end">
+      <button id="editor-end-salvar" onclick="salvarEditorEnderecos()" style="display:none;background:var(--azul);color:white;border:none;border-radius:6px;padding:0.4rem 1.2rem;font-size:0.85rem;font-family:var(--fonte);cursor:pointer;font-weight:700">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script type="module">
@@ -3095,6 +3137,143 @@ window.limparFiltros = () => {
   document.getElementById('filtro-ordem').value = 'padrao';
   document.getElementById('busca-domicilio').value = '';
   filtrarDomicilios();
+};
+
+// ── EDITOR DE ENDEREÇOS ──
+let _editorEnderecosOriginal = {};
+
+window.abrirEditorEnderecos = () => {
+  const setores = [...new Set(
+    todosdomicilios.filter(pertencePeriodo).map(d => d.upa).filter(Boolean)
+  )].sort();
+  const sel = document.getElementById('editor-end-setor');
+  sel.innerHTML = '<option value="">Selecione um setor...</option>' +
+    setores.map(s => `<option value="${s}">${s}</option>`).join('');
+  document.getElementById('editor-end-tabela').innerHTML = '';
+  document.getElementById('editor-end-info').textContent = '';
+  document.getElementById('editor-end-salvar').style.display = 'none';
+  document.getElementById('editor-end-localizar').value = '';
+  document.getElementById('editor-end-substituir').value = '';
+  abrirModal('modal-editor-enderecos');
+};
+
+window.carregarSetorEditor = () => {
+  const setor = document.getElementById('editor-end-setor').value;
+  if (!setor) { document.getElementById('editor-end-tabela').innerHTML = ''; return; }
+  const doms = todosdomicilios
+    .filter(d => pertencePeriodo(d) && d.upa === setor)
+    .sort((a, b) => parseInt(a.domicilio_num) - parseInt(b.domicilio_num));
+  _editorEnderecosOriginal = {};
+  doms.forEach(d => {
+    _editorEnderecosOriginal[d.id] = { endereco: d.endereco || '', complemento: d.complemento || '' };
+  });
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:0.83rem">' +
+    '<thead><tr style="background:var(--cinza-claro)">' +
+    '<th style="padding:0.4rem 0.5rem;text-align:left;width:44px">Dom.</th>' +
+    '<th style="padding:0.4rem 0.5rem;text-align:left">Endereço</th>' +
+    '<th style="padding:0.4rem 0.5rem;text-align:left;width:150px">Complemento</th>' +
+    '</tr></thead><tbody>';
+  doms.forEach(d => {
+    const end  = (d.endereco    || '').replace(/"/g, '&quot;');
+    const comp = (d.complemento || '').replace(/"/g, '&quot;');
+    html += `<tr>
+      <td style="padding:0.3rem 0.5rem;font-weight:700;color:var(--cinza);white-space:nowrap">${d.domicilio_num}</td>
+      <td style="padding:0.3rem 0.5rem"><input data-id="${d.id}" data-campo="endereco" value="${end}"
+        style="width:100%;border:1px solid var(--borda);border-radius:4px;padding:0.25rem 0.4rem;font-size:0.82rem;font-family:var(--fonte);box-sizing:border-box"
+        oninput="_marcarEditorAlterado(this)"></td>
+      <td style="padding:0.3rem 0.5rem"><input data-id="${d.id}" data-campo="complemento" value="${comp}"
+        style="width:100%;border:1px solid var(--borda);border-radius:4px;padding:0.25rem 0.4rem;font-size:0.82rem;font-family:var(--fonte);box-sizing:border-box"
+        oninput="_marcarEditorAlterado(this)"></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('editor-end-tabela').innerHTML = html;
+  document.getElementById('editor-end-info').textContent = `${doms.length} domicílio${doms.length !== 1 ? 's' : ''}`;
+  const btn = document.getElementById('editor-end-salvar');
+  btn.style.display = 'inline-block';
+  btn.textContent = '💾 Salvar';
+  btn.disabled = false;
+};
+
+window._marcarEditorAlterado = (input) => {
+  const original = _editorEnderecosOriginal[input.dataset.id]?.[input.dataset.campo] ?? '';
+  const alterado = input.value !== original;
+  input.style.background     = alterado ? '#fffbeb' : '';
+  input.style.borderColor    = alterado ? '#f59e0b' : '';
+  _atualizarContadorEditor();
+};
+
+function _atualizarContadorEditor() {
+  const inputs = document.querySelectorAll('#editor-end-tabela input');
+  const ids = new Set();
+  inputs.forEach(inp => {
+    const original = _editorEnderecosOriginal[inp.dataset.id]?.[inp.dataset.campo] ?? '';
+    if (inp.value !== original) ids.add(inp.dataset.id);
+  });
+  const btn = document.getElementById('editor-end-salvar');
+  if (!btn) return;
+  btn.textContent = ids.size > 0
+    ? `💾 Salvar ${ids.size} registro${ids.size !== 1 ? 's' : ''} alterado${ids.size !== 1 ? 's' : ''}`
+    : '💾 Salvar';
+}
+
+window.aplicarSubstituicaoEndereco = () => {
+  const localizar   = document.getElementById('editor-end-localizar').value;
+  const substituir  = document.getElementById('editor-end-substituir').value;
+  if (!localizar) { mostrarToast('Digite o texto a localizar', 'erro'); return; }
+  const inputs = document.querySelectorAll('#editor-end-tabela input[data-campo="endereco"]');
+  let count = 0;
+  inputs.forEach(inp => {
+    if (inp.value.includes(localizar)) {
+      inp.value = inp.value.split(localizar).join(substituir);
+      window._marcarEditorAlterado(inp);
+      count++;
+    }
+  });
+  mostrarToast(count > 0
+    ? `✅ ${count} endereço${count !== 1 ? 's' : ''} atualizado${count !== 1 ? 's' : ''}`
+    : 'Nenhum endereço com esse texto', count > 0 ? 'sucesso' : '');
+};
+
+window.salvarEditorEnderecos = async () => {
+  const btn = document.getElementById('editor-end-salvar');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  const inputs = document.querySelectorAll('#editor-end-tabela input');
+  const alterados = {};
+  inputs.forEach(inp => {
+    const id      = inp.dataset.id;
+    const campo   = inp.dataset.campo;
+    const original = _editorEnderecosOriginal[id]?.[campo] ?? '';
+    if (inp.value !== original) {
+      if (!alterados[id]) alterados[id] = {};
+      alterados[id][campo] = inp.value;
+    }
+  });
+  const ids = Object.keys(alterados);
+  if (!ids.length) { mostrarToast('Nenhuma alteração para salvar'); btn.disabled = false; return; }
+  try {
+    for (let i = 0; i < ids.length; i += 20) {
+      const batch = writeBatch(db);
+      ids.slice(i, i + 20).forEach(id => batch.update(doc(db, 'domicilios', id), alterados[id]));
+      await batch.commit();
+    }
+    ids.forEach(id => {
+      const d = todosdomicilios.find(x => x.id === id);
+      if (d) { if (alterados[id].endereco !== undefined) d.endereco = alterados[id].endereco; if (alterados[id].complemento !== undefined) d.complemento = alterados[id].complemento; }
+      if (alterados[id].endereco    !== undefined) _editorEnderecosOriginal[id].endereco    = alterados[id].endereco;
+      if (alterados[id].complemento !== undefined) _editorEnderecosOriginal[id].complemento = alterados[id].complemento;
+    });
+    document.querySelectorAll('#editor-end-tabela input').forEach(inp => { inp.style.background = ''; inp.style.borderColor = ''; });
+    mostrarToast(`✅ ${ids.length} domicílio${ids.length !== 1 ? 's' : ''} salvo${ids.length !== 1 ? 's' : ''}`, 'sucesso');
+    btn.textContent = '💾 Salvar';
+  } catch(e) {
+    console.error(e);
+    mostrarToast('Erro ao salvar: ' + e.message, 'erro');
+    btn.textContent = '💾 Salvar';
+  }
+  btn.disabled = false;
+  _atualizarContadorEditor();
 };
 
 // ── ETIQUETAS DE ENDEREÇO (Pimaco 6181 — 2×7 = 14 por folha A4) ──
