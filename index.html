@@ -5342,9 +5342,10 @@ window.salvarLocalidadeUPA = async (upa, valor) => {
   }
 };
 
-const _NOMES_MES = {7:'Julho',8:'Agosto',9:'Setembro',10:'Outubro',11:'Novembro',12:'Dezembro'};
+const _NOMES_MES = {6:'Junho',7:'Julho',8:'Agosto',9:'Setembro',10:'Outubro',11:'Novembro',12:'Dezembro'};
 
 const _SEMANAS_CAL = {
+  6:  { 1:{cod:'C1M6', de:'06/06',ate:'12/06'}, 2:{cod:'C2M6', de:'13/06',ate:'19/06'}, 3:{cod:'C3M6', de:'21/06',ate:'27/06'}, 4:{cod:'C4M6', de:'28/06',ate:'04/07'} },
   7:  { 1:{cod:'C1M7', de:'05/07',ate:'11/07'}, 2:{cod:'C2M7', de:'12/07',ate:'18/07'}, 3:{cod:'C3M7', de:'19/07',ate:'25/07'}, 4:{cod:'C4M7', de:'26/07',ate:'01/08'} },
   8:  { 1:{cod:'C1M8', de:'09/08',ate:'15/08'}, 2:{cod:'C2M8', de:'16/08',ate:'22/08'}, 3:{cod:'C3M8', de:'23/08',ate:'29/08'}, 4:{cod:'C4M8', de:'30/08',ate:'05/09'} },
   9:  { 1:{cod:'C1M9', de:'06/09',ate:'12/09'}, 2:{cod:'C2M9', de:'13/09',ate:'19/09'}, 3:{cod:'C3M9', de:'20/09',ate:'26/09'}, 4:{cod:'C4M9', de:'27/09',ate:'03/10'} },
