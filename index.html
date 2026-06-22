@@ -5575,12 +5575,23 @@ window.cronToggleSemana = (sem) => {
 };
 
 function _buildCronSetores(mes, semana) {
-  if (!_amCache) { _cronSetores = []; return; }
   const seen = new Map();
-  _amCache.filter(r => Number(r.mes) === mes && Number(r.semana) === semana).forEach(r => {
-    const k = `${r.upa||''}|${r.codigo_controle||''}`;
-    if (!seen.has(k)) seen.set(k, r);
-  });
+  if (_amCache) {
+    _amCache.filter(r => Number(r.mes) === mes && Number(r.semana) === semana).forEach(r => {
+      const k = `${r.upa||''}|${r.codigo_controle||''}`;
+      if (!seen.has(k)) seen.set(k, r);
+    });
+  }
+  // Fallback: sem dados na amostra_mestra para este mês, usa domicílios em memória
+  if (seen.size === 0 && typeof todosdomicilios !== 'undefined' && todosdomicilios.length) {
+    todosdomicilios.filter(d => Number(d.semana) === semana).forEach(d => {
+      const upa = d.upa || '';
+      if (!upa) return;
+      const ctrl = d.controle || upa;
+      const k = `${upa}|${ctrl}`;
+      if (!seen.has(k)) seen.set(k, { upa, codigo_controle: ctrl, semana, mes, numero_entrevista: d.visita_etapa });
+    });
+  }
   const regs = [...seen.values()].sort((a,b) => (a.upa||'').localeCompare(b.upa||'') || (a.codigo_controle||'').localeCompare(b.codigo_controle||''));
   const porUpa = new Map();
   regs.forEach(r => { const k = r.upa||'—'; if (!porUpa.has(k)) porUpa.set(k, []); porUpa.get(k).push(r); });
@@ -5877,12 +5888,26 @@ function _cronRenderPainelMes(mes) {
 
   const ctrl4 = c => String(c||'').slice(-4);
   const porSemanaFinal = {};
-  _amCache.filter(r => Number(r.mes) === mes && r.semana).forEach(r => {
-    const s = Number(r.semana);
+  const _addAoPainel = (upa, ctrl, sem, etapa) => {
+    const s = Number(sem); if (!s) return;
     if (!porSemanaFinal[s]) porSemanaFinal[s] = new Map();
-    const k = `${r.upa||''}|${r.codigo_controle||''}`;
-    if (!porSemanaFinal[s].has(k)) porSemanaFinal[s].set(k, r);
-  });
+    const k = `${upa||''}|${ctrl||''}`;
+    if (!porSemanaFinal[s].has(k)) porSemanaFinal[s].set(k, { upa, codigo_controle: ctrl, semana: s, numero_entrevista: etapa });
+  };
+  let _amTemDados = false;
+  if (_amCache) {
+    _amCache.filter(r => Number(r.mes) === mes && r.semana).forEach(r => {
+      _addAoPainel(r.upa, r.codigo_controle, r.semana, r.numero_entrevista);
+      _amTemDados = true;
+    });
+  }
+  // Fallback: usa domicílios em memória quando não há amostra_mestra para este mês
+  if (!_amTemDados && typeof todosdomicilios !== 'undefined' && todosdomicilios.length) {
+    todosdomicilios.forEach(d => {
+      if (!d.upa) return;
+      _addAoPainel(d.upa, d.controle || d.upa, d.semana, d.visita_etapa);
+    });
+  }
 
   let acc = '';
 
