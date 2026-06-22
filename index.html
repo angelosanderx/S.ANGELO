@@ -8501,7 +8501,7 @@ function _refreshIconeMapa(domId) {
   const cor = sel ? '#1d4ed8' : info.cor;
   const ring = sel ? 'outline:3px solid #60a5fa;outline-offset:1px;' : '';
   const html = info.isAlvo
-    ? `<div style="background:${cor};color:white;border:3px solid white;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;box-shadow:0 3px 6px rgba(0,0,0,0.5);${ring}">🎯</div>`
+    ? `<div style="position:relative;width:36px;height:36px"><div style="background:${cor};color:white;border:3px solid #fbbf24;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;box-shadow:0 3px 6px rgba(0,0,0,0.5);${ring}">${info.domLabel}</div><div style="position:absolute;top:-5px;right:-5px;font-size:12px;line-height:1">🎯</div></div>`
     : `<div style="background:${cor};color:white;border:2px solid white;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;box-shadow:0 2px 4px rgba(0,0,0,0.3);${ring}">${info.domLabel}</div>`;
   const sz = info.isAlvo ? 36 : 26;
   info.marker.setIcon(window.L.divIcon({ html, className: '', iconSize: [sz, sz], iconAnchor: [sz/2, sz/2] }));
@@ -8691,14 +8691,14 @@ function renderizarMapaRoteiro(alvo, anteriores, posteriores, setor, corAlvo, do
 
     // Pin do alvo
     const iconAlvo = window.L.divIcon({
-      html: '<div style="background:' + corAlvo + ';color:white;border:3px solid white;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;box-shadow:0 3px 6px rgba(0,0,0,0.5)">🎯</div>',
+      html: '<div style="position:relative;width:36px;height:36px"><div style="background:' + corAlvo + ';color:white;border:3px solid #fbbf24;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;box-shadow:0 3px 6px rgba(0,0,0,0.5)">' + domNum + '</div><div style="position:absolute;top:-5px;right:-5px;font-size:12px;line-height:1">🎯</div></div>',
       className: '', iconSize: [36, 36], iconAnchor: [18, 18]
     });
     const markerAlvo = window.L.marker([latAlvo, lngAlvo], { icon: iconAlvo });
     markerAlvo.bindPopup('<strong>🎯 ALVO — Dom. ' + domNum + '</strong><br>' + (domAtual?.endereco || '') +
       montarSeletorAtribuicao(domAtual?.id, domAtual?.entrevistador_id, domAtual?.entrevistador_nome));
     if (domAtual?.id) {
-      _mapaMarkers[domAtual.id] = { marker: markerAlvo, cor: corAlvo, isAlvo: true, domLabel: '🎯' };
+      _mapaMarkers[domAtual.id] = { marker: markerAlvo, cor: corAlvo, isAlvo: true, domLabel: String(domNum) };
       markerAlvo.on('popupopen', () => {
         if (_modoSelecaoAtivo) { markerAlvo.closePopup(); _toggleSelecaoMapa(domAtual.id); }
       });
