@@ -1461,6 +1461,19 @@
           <hr class="divisor-secao" style="margin:1.5rem 0">
 
           <p style="font-size:0.85rem;color:var(--cinza-escuro);margin-bottom:0.75rem">
+            <strong>Sincronizar status pelo histórico de espécies.</strong> Verifica todos os domicílios
+            onde o <code>historico_especies</code> da etapa atual indica um resultado final (Uso Ocasional,
+            Vago, Realizada, etc.) mas o <code>status_atual</code> está desatualizado. Corrige apenas os
+            casos onde o histórico aponta um status terminal diferente do registrado.
+          </p>
+          <button class="btn-acao" onclick="sincronizarStatusHistorico()">
+            🔄 Sincronizar status do histórico
+          </button>
+          <div id="sync-status-hist" style="margin-top:0.85rem;font-size:0.85rem"></div>
+
+          <hr class="divisor-secao" style="margin:1.5rem 0">
+
+          <p style="font-size:0.85rem;color:var(--cinza-escuro);margin-bottom:0.75rem">
             <strong>Limpar todas as solicitações.</strong> Remove o campo <code>solicitacoes</code>
             e <code>tipo_solicitacao</code> de <em>todos</em> os domicílios. Domicílios cujo status
             seja <code>supervisao</code> ou <code>carta_solicitada</code> voltam para
@@ -6488,6 +6501,75 @@ window.limparEntrevistadorHistorico = async () => {
   } catch (e) {
     console.error(e);
     statusDiv.innerHTML = '<div style="color:var(--vermelho);font-weight:600">❌ Erro ao executar a limpeza. Veja o console.</div>';
+  }
+};
+
+// ── MANUTENÇÃO: sincronizar status_atual pelo historico_especies ──
+window.sincronizarStatusHistorico = async () => {
+  if (perfilLogado.perfil !== 'administrador') {
+    mostrarToast('Apenas administradores podem executar esta ação', 'erro'); return;
+  }
+  const statusDiv = document.getElementById('sync-status-hist');
+  statusDiv.innerHTML = '<span style="color:var(--azul)">🔄 Verificando domicílios…</span>';
+
+  const RESULTADO_PARA_STATUS = (res) => {
+    const r = (res || '').toLowerCase();
+    if (/realizada/.test(r))            return 'realizada';
+    if (/recusa/.test(r))               return 'recusa';
+    if (/ausente/.test(r))              return 'ausente';
+    if (/fechado/.test(r))              return 'fechado';
+    if (/ocasional|sazon/.test(r))      return 'uso_ocasional';
+    if (/vago|desocupado|outros/.test(r)) return 'vago';
+    return null;
+  };
+
+  // Apenas esses status são terminais — sobrepõem status_atual desatualizado
+  const STATUS_TERMINAIS = new Set(['realizada','uso_ocasional','vago','recusa','ausente','fechado']);
+
+  try {
+    const snap = await getDocs(collection(db, 'domicilios'));
+    let corrigidos = 0, erros = 0;
+    const updates = [];
+
+    snap.forEach(docSnap => {
+      const d = docSnap.data();
+      const etapaAtual = String(d.visita_etapa || '');
+      if (!etapaAtual) return;
+
+      const histAtual = (d.historico_especies || []).find(h => String(h.entrevista) === etapaAtual);
+      if (!histAtual) return;
+
+      const statusEsperado = RESULTADO_PARA_STATUS(histAtual.resultado);
+      if (!statusEsperado) return;                            // resultado sem mapeamento
+      if (d.status_atual === statusEsperado) return;         // já correto
+      if (!STATUS_TERMINAIS.has(statusEsperado)) return;     // não é terminal
+
+      updates.push({ ref: docSnap.ref, statusEsperado, id: docSnap.id, anterior: d.status_atual });
+    });
+
+    if (updates.length === 0) {
+      statusDiv.innerHTML = '<span style="color:var(--verde);font-weight:600">✅ Nenhuma inconsistência encontrada.</span>';
+      return;
+    }
+
+    statusDiv.innerHTML = `<span style="color:var(--azul)">🔄 Corrigindo ${updates.length} domicílio(s)…</span>`;
+
+    for (const u of updates) {
+      try {
+        await updateDoc(u.ref, { status_atual: u.statusEsperado });
+        corrigidos++;
+      } catch(e) {
+        console.error('Erro ao atualizar', u.id, e);
+        erros++;
+      }
+    }
+
+    statusDiv.innerHTML = `<span style="color:var(--verde);font-weight:600">✅ ${corrigidos} domicílio(s) corrigido(s)${erros ? ` · ${erros} erro(s)` : ''}.</span>`;
+    mostrarToast(`${corrigidos} status sincronizado(s)`, 'sucesso');
+    await carregarDomicilios();
+  } catch(e) {
+    console.error(e);
+    statusDiv.innerHTML = '<span style="color:var(--vermelho);font-weight:600">❌ Erro ao executar. Veja o console.</span>';
   }
 };
 
