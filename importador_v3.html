@@ -568,14 +568,23 @@ function processarDados() {
     }
 
     // Status
-    const posicao = (row['ÚltimaPosição'] || '').toLowerCase();
+    const posicao = (row['ÚltimaPosição'] || row['UltimaPosicao'] || row['Ultima Posicao'] || row['Última Posição'] || '').toLowerCase();
     let status = 'nao_visitado';
     if (posicao.includes('codificado')) status = 'realizada';
     else if (posicao.includes('reentrevista')) status = 'agendado';
-    else if (posicao.includes('parcialmente')) status = 'ausente';
+    else if (posicao.includes('parcialmente') || posicao.includes('parcial')) status = 'ausente';
     else if (posicao.includes('recusa')) status = 'recusa';
-    else if (posicao.includes('carta')) status = 'carta_solicitada';
-    else if (posicao.includes('vago') || posicao.includes('inapt')) status = 'vago';
+    // Fechado temporariamente = ainda precisa de visita (pendência)
+    else if (posicao.includes('fechado')) status = 'fechado';
+    // Uso ocasional/sazonal = não é pendência, mas foi visitado
+    else if (posicao.includes('ocasional') || posicao.includes('sazon')) status = 'uso_ocasional';
+    // Vago/inapto/demolido/inexistente/comercial = unidade inelegível, não é pendência
+    else if (
+      posicao.includes('vago')    || posicao.includes('inapt')   ||
+      posicao.includes('demoli')  || posicao.includes('destrui') ||
+      posicao.includes('inexist') || posicao.includes('não resid') ||
+      posicao.includes('comerci')
+    ) status = 'vago';
 
     // Monta histórico de espécies
     // Regra: o nome do entrevistador só é gravado na etapa que corresponde à
@@ -768,6 +777,69 @@ async function importarFirestore() {
   addLog(`Iniciando importação de ${dadosProcessados.length} domicílios...`, 'info');
   let ok = 0, erros = 0;
 
+  // ── Pré-busca de historico_especies existente (batchGet) ──────────────────
+  // Lê todos os documentos que serão atualizados de uma vez, para poder mesclar
+  // o histórico novo com o existente sem perder etapas de trimestres anteriores
+  // nem nomes de entrevistadores gravados pela planilha xlsx.
+  addLog('Lendo histórico existente no Firestore…', 'info');
+  const _existingHistorico = {};
+  const _baseDocPath = `projects/${projectId}/databases/(default)/documents/domicilios/`;
+  const _allDocIds = dadosProcessados.map(d => `${d.periodo}_${d.controle}_${d.domicilio_num}`);
+  const _chunkSize = 200;
+  for (let c = 0; c < _allDocIds.length; c += _chunkSize) {
+    const chunk = _allDocIds.slice(c, c + _chunkSize);
+    try {
+      const br = await fetch(
+        `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:batchGet`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ documents: chunk.map(id => _baseDocPath + id) }) }
+      );
+      if (br.ok) {
+        const items = await br.json();
+        for (const item of items) {
+          if (!item.found) continue;
+          const docId = item.found.name.split('/').pop();
+          const fld = (item.found.fields || {}).historico_especies;
+          if (fld && fld.arrayValue && fld.arrayValue.values) {
+            _existingHistorico[docId] = fld.arrayValue.values.map(v => {
+              const f = v.mapValue?.fields || {};
+              return {
+                entrevista:    f.entrevista?.stringValue    || '',
+                resultado:     f.resultado?.stringValue     || '',
+                entrevistador: f.entrevistador?.stringValue || '',
+                mes_ano:       f.mes_ano?.stringValue       || '',
+              };
+            });
+          }
+        }
+      }
+    } catch(_e) { /* continua mesmo sem pré-leitura */ }
+  }
+
+  // Mescla historico_especies novo com existente:
+  // - Preserva etapas de trimestres anteriores que não vieram no CSV atual
+  // - Preserva entrevistador se já estava preenchido (não substitui por 'Não identificado')
+  // - Atualiza o resultado e mes_ano com o que veio do CSV
+  function _mesclarEspecies(novos, existentes) {
+    const base = (existentes || []).map(h => ({ ...h }));
+    const entrValido = e => e && e !== 'Não identificado' && e !== 'Não informado';
+    for (const nova of novos) {
+      const idx = base.findIndex(h => String(h.entrevista) === String(nova.entrevista));
+      if (idx >= 0) {
+        base[idx] = {
+          entrevista:    nova.entrevista,
+          resultado:     nova.resultado     || base[idx].resultado || '',
+          entrevistador: entrValido(base[idx].entrevistador) ? base[idx].entrevistador : (nova.entrevistador || ''),
+          mes_ano:       base[idx].mes_ano  || nova.mes_ano   || '',
+        };
+      } else {
+        base.push(nova);
+      }
+    }
+    return base.sort((a, b) => parseInt(a.entrevista) - parseInt(b.entrevista));
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   for (let i = 0; i < dadosProcessados.length; i++) {
     const d = dadosProcessados[i];
     const docId = `${d.periodo}_${d.controle}_${d.domicilio_num}`;
@@ -781,7 +853,7 @@ async function importarFirestore() {
       'upa','controle','municipio','domicilio_num','semana','visita_etapa',
       'tipo_entrevista','ultima_posicao','observacao_ibge','endereco','localidade',
       'cep','morador','telefone','latitude','longitude','painel','trimestre',
-      'periodo','status_atual','entrevistador_nome','tentativas_count',
+      'periodo','status_atual',
     ];
 
     const fields = {
@@ -805,13 +877,19 @@ async function importarFirestore() {
       trimestre:         toStr(d.trimestre),
       periodo:           toStr(d.periodo),
       status_atual:      toStr(d.status_atual),
-      entrevistador_nome:toStr(d.entrevistador_nome),
-      tentativas_count:  toInt(d.tentativas_count),
     };
 
-    // Adiciona histórico de espécies e telefones como arrays (apenas quando o CSV foi carregado)
+    // Campos opcionais: só entram no PATCH se o arquivo correspondente foi carregado,
+    // evitando apagar dados já gravados por importações anteriores ou pelo app.
     const maskFields = [...baseFieldNames];
-    if (d.historico_especies.length > 0) { fields.historico_especies = toArr(d.historico_especies); maskFields.push('historico_especies'); }
+    const tentativasCarregadas = Object.keys(dados.tentativas).length > 0;
+    if (tentativasCarregadas) {
+      fields.entrevistador_nome = toStr(d.entrevistador_nome);
+      fields.tentativas_count   = toInt(d.tentativas_count);
+      maskFields.push('entrevistador_nome', 'tentativas_count');
+    }
+    const _especiesMesclado = _mesclarEspecies(d.historico_especies, _existingHistorico[docId] || []);
+    if (_especiesMesclado.length > 0) { fields.historico_especies = toArr(_especiesMesclado); maskFields.push('historico_especies'); }
     if (d.historico_telefones.length > 0) { fields.historico_telefones = toArr(d.historico_telefones); maskFields.push('historico_telefones'); }
     if (d.tentativas.length > 0) { fields.tentativas_recentes = toArr(d.tentativas.slice(-3)); maskFields.push('tentativas_recentes'); }
 

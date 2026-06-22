@@ -1069,6 +1069,7 @@
               <div style="display:flex;gap:0.3rem;flex-wrap:wrap">
                 <button class="filtro-chip" data-grupo="status" data-val="nao_visitado" onclick="toggleChipPend(this)">Não visitado</button>
                 <button class="filtro-chip" data-grupo="status" data-val="ausente" onclick="toggleChipPend(this)">Ausente</button>
+                <button class="filtro-chip" data-grupo="status" data-val="fechado" onclick="toggleChipPend(this)">Fechado</button>
                 <button class="filtro-chip" data-grupo="status" data-val="agendado" onclick="toggleChipPend(this)">Agendado</button>
                 <button class="filtro-chip" data-grupo="status" data-val="recusa" onclick="toggleChipPend(this)">Recusa</button>
                 <button class="filtro-chip" data-grupo="status" data-val="carta_solicitada" onclick="toggleChipPend(this)">Carta solicitada</button>
@@ -1169,12 +1170,14 @@
             <option value="">Todos os status</option>
             <option value="nao_visitado">Não visitado</option>
             <option value="ausente">Ausente</option>
+            <option value="fechado">Fechado</option>
             <option value="agendado">Agendado</option>
             <option value="realizada">Realizada</option>
             <option value="recusa">Recusa</option>
             <option value="carta_solicitada">Carta solicitada</option>
             <option value="supervisao">Supervisão necessária</option>
             <option value="vago">Vago/Inapto</option>
+            <option value="uso_ocasional">Uso Ocasional</option>
           </select>
           <select id="filtro-solicitacao" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
             <option value="">Todas as solicitações</option>
@@ -2421,15 +2424,17 @@ window.mudarPeriodo = async (valor) => {
 const STATUS = {
   nao_visitado:     { label: "Não visitado",      cor: "badge-cinza",    bg: "#f1f5f9", fg: "#64748b" },
   ausente:          { label: "Ausente",            cor: "badge-amarelo",  bg: "#fffbeb", fg: "#b45309" },
+  fechado:          { label: "Fechado",            cor: "badge-laranja",  bg: "#fff7ed", fg: "#c2410c" },
   agendado:         { label: "Agendado",           cor: "badge-azul",     bg: "#e8f0fb", fg: "#2563a8" },
   realizada:        { label: "Realizada",          cor: "badge-verde",    bg: "#e6f4ed", fg: "#1a7a4a" },
   recusa:           { label: "Recusa",             cor: "badge-vermelho", bg: "#fef2f2", fg: "#b91c1c" },
   carta_solicitada: { label: "Carta solicitada",   cor: "badge-azul",     bg: "#e8f0fb", fg: "#2563a8" },
   supervisao:       { label: "Supervisão",         cor: "badge-azul",     bg: "#e8f0fb", fg: "#2563a8" },
   vago:             { label: "Vago/Inapto",        cor: "badge-cinza",    bg: "#f1f5f9", fg: "#64748b" },
+  uso_ocasional:    { label: "Uso Ocasional",      cor: "badge-cinza",    bg: "#f1f5f9", fg: "#64748b" },
 };
 // Status que representam pendências reais de visita
-const STATUS_PENDENTES = ['nao_visitado', 'ausente', 'recusa', 'agendado'];
+const STATUS_PENDENTES = ['nao_visitado', 'ausente', 'fechado', 'recusa', 'agendado'];
 
 function badgeStatus(s) {
   const st = STATUS[s] || STATUS.nao_visitado;
@@ -3180,9 +3185,9 @@ window.gerarCartoes = async (idsOverride, tableId) => {
   };
 
   const STATUS_LABEL = {
-    nao_visitado: 'Não visitado', ausente: 'Ausente', agendado: 'Agendado',
+    nao_visitado: 'Não visitado', ausente: 'Ausente', fechado: 'Fechado', agendado: 'Agendado',
     realizada: 'Realizada', recusa: 'Recusa', carta_solicitada: 'Carta solicitada',
-    supervisao: 'Supervisão', vago: 'Vago/Inapto',
+    supervisao: 'Supervisão', vago: 'Vago/Inapto', uso_ocasional: 'Uso Ocasional',
   };
 
   const montarCartao = (d) => {
@@ -3462,9 +3467,9 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
   const entrevistadorNome = Object.keys(entrCount).sort((a,b) => entrCount[b]-entrCount[a])[0] || '—';
 
   const STATUS_ABREV = {
-    nao_visitado:'NÃO VISITADO', ausente:'AUSENTE', agendado:'AGENDADO',
+    nao_visitado:'NÃO VISITADO', ausente:'AUSENTE', fechado:'FECHADO', agendado:'AGENDADO',
     realizada:'REALIZADA', recusa:'RECUSA', carta_solicitada:'CARTA SOLIC.',
-    supervisao:'SUPERVISÃO', vago:'VAGO/INAPTO',
+    supervisao:'SUPERVISÃO', vago:'VAGO/INAPTO', uso_ocasional:'USO OCASIONAL',
   };
   const MINUSC = new Set(['de','da','do','das','dos','e','em','a','o','ao','à','na','no','nas','nos','por','pelo','pela']);
   const tc = s => s ? s.trim().toLowerCase().split(/\s+/).map((w,i)=>(i===0||!MINUSC.has(w))?w[0].toUpperCase()+w.slice(1):w).join(' ') : '';
@@ -3843,17 +3848,21 @@ ${paginas}
 };
 
 // Helper compartilhado: monta uma <tr> de domicílio. ns = namespace de IDs ('' para tabela principal, 'pd-' para painel dashboard)
-function _badgeEntrevistador(nome) {
+function _badgeEntrevistador(nome, nomeManual = null) {
   if (!nome) return '<span style="color:var(--cinza);font-style:italic;font-size:0.78rem">—</span>';
   const c = corEntrevistador(nome);
   const primeiro = toTitleCase(nome.split(' ')[0]);
-  return `<span class="cron-chip" style="color:${c};background:${c}22;border:1px solid ${c}55">${primeiro}</span>`;
+  const conflito = nomeManual && nomeManual !== nome;
+  const ast = conflito
+    ? `<span style="color:var(--laranja);font-size:0.7rem;margin-left:2px;cursor:help;vertical-align:super;line-height:1" title="Importação alterou o nome (anterior: ${nomeManual})">✱</span>`
+    : '';
+  return `<span class="cron-chip" style="color:${c};background:${c}22;border:1px solid ${c}55">${primeiro}</span>${ast}`;
 }
 
 function _montarLinhaDOM(d, ns = '') {
   const setor = d.controle ? d.controle.slice(0,-1) : (d.upa || '-');
   const nomeEntr = d.entrevistador_nome
-    ? _badgeEntrevistador(d.entrevistador_nome)
+    ? _badgeEntrevistador(d.entrevistador_nome, d.entrevistador_nome_manual || null)
     : (d.entrevistador_id ? '...' : '<span style="color:var(--cinza);font-style:italic">—</span>');
   const _esp = (d.historico_especies || []).slice().sort((a,b) => parseInt(a.entrevista)-parseInt(b.entrevista));
   const _eta = parseInt(d.visita_etapa || 0);
@@ -4164,15 +4173,19 @@ window.filtrarPendencias = () => {
 };
 
 function renderizarPaginaPendencias() {
-  // Popula dropdown de setor (apenas na primeira vez)
+  // Popula dropdown de setor (sempre atualiza para refletir novos dados importados)
   const setorSel = document.getElementById('pend-filtro-setor');
-  if (setorSel && setorSel.options.length <= 1) {
+  if (setorSel) {
+    const valorAtual = setorSel.value;
     const setores = [...new Set(todosdomicilios.map(d => d.controle ? d.controle.slice(0,-1) : d.upa).filter(Boolean))].sort();
+    while (setorSel.options.length > 1) setorSel.remove(1);
     setores.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = `Setor ${s}`; setorSel.appendChild(o); });
+    setorSel.value = valorAtual;
   }
-  // Popula lista de entrevistadores (apenas na primeira vez)
+  // Popula lista de entrevistadores (sempre atualiza para refletir novos dados importados)
   const ddEntr = document.getElementById('pend-entr-dropdown');
-  if (ddEntr && ddEntr.children.length === 0) {
+  if (ddEntr) {
+    const selecionados = new Set([...ddEntr.querySelectorAll('input:checked')].map(c => c.value));
     const nomesMapPend = new Map();
     todosdomicilios.forEach(d => {
       if (!d.entrevistador_nome) return;
@@ -4183,9 +4196,14 @@ function renderizarPaginaPendencias() {
     const entrs = [...nomesMapPend.values()].sort();
     ddEntr.innerHTML = entrs.map(nome =>
       `<label style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.8rem;cursor:pointer;font-size:0.83rem" onmouseenter="this.style.background='var(--cinza-claro)'" onmouseleave="this.style.background=''">
-        <input type="checkbox" value="${nome}" onchange="atualizarFiltroEntrPend()"> ${nome}
+        <input type="checkbox" value="${nome}" ${selecionados.has(nome) ? 'checked' : ''} onchange="atualizarFiltroEntrPend()"> ${nome}
       </label>`
     ).join('');
+    // Sincroniza o estado interno com as seleções preservadas
+    const novaSel = [...ddEntr.querySelectorAll('input:checked')].map(c => c.value);
+    _pendFiltros.entrevistadores = new Set(novaSel);
+    const lbl = document.getElementById('pend-entr-label');
+    if (lbl) lbl.textContent = novaSel.length === 0 ? 'Todos os entrevistadores' : `${novaSel.length} selecionado${novaSel.length > 1 ? 's' : ''}`;
   }
   filtrarPendencias();
 }
@@ -4209,7 +4227,10 @@ window.abrirFicha = (id) => {
   document.getElementById('ficha-endereco').textContent = dom.endereco || '—';
   document.getElementById('ficha-complemento').textContent = dom.complemento || '—';
   document.getElementById('ficha-morador-cnefe').textContent = dom.morador_cnefe || dom.morador || '—';
-  document.getElementById('ficha-entrevistador').textContent = dom.entrevistador_nome || 'Não atribuído';
+  const _fichaConflito = dom.entrevistador_nome_manual && dom.entrevistador_nome_manual !== dom.entrevistador_nome;
+  document.getElementById('ficha-entrevistador').innerHTML = dom.entrevistador_nome
+    ? (dom.entrevistador_nome + (_fichaConflito ? ` <span style="color:var(--laranja);cursor:help;font-size:0.8rem" title="Importação alterou o nome (anterior: ${dom.entrevistador_nome_manual})">✱</span>` : ''))
+    : 'Não atribuído';
 
   // ── HISTÓRICO UNIFICADO: etapas + entrevistador + telefone + observação ──
   const divUnif = document.getElementById('historico-unificado-ficha');
@@ -4610,19 +4631,20 @@ window.atribuirSelecionados = async () => {
     for (const id of selecionados) {
       await updateDoc(doc(db, 'domicilios', id), {
         entrevistador_id: novoId,
-        entrevistador_nome: novoNome
+        entrevistador_nome: novoNome,
+        entrevistador_nome_manual: novoNome
       });
-      
+
       // Atualiza localmente no array
       const dom = todosdomicilios.find(d => d.id === id);
-      if (dom) { dom.entrevistador_id = novoId; dom.entrevistador_nome = novoNome; }
-      
-      // Atualiza visual da linha na Coluna 5
+      if (dom) { dom.entrevistador_id = novoId; dom.entrevistador_nome = novoNome; dom.entrevistador_nome_manual = novoNome; }
+
+      // Atualiza visual da linha na Coluna 5 (sem asterisco — acabou de ser atribuído manualmente)
       const cel = document.querySelector(`#row-${id} td:nth-child(5)`);
       if (cel) {
         cel.innerHTML = isRemover
           ? '<span style="color:var(--cinza);font-style:italic;font-size:0.78rem">Não atribuído</span>'
-          : _badgeEntrevistador(novoNome);
+          : _badgeEntrevistador(novoNome, novoNome);
       }
     }
     desmarcarTodos();
@@ -4687,7 +4709,7 @@ window.abrirVisita = (id, endereco) => {
 
   const grid = document.getElementById('status-grid');
   grid.innerHTML = '';
-  for (const key of ['nao_visitado', 'ausente', 'agendado', 'realizada', 'recusa', 'vago']) {
+  for (const key of ['nao_visitado', 'ausente', 'fechado', 'agendado', 'realizada', 'recusa', 'vago', 'uso_ocasional']) {
     const val = STATUS[key];
     const btn = document.createElement('button');
     btn.className = 'status-btn';
@@ -7561,15 +7583,16 @@ window.atribuirEntrevistadorMapa = async (domId) => {
   try {
     await updateDoc(doc(db, 'domicilios', domId), {
       entrevistador_id: novoId,
-      entrevistador_nome: novoNome
+      entrevistador_nome: novoNome,
+      entrevistador_nome_manual: novoNome
     });
     const dom = todosdomicilios.find(d => d.id === domId);
-    if (dom) { dom.entrevistador_id = novoId; dom.entrevistador_nome = novoNome; }
+    if (dom) { dom.entrevistador_id = novoId; dom.entrevistador_nome = novoNome; dom.entrevistador_nome_manual = novoNome; }
     mostrarToast(novoNome ? 'Atribuído a ' + novoNome : 'Atribuição removida', 'sucesso');
     preencherFiltroEntrevistador();
-    // Atualiza a linha da lista de domicílios, se estiver visível
+    // Atualiza a linha da lista de domicílios, se estiver visível (sem asterisco — atribuição manual)
     const cel = document.querySelector(`#row-${domId} td:nth-child(5)`);
-    if (cel) cel.innerHTML = novoNome ? _badgeEntrevistador(novoNome) : '<span style="color:var(--cinza);font-style:italic;font-size:0.78rem">Não atribuído</span>';
+    if (cel) cel.innerHTML = novoNome ? _badgeEntrevistador(novoNome, novoNome) : '<span style="color:var(--cinza);font-style:italic;font-size:0.78rem">Não atribuído</span>';
     // Recarrega a ficha (e o roteiro/mapa) para refletir a nova cor do pin
     if (typeof window.abrirFicha === 'function' && domicilioAtualId) window.abrirFicha(domicilioAtualId);
   } catch(e) {
@@ -8230,8 +8253,10 @@ window.processarCentralSIGC = async () => {
     const tipoLower = (entrevista.tipo || '').toLowerCase();
     if (tipoLower.includes('realizada'))                             status_atual = 'realizada';
     else if (tipoLower.includes('recusa'))                           status_atual = 'recusa';
-    else if (tipoLower.includes('ausente') || tipoLower.includes('fechado')) status_atual = 'ausente';
-    else if (/vago|ocasional|desocupado|outros/i.test(tipoLower))   status_atual = 'vago';
+    else if (tipoLower.includes('ausente'))                          status_atual = 'ausente';
+    else if (tipoLower.includes('fechado'))                          status_atual = 'fechado';
+    else if (/ocasional|sazon/i.test(tipoLower))                    status_atual = 'uso_ocasional';
+    else if (/vago|desocupado|outros/i.test(tipoLower))             status_atual = 'vago';
 
     // NOVA LÓGICA DE HISTÓRICO
     let historico_atualizado = targetDoc.historico_especies || [];
