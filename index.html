@@ -2777,7 +2777,7 @@ function _domFiltradosSemUpaSetor() {
     if (semana && d.semana !== semana) return false;
     if (etapa  && String(d.visita_etapa || '') !== etapa) return false;
     if (entrevistador === '__sem__' && d.entrevistador_nome) return false;
-    if (entrevistador && entrevistador !== '__sem__' && (d.entrevistador_nome||'').toLowerCase() !== entrevistador.toLowerCase()) return false;
+    if (entrevistador && entrevistador !== '__sem__' && !_entrevistadorCorresponde(d.entrevistador_nome, entrevistador)) return false;
     if (status && (d.status_atual || 'nao_visitado') !== status) return false;
     if (solicitacao) {
       const temNaLista = (d.solicitacoes || []).some(s => s.tipo === solicitacao);
@@ -2826,15 +2826,24 @@ function _atualizarDropdownsUpaSetor() {
   selSetor.value = setores.includes(setorAtual) ? setorAtual : '';
 }
 
-function preencherFiltroEntrevistador() {
+async function preencherFiltroEntrevistador() {
   const sel = document.getElementById('filtro-entrevistador');
   if (!sel) return;
   const val = toTitleCase(sel.value);
-  const nomesMap = new Map();
+  if (!entrevistadoresCache) {
+    try {
+      const snap = await getDocs(query(collection(db, 'usuarios'), where('perfil', '==', 'entrevistador')));
+      entrevistadoresCache = snap.docs.map(d => ({ id: d.id, nome: d.data().nome }));
+    } catch(e) { entrevistadoresCache = []; }
+  }
+  // Para cada nome encontrado nos domicílios, usa o nome cadastrado se houver correspondência
+  const nomesMap = new Map(); // key: canonical lowercase → display
   todosdomicilios.forEach(d => {
     if (!d.entrevistador_nome) return;
-    const key = d.entrevistador_nome.trim().toLowerCase();
-    if (!nomesMap.has(key)) nomesMap.set(key, toTitleCase(d.entrevistador_nome));
+    const registrado = entrevistadoresCache.find(u => nomesCorrespondem(u.nome, d.entrevistador_nome));
+    const canonical = toTitleCase(registrado ? registrado.nome : d.entrevistador_nome);
+    const key = canonical.toLowerCase();
+    if (!nomesMap.has(key)) nomesMap.set(key, canonical);
   });
   const nomes = [...nomesMap.values()].sort();
   const semAtribuicao = todosdomicilios.some(d => !d.entrevistador_nome);
@@ -2888,7 +2897,7 @@ window.filtrarDomicilios = () => {
     if (semana && d.semana !== semana) return false;
     if (etapa && String(d.visita_etapa || '') !== etapa) return false;
     if (entrevistador === '__sem__' && d.entrevistador_nome) return false;
-    if (entrevistador && entrevistador !== '__sem__' && (d.entrevistador_nome||'').toLowerCase() !== entrevistador.toLowerCase()) return false;
+    if (entrevistador && entrevistador !== '__sem__' && !_entrevistadorCorresponde(d.entrevistador_nome, entrevistador)) return false;
     const status = document.getElementById('filtro-status').value;
     if (status && (d.status_atual || 'nao_visitado') !== status) return false;
     if (solicitacao) {
@@ -4067,7 +4076,7 @@ window.filtrarPendencias = () => {
     // Etapa
     if (_pendFiltros.etapas.size > 0 && !_pendFiltros.etapas.has(String(d.visita_etapa || ''))) return false;
     // Entrevistador
-    if (_pendFiltros.entrevistadores.size > 0 && ![..._pendFiltros.entrevistadores].some(e => e.toLowerCase() === (d.entrevistador_nome||'').toLowerCase())) return false;
+    if (_pendFiltros.entrevistadores.size > 0 && ![..._pendFiltros.entrevistadores].some(e => _entrevistadorCorresponde(d.entrevistador_nome, e))) return false;
     // Setor
     if (setor) { const sd = d.controle ? d.controle.slice(0,-1) : (d.upa || ''); if (sd !== setor && d.upa !== setor) return false; }
     // Intervalo de data da tentativa
@@ -4153,8 +4162,9 @@ function renderizarPaginaPendencias() {
     const nomesMapPend = new Map();
     todosdomicilios.forEach(d => {
       if (!d.entrevistador_nome) return;
-      const key = d.entrevistador_nome.trim().toLowerCase();
-      if (!nomesMapPend.has(key)) nomesMapPend.set(key, toTitleCase(d.entrevistador_nome));
+      const registrado = (entrevistadoresCache||[]).find(u => nomesCorrespondem(u.nome, d.entrevistador_nome));
+      const canonical = toTitleCase(registrado ? registrado.nome : d.entrevistador_nome);
+      if (!nomesMapPend.has(canonical.toLowerCase())) nomesMapPend.set(canonical.toLowerCase(), canonical);
     });
     const entrs = [...nomesMapPend.values()].sort();
     ddEntr.innerHTML = entrs.map(nome =>
@@ -6692,8 +6702,9 @@ async function carregarTentativas() {
     const nomesMapTent = new Map();
     todasTentativas.forEach(t => {
       if (!t.entrevistador_nome) return;
-      const key = t.entrevistador_nome.trim().toLowerCase();
-      if (!nomesMapTent.has(key)) nomesMapTent.set(key, toTitleCase(t.entrevistador_nome));
+      const registrado = (entrevistadoresCache||[]).find(u => nomesCorrespondem(u.nome, t.entrevistador_nome));
+      const canonical = toTitleCase(registrado ? registrado.nome : t.entrevistador_nome);
+      if (!nomesMapTent.has(canonical.toLowerCase())) nomesMapTent.set(canonical.toLowerCase(), canonical);
     });
     const entrevistadores = [...nomesMapTent.values()].sort();
     const sel = document.getElementById('tent-filtro-entrevistador');
@@ -6714,14 +6725,14 @@ async function carregarTentativas() {
 }
 
 window.filtrarTentativas = () => {
-  const entr = (document.getElementById('tent-filtro-entrevistador')?.value || '').toLowerCase();
+  const entr = document.getElementById('tent-filtro-entrevistador')?.value || '';
   const sem = document.getElementById('tent-filtro-semana')?.value || '';
   const orig = document.getElementById('tent-filtro-origem')?.value || '';
   const pendentes = document.getElementById('tent-filtro-pendentes')?.value || '';
   const q = (document.getElementById('tent-busca')?.value || '').toLowerCase();
 
   const filtradas = todasTentativas.filter(t => {
-    if (entr && !(t.entrevistador_nome || '').toLowerCase().includes(entr)) return false;
+    if (entr && !_entrevistadorCorresponde(t.entrevistador_nome, entr)) return false;
     if (sem && t.semana !== sem) return false;
     if (orig && (t.origem || '') !== orig) return false;
     if (pendentes === 'pendentes' && t.status_atual_domicilio === 'realizada') return false;
@@ -6895,6 +6906,14 @@ function nomesCorrespondem(nomeCadastrado, nomeImportado) {
 // retorna o ID do entrevistador cadastrado que corresponde, ou null se nenhum bater.
 // Se mais de um entrevistador corresponder ao mesmo nome importado, retorna null
 // (ambíguo) em vez de arriscar vincular à pessoa errada.
+function _entrevistadorCorresponde(domNome, filtroCanonical) {
+  if (!filtroCanonical || filtroCanonical === '__sem__') return true;
+  if (!domNome) return false;
+  if (domNome.toLowerCase() === filtroCanonical.toLowerCase()) return true;
+  const registrado = (entrevistadoresCache||[]).find(u => toTitleCase(u.nome) === filtroCanonical);
+  return registrado ? nomesCorrespondem(registrado.nome, domNome) : false;
+}
+
 function encontrarIdPorNomeGlobal(listaEntrevistadores, nomeImportado) {
   if (!nomeImportado) return null;
   const correspondencias = listaEntrevistadores.filter(e => nomesCorrespondem(e.nome, nomeImportado));
