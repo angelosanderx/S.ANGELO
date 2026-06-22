@@ -1,0 +1,2118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estudos Concurso — Controle de Estudos</title>
+<style>
+  :root {
+    --azul: #1a3a5c;
+    --azul-medio: #2563a8;
+    --azul-claro: #e8f0fb;
+    --verde: #1a7a4a;
+    --verde-claro: #e6f4ed;
+    --laranja: #c45c1a;
+    --laranja-claro: #fdf0e6;
+    --vermelho: #b91c1c;
+    --vermelho-claro: #fef2f2;
+    --amarelo: #b45309;
+    --amarelo-claro: #fffbeb;
+    --roxo: #6d28d9;
+    --roxo-claro: #f1e9fc;
+    --cinza-escuro: #1e293b;
+    --cinza: #64748b;
+    --cinza-claro: #f1f5f9;
+    --branco: #ffffff;
+    --borda: #cbd5e1;
+    --fonte: 'Segoe UI', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--fonte);
+    background: var(--cinza-claro);
+    color: var(--cinza-escuro);
+    min-height: 100vh;
+  }
+
+  /* ── APP PRINCIPAL ── */
+  #app { display: block; }
+
+  /* Topbar */
+  .topbar {
+    background: var(--azul);
+    color: var(--branco);
+    padding: 0 1rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+
+  .topbar-esquerda {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .btn-menu {
+    background: none;
+    border: none;
+    color: var(--branco);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .btn-menu span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: var(--branco);
+    border-radius: 2px;
+    transition: 0.3s;
+  }
+
+  .topbar-titulo {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .topbar-direita {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .cronometro-mini {
+    display: none;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(255,255,255,0.15);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .cronometro-mini.ativo { display: flex; }
+  .cronometro-mini .ponto {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--verde-claro); animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* Sidebar */
+  .sidebar {
+    position: fixed;
+    top: 56px;
+    left: -260px;
+    width: 260px;
+    height: calc(100vh - 56px);
+    background: var(--branco);
+    box-shadow: 2px 0 12px rgba(0,0,0,0.12);
+    z-index: 1100;
+    transition: left 0.3s ease;
+    overflow-y: auto;
+  }
+
+  .sidebar.aberta { left: 0; }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 1099;
+    display: none;
+    top: 56px;
+  }
+
+  .overlay.visivel { display: block; }
+
+  .nav-secao {
+    padding: 1rem 1rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--cinza);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-radius: 0;
+    transition: background 0.15s;
+    font-size: 0.9rem;
+    color: var(--cinza-escuro);
+    border-left: 3px solid transparent;
+  }
+
+  .nav-item:hover { background: var(--cinza-claro); }
+
+  .nav-item.ativo {
+    background: var(--azul-claro);
+    color: var(--azul-medio);
+    border-left-color: var(--azul-medio);
+    font-weight: 600;
+  }
+
+  .nav-item .icone { font-size: 1.1rem; width: 20px; text-align: center; }
+
+  /* Conteúdo */
+  .conteudo {
+    padding: 1.25rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .pagina { display: none; }
+  .pagina.ativa { display: block; }
+
+  .titulo-pagina {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--azul);
+    margin-bottom: 1.25rem;
+  }
+
+  .grid-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .card-stat {
+    background: var(--branco);
+    border-radius: 10px;
+    padding: 1.1rem 1rem;
+    border: 1px solid var(--borda);
+  }
+
+  .card-stat .numero {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--azul);
+  }
+
+  .card-stat .rotulo {
+    font-size: 0.78rem;
+    color: var(--cinza);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .card-stat.verde .numero { color: var(--verde); }
+  .card-stat.laranja .numero { color: var(--laranja); }
+  .card-stat.vermelho .numero { color: var(--vermelho); }
+  .card-stat.amarelo .numero { color: var(--amarelo); }
+  .card-stat.roxo .numero { color: var(--roxo); }
+
+  /* Tabelas */
+  .card-tabela {
+    background: var(--branco);
+    border-radius: 10px;
+    border: 1px solid var(--borda);
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+  }
+
+  .card-tabela-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--borda);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .card-tabela-header h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--cinza-escuro);
+  }
+
+  .btn-acao {
+    background: var(--azul-medio);
+    color: var(--branco);
+    border: none;
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--fonte);
+    white-space: nowrap;
+  }
+
+  .btn-acao:hover { background: var(--azul); }
+  .btn-acao:disabled { background: var(--cinza); cursor: not-allowed; }
+
+  .btn-acao.secundario {
+    background: var(--cinza-claro);
+    color: var(--cinza-escuro);
+    border: 1px solid var(--borda);
+  }
+  .btn-acao.secundario:hover { background: var(--borda); }
+
+  .btn-acao.verde { background: var(--verde); }
+  .btn-acao.verde:hover { background: #14613a; }
+  .btn-acao.vermelho { background: var(--vermelho); }
+  .btn-acao.vermelho:hover { background: #8f1414; }
+  .btn-acao.roxo { background: var(--roxo); }
+  .btn-acao.roxo:hover { background: #581ea8; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.87rem;
+  }
+
+  th {
+    padding: 0.6rem 1rem;
+    text-align: left;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--cinza);
+    background: var(--cinza-claro);
+    border-bottom: 1px solid var(--borda);
+  }
+
+  td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--cinza-claro);
+    color: var(--cinza-escuro);
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--cinza-claro); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .badge-verde { background: var(--verde-claro); color: var(--verde); }
+  .badge-laranja { background: var(--laranja-claro); color: var(--laranja); }
+  .badge-vermelho { background: var(--vermelho-claro); color: var(--vermelho); }
+  .badge-amarelo { background: var(--amarelo-claro); color: var(--amarelo); }
+  .badge-cinza { background: var(--cinza-claro); color: var(--cinza); }
+  .badge-azul { background: var(--azul-claro); color: var(--azul-medio); }
+  .badge-roxo { background: var(--roxo-claro); color: var(--roxo); }
+
+  /* Formulários */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+
+  .form-grupo { display: flex; flex-direction: column; gap: 4px; }
+  .form-grupo.full { grid-column: 1 / -1; }
+
+  .form-grupo label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--cinza);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .form-grupo input,
+  .form-grupo select,
+  .form-grupo textarea {
+    padding: 0.65rem 0.85rem;
+    border: 1.5px solid var(--borda);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: var(--fonte);
+    background: var(--cinza-claro);
+    transition: border-color 0.2s;
+  }
+
+  .form-grupo input:focus,
+  .form-grupo select:focus,
+  .form-grupo textarea:focus {
+    outline: none;
+    border-color: var(--azul-medio);
+    background: var(--branco);
+  }
+
+  .form-grupo textarea { resize: vertical; min-height: 80px; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .modal-overlay.visivel { display: flex; }
+
+  .modal {
+    background: var(--branco);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+
+  .modal.largo { max-width: 720px; }
+
+  .modal-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--borda);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: var(--branco);
+  }
+
+  .modal-header h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--azul);
+  }
+
+  .btn-fechar {
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    cursor: pointer;
+    color: var(--cinza);
+    line-height: 1;
+  }
+
+  .modal-body { padding: 1.5rem; }
+
+  .modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--borda);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  /* Status selector */
+  .status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .status-btn {
+    padding: 0.6rem 0.5rem;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--fonte);
+    transition: 0.15s;
+    text-align: center;
+  }
+
+  .status-btn:hover { filter: brightness(0.95); }
+  .status-btn.selecionado { border-color: var(--azul-medio); }
+
+  /* Vazio */
+  .vazio {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--cinza);
+    font-size: 0.9rem;
+  }
+
+  .vazio .icone-vazio { font-size: 2.5rem; margin-bottom: 0.5rem; }
+
+  /* Loader */
+  .loader {
+    text-align: center;
+    padding: 2rem;
+    color: var(--cinza);
+    font-size: 0.9rem;
+  }
+
+  /* Notificação toast */
+  #toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--cinza-escuro);
+    color: var(--branco);
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    z-index: 999;
+    transition: transform 0.3s;
+    white-space: nowrap;
+    max-width: 90vw;
+    text-align: center;
+  }
+
+  #toast.visivel { transform: translateX(-50%) translateY(0); }
+  #toast.sucesso { background: var(--verde); }
+  #toast.erro { background: var(--vermelho); }
+  #toast.aviso { background: var(--amarelo); }
+
+  /* Barra de progresso */
+  .barra-prog {
+    height: 6px;
+    background: var(--cinza-claro);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+
+  .barra-prog-fill {
+    height: 100%;
+    background: var(--azul-medio);
+    border-radius: 3px;
+    transition: width 0.4s;
+  }
+
+  .filtro-chip {
+    padding: 0.27rem 0.65rem;
+    border: 1.5px solid var(--borda);
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-family: var(--fonte);
+    background: var(--cinza-claro);
+    cursor: pointer;
+  }
+
+  .filtros-barra {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    align-items: center;
+  }
+
+  .filtros-barra select, .filtros-barra input[type=text] {
+    padding: 0.5rem 0.75rem;
+    border: 1.5px solid var(--borda);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-family: var(--fonte);
+    background: var(--branco);
+  }
+
+  /* ===== Layout Disciplinas/Tarefas ===== */
+  .layout-disciplinas {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 1.25rem;
+  }
+  @media (max-width: 800px) { .layout-disciplinas { grid-template-columns: 1fr; } }
+
+  .lista-disciplinas-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--cinza-claro);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .lista-disciplinas-item:hover { background: var(--cinza-claro); }
+  .lista-disciplinas-item.ativa {
+    background: var(--azul-claro);
+    border-left: 3px solid var(--azul-medio);
+  }
+  .lista-disciplinas-item:last-child { border-bottom: none; }
+  .lista-disciplinas-item .nome { font-weight: 600; font-size: 0.9rem; }
+  .lista-disciplinas-item .pct { font-size: 0.75rem; color: var(--cinza); }
+
+  .tarefa-card {
+    background: var(--branco);
+    border: 1px solid var(--borda);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    margin-bottom: 0.75rem;
+    transition: box-shadow 0.15s;
+  }
+  .tarefa-card.atual {
+    border-color: var(--azul-medio);
+    box-shadow: 0 0 0 2px var(--azul-claro);
+  }
+  .tarefa-card.concluida { opacity: 0.7; }
+  .tarefa-card-topo {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  .tarefa-card .desc { font-weight: 600; font-size: 0.92rem; flex: 1; }
+  .tarefa-card .meta { font-size: 0.75rem; color: var(--cinza); margin-top: 2px; }
+  .tarefa-acoes { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.6rem; }
+  .tarefa-drag-handle { cursor: grab; color: var(--cinza); font-size: 1.1rem; padding: 0 0.3rem; user-select: none; }
+  .tarefa-card.arrastando { opacity: 0.4; }
+
+  /* ===== Coletor de questões ===== */
+  .area-colar {
+    width: 100%;
+    min-height: 220px;
+    padding: 1rem;
+    border: 1.5px solid var(--borda);
+    border-radius: 10px;
+    font-family: var(--fonte);
+    font-size: 0.88rem;
+    resize: vertical;
+    background: var(--branco);
+  }
+  .area-colar:focus { outline: none; border-color: var(--azul-medio); }
+
+  .questao-preview-card {
+    background: var(--branco);
+    border: 1.5px solid var(--borda);
+    border-radius: 10px;
+    padding: 1.1rem;
+    margin-bottom: 1rem;
+  }
+  .questao-preview-card.salva { border-color: var(--verde); background: var(--verde-claro); }
+  .questao-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .questao-preview-header .tag-num {
+    font-weight: 700;
+    color: var(--azul);
+    font-size: 0.85rem;
+  }
+  .alt-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    margin-bottom: 0.4rem;
+  }
+  .alt-row .alt-letra {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: var(--cinza-claro);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .alt-row input[type=text] {
+    flex: 1;
+    padding: 0.5rem 0.7rem;
+    border: 1.5px solid var(--borda);
+    border-radius: 6px;
+    font-family: var(--fonte);
+    font-size: 0.85rem;
+  }
+  .alt-row input[type=text]:focus { outline: none; border-color: var(--azul-medio); }
+
+  /* ===== Banco de questões ===== */
+  .questao-item {
+    background: var(--branco);
+    border: 1px solid var(--borda);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+  }
+  .questao-item:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+  .questao-item .enunciado-resumo {
+    font-size: 0.88rem;
+    color: var(--cinza-escuro);
+    margin-bottom: 0.6rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+  }
+  .questao-tags { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+
+  .alt-modal-row {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+    margin-bottom: 0.4rem;
+    background: var(--cinza-claro);
+    font-size: 0.88rem;
+    align-items: flex-start;
+  }
+  .alt-modal-row.correta {
+    background: var(--verde-claro);
+    color: var(--verde);
+    font-weight: 600;
+  }
+  .alt-modal-row .letra { font-weight: 700; min-width: 18px; }
+
+  /* ===== Cronômetro ===== */
+  .cronometro-display {
+    font-size: 3.5rem;
+    font-weight: 800;
+    color: var(--azul);
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    margin: 1.5rem 0;
+    letter-spacing: 1px;
+  }
+  .cronometro-box {
+    background: var(--branco);
+    border: 1px solid var(--borda);
+    border-radius: 12px;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    margin-bottom: 1.25rem;
+  }
+  .cronometro-controles {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .cronometro-controles .btn-acao { padding: 0.7rem 1.5rem; font-size: 0.9rem; }
+  .cronometro-selecao { font-size: 0.85rem; color: var(--cinza); margin-bottom: 0.25rem; }
+  .cronometro-tarefa-nome { font-weight: 700; color: var(--cinza-escuro); font-size: 1rem; }
+
+  @media (max-width: 480px) {
+    .cronometro-display { font-size: 2.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <div class="topbar">
+    <div class="topbar-esquerda">
+      <button class="btn-menu" onclick="toggleSidebar()">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="topbar-titulo">📚 Estudos Concurso</div>
+    </div>
+    <div class="topbar-direita">
+      <div class="cronometro-mini" id="cronometro-mini" onclick="irPara('cronometro')">
+        <span class="ponto"></span>
+        <span id="cronometro-mini-tempo">00:00:00</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="nav-secao">Principal</div>
+    <div class="nav-item ativo" onclick="irPara('dashboard')">
+      <span class="icone">📊</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="irPara('disciplinas')">
+      <span class="icone">📘</span> Disciplinas e Tarefas
+    </div>
+    <div class="nav-secao">Questões</div>
+<div class="nav-secao">Estudo</div>
+    <div class="nav-item" onclick="irPara('cronometro')">
+      <span class="icone">⏱️</span> Cronômetro
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay" onclick="fecharSidebar()"></div>
+
+  <div class="conteudo">
+
+    <!-- ============ DASHBOARD ============ -->
+    <div class="pagina ativa" id="pag-dashboard">
+      <div class="titulo-pagina">📊 Dashboard</div>
+
+      <div class="grid-cards">
+        <div class="card-stat verde" style="border-left:4px solid var(--verde)">
+          <div class="numero" id="dash-desempenho">—</div>
+          <div class="rotulo">Desempenho geral</div>
+        </div>
+        <div class="card-stat azul" style="border-left:4px solid var(--azul-medio)">
+          <div class="numero" id="dash-total-questoes">—</div>
+          <div class="rotulo">Tarefas na semana</div>
+        </div>
+        <div class="card-stat laranja" style="border-left:4px solid var(--laranja)">
+          <div class="numero" id="dash-horas-semana">—</div>
+          <div class="rotulo">Horas na semana</div>
+        </div>
+        <div class="card-stat roxo" style="border-left:4px solid var(--roxo)">
+          <div class="numero" id="dash-tarefas-semana">—</div>
+          <div class="rotulo">Tarefas concluídas</div>
+        </div>
+      </div>
+
+      <div class="card-tabela">
+        <div class="card-tabela-header"><h3>Desempenho por disciplina</h3></div>
+        <div id="dash-grafico-disciplinas" style="padding:1.25rem"><div class="loader">Carregando...</div></div>
+      </div>
+
+      <!-- Meta semanal -->
+      <div class="card-tabela">
+        <div class="card-tabela-header" style="display:flex;justify-content:space-between;align-items:center">
+          <h3>Meta semanal de horas</h3>
+          <button class="btn-acao secundario" onclick="abrirModalMeta()" style="padding:0.25rem 0.75rem;font-size:0.8rem">✏️ Editar meta</button>
+        </div>
+        <div style="padding:1.25rem">
+          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem">
+            <div id="dash-meta-texto" style="font-size:0.9rem;color:var(--cinza)">Meta não definida</div>
+            <div id="dash-meta-pct" style="font-weight:700;font-size:1.1rem"></div>
+          </div>
+          <div class="barra-prog" style="height:14px;border-radius:7px">
+            <div id="dash-meta-barra" class="barra-prog-fill" style="width:0%;border-radius:7px;transition:width .4s"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progresso semanal e registro -->
+      <div class="card-tabela">
+        <div class="card-tabela-header" style="display:flex;justify-content:space-between;align-items:center">
+          <h3>Progresso semanal de tarefas</h3>
+          <button class="btn-acao" onclick="abrirModalRegistroSemanal()" style="padding:0.25rem 0.75rem;font-size:0.8rem">📝 Registrar semana</button>
+        </div>
+        <div id="dash-progresso-semanal"><div class="loader">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- ============ DISCIPLINAS E TAREFAS ============ -->
+    <div class="pagina" id="pag-disciplinas">
+      <div class="titulo-pagina" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
+        <span>📘 Disciplinas e Tarefas</span>
+        <button class="btn-acao" onclick="abrirModalDisciplina()">+ Nova disciplina</button>
+      </div>
+
+      <div class="layout-disciplinas">
+        <div class="card-tabela" style="margin-bottom:0">
+          <div class="card-tabela-header"><h3>Disciplinas</h3></div>
+          <div id="lista-disciplinas"><div class="loader">Carregando...</div></div>
+        </div>
+
+        <div>
+          <div class="card-tabela-header" style="background:var(--branco);border:1px solid var(--borda);border-radius:10px 10px 0 0;border-bottom:none" id="disciplina-atual-header">
+            <h3 id="disciplina-atual-titulo">Selecione uma disciplina</h3>
+            <button class="btn-acao secundario" id="btn-nova-tarefa" style="display:none" onclick="abrirModalTarefa()">+ Nova tarefa</button>
+          </div>
+          <div id="lista-tarefas" style="background:var(--branco);border:1px solid var(--borda);border-top:none;border-radius:0 0 10px 10px;padding:1rem">
+            <div class="vazio"><div class="icone-vazio">👈</div>Selecione uma disciplina para ver suas tarefas</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ COLETOR DE QUESTÕES ============ --><!-- ============ BANCO DE QUESTÕES ============ --><!-- ============ CRONÔMETRO ============ -->
+    <div class="pagina" id="pag-cronometro">
+      <div class="titulo-pagina">⏱️ Cronômetro de Estudo</div>
+
+      <div class="cronometro-box">
+        <div class="form-grid" style="margin-bottom:1.25rem;text-align:left">
+          <div class="form-grupo">
+            <label>Disciplina</label>
+            <select id="cron-disciplina-sel" onchange="cronCarregarTarefasSelect()">
+              <option value="">— Selecione —</option>
+            </select>
+          </div>
+          <div class="form-grupo">
+            <label>Tarefa</label>
+            <select id="cron-tarefa-sel">
+              <option value="">— Selecione a disciplina primeiro —</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="cronometro-display" id="cron-display">00:00:00</div>
+
+        <div class="cronometro-controles">
+          <button class="btn-acao verde" id="cron-btn-iniciar" onclick="cronIniciar()">▶ Iniciar</button>
+          <button class="btn-acao laranja" id="cron-btn-pausar" onclick="cronPausar()" style="display:none;background:var(--laranja)">⏸ Pausar</button>
+          <button class="btn-acao" id="cron-btn-retomar" onclick="cronRetomar()" style="display:none">▶ Retomar</button>
+          <button class="btn-acao vermelho" id="cron-btn-finalizar" onclick="cronFinalizar()" style="display:none">⏹ Finalizar sessão</button>
+        </div>
+      </div>
+
+      <div class="card-tabela">
+        <div class="card-tabela-header"><h3>Sessões de hoje</h3></div>
+        <div id="cron-sessoes-hoje"><div class="loader">Carregando...</div></div>
+      </div>
+
+      <div class="card-tabela">
+        <div class="card-tabela-header"><h3>Total de horas por disciplina (semana)</h3></div>
+        <div id="cron-horas-disciplina"><div class="loader">Carregando...</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ MODAIS ============ -->
+
+
+<!-- Modal meta semanal -->
+<div class="modal-overlay" id="modal-meta" style="display:none">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h3>Meta semanal de horas</h3>
+      <button class="btn-fechar" onclick="fecharModal('modal-meta')">&times;</button>
+    </div>
+    <div class="modal-corpo">
+      <div class="form-grupo">
+        <label>Horas por semana</label>
+        <input type="number" id="meta-horas-input" min="1" max="100" placeholder="Ex: 10"
+          style="width:100%;padding:0.5rem;border:1px solid var(--borda);border-radius:6px;font-size:1rem">
+      </div>
+      <p style="font-size:0.8rem;color:var(--cinza);margin-top:0.5rem">Define quantas horas você quer estudar por semana. O dashboard mostrará seu progresso.</p>
+    </div>
+    <div class="modal-rodape">
+      <button class="btn-acao secundario" onclick="fecharModal('modal-meta')">Cancelar</button>
+      <button class="btn-acao verde" onclick="salvarMeta()">Salvar meta</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal registro semanal -->
+<div class="modal-overlay" id="modal-registro-semanal" style="display:none">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <h3>📝 Registrar progresso semanal</h3>
+      <button class="btn-fechar" onclick="fecharModal('modal-registro-semanal')">&times;</button>
+    </div>
+    <div class="modal-corpo">
+      <p style="font-size:0.85rem;color:var(--cinza);margin-bottom:1rem">Atualize o progresso de cada tarefa da semana. O percentual e as observações serão salvos.</p>
+      <div id="registro-semanal-lista"><div class="loader">Carregando tarefas...</div></div>
+    </div>
+    <div class="modal-rodape">
+      <button class="btn-acao secundario" onclick="fecharModal('modal-registro-semanal')">Cancelar</button>
+      <button class="btn-acao verde" onclick="salvarRegistroSemanal()">💾 Salvar tudo</button>
+    </div>
+  </div>
+</div>
+<!-- Modal disciplina -->
+<div class="modal-overlay" id="modal-disciplina">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-disciplina-titulo">Nova disciplina</h3>
+      <button class="btn-fechar" onclick="fecharModal('modal-disciplina')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="disciplina-edit-id">
+      <div class="form-grupo full">
+        <label>Nome da disciplina</label>
+        <input type="text" id="disciplina-edit-nome" placeholder="Ex: Contabilidade Geral">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-acao secundario" onclick="fecharModal('modal-disciplina')">Cancelar</button>
+      <button class="btn-acao" onclick="salvarDisciplina()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal tarefa -->
+<div class="modal-overlay" id="modal-tarefa">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-tarefa-titulo">Nova tarefa</h3>
+      <button class="btn-fechar" onclick="fecharModal('modal-tarefa')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="tarefa-edit-id">
+      <input type="hidden" id="tarefa-edit-disciplina-id">
+      <div class="form-grid">
+        <div class="form-grupo full">
+          <label>Descrição</label>
+          <input type="text" id="tarefa-edit-desc" placeholder='Ex: Estudar aula 3 — Balanço Patrimonial'>
+        </div>
+        <div class="form-grupo">
+          <label>Semana prevista</label>
+          <input type="number" id="tarefa-edit-semana" min="1" placeholder="1">
+        </div>
+        <div class="form-grupo">
+          <label>% de conclusão</label>
+          <input type="number" id="tarefa-edit-pct" min="0" max="100" value="0">
+        </div>
+        <div class="form-grupo">
+          <label>Status</label>
+          <select id="tarefa-edit-status">
+            <option value="pendente">Pendente</option>
+            <option value="andamento">Em andamento</option>
+            <option value="concluida">Concluída</option>
+          </select>
+        </div>
+        <div class="form-grupo full">
+          <label>Observação</label>
+          <textarea id="tarefa-edit-obs" rows="3" placeholder="Anotações livres sobre essa tarefa..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-acao secundario" onclick="fecharModal('modal-tarefa')">Cancelar</button>
+      <button class="btn-acao" onclick="salvarTarefa()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+window.addEventListener('firebase-pronto', iniciarAplicacao);
+
+let db, collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, query, where, orderBy, limit, onSnapshot, serverTimestamp;
+
+// ── Estado global ──
+let disciplinasCache = [];
+let tarefasCache = {};       // { disciplinaId: [tarefas...] }
+let disciplinaAtivaId = null;
+let questoesPreviaAtual = []; // questões detectadas na prévia do coletor (antes de salvar)
+let sessoesHojeCache = [];
+
+function iniciarAplicacao() {
+  if (window._appIniciada) return;
+  window._appIniciada = true;
+
+  db = window._db;
+  ({ collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, query, where, orderBy, limit, onSnapshot, serverTimestamp } = window._fb);
+
+  carregarMeta();
+  carregarDisciplinas().then(() => {
+    carregarDashboard();
+    popularSelectsDisciplina();
+  });
+  carregarQuestoes().then(() => {
+    carregarDashboard();
+  });
+  cronCarregarSessoesHoje();
+  cronRestaurarEstado();
+}
+
+// Proteção contra corrida: se o módulo Firebase (script type=module, deferred)
+// já tiver disparado o evento 'firebase-pronto' antes deste listener ser
+// registrado, window._db/_fb já estarão preenchidos — inicia direto.
+if (window._db && window._fb) { iniciarAplicacao(); }
+
+// ── ESCAPE HTML ──
+function esc(str) {
+  const d = document.createElement('div');
+  d.appendChild(document.createTextNode(String(str ?? '')));
+  return d.innerHTML;
+}
+
+// ── TOAST ──
+window.mostrarToast = (msg, tipo = '') => {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'visivel ' + tipo;
+  setTimeout(() => { t.className = ''; }, 3000);
+};
+
+// ── NAVEGAÇÃO ──
+window.irPara = (pag) => {
+  document.querySelectorAll('.pagina').forEach(p => p.classList.remove('ativa'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('ativo'));
+  document.getElementById('pag-' + pag).classList.add('ativa');
+  if (window.event && window.event.currentTarget) window.event.currentTarget.classList.add('ativo');
+  fecharSidebar();
+  if (pag === 'dashboard') carregarDashboard();
+  
+  if (pag === 'cronometro') { popularSelectsDisciplina(); cronCarregarSessoesHoje(); }
+};
+
+window.toggleSidebar = () => {
+  document.getElementById('sidebar').classList.toggle('aberta');
+  document.getElementById('overlay').classList.toggle('visivel');
+};
+
+window.fecharSidebar = () => {
+  document.getElementById('sidebar').classList.remove('aberta');
+  document.getElementById('overlay').classList.remove('visivel');
+};
+
+// ── MODAIS ──
+window.fecharModal = (id) => {
+  document.getElementById(id).classList.remove('visivel');
+};
+
+function abrirModal(id) {
+  document.getElementById(id).classList.add('visivel');
+}
+
+// ── ERRO DE CARREGAMENTO ──
+function erroCarregamento(ids) {
+  const html =
+    '<div class="vazio">' +
+      '<div class="icone-vazio">⚠️</div>' +
+      'Falha ao carregar os dados. Verifique sua conexão e ' +
+      '<button class="btn-acao secundario" style="display:inline;padding:0.25rem 0.7rem;font-size:0.8rem;vertical-align:middle" ' +
+        'onclick="location.reload()">recarregue a página</button>.' +
+    '</div>';
+  (Array.isArray(ids) ? ids : [ids]).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  });
+}
+
+function fmtData(ts) {
+  if (!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('pt-BR');
+}
+
+function fmtDuracao(segundos) {
+  segundos = Math.max(0, Math.floor(segundos || 0));
+  const h = Math.floor(segundos / 3600);
+  const m = Math.floor((segundos % 3600) / 60);
+  const s = segundos % 60;
+  return [h, m, s].map(n => String(n).padStart(2, '0')).join(':');
+}
+
+// Início da semana corrente (segunda-feira), para filtrar "na semana"
+function inicioSemanaAtual() {
+  const d = new Date();
+  const diaSemana = d.getDay(); // 0=domingo
+  const diff = diaSemana === 0 ? 6 : diaSemana - 1;
+  d.setDate(d.getDate() - diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+</script>
+
+<script>
+// ============================================================
+// MÓDULO: DISCIPLINAS E TAREFAS
+// ============================================================
+
+async function carregarDisciplinas() {
+  try {
+    const snap = await getDocs(query(collection(db, 'concurso_disciplinas'), orderBy('nome')));
+    disciplinasCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderizarListaDisciplinas();
+popularSelectsDisciplina();
+  } catch (e) {
+    console.error(e);
+    erroCarregamento('lista-disciplinas');
+  }
+}
+
+function renderizarListaDisciplinas() {
+  const el = document.getElementById('lista-disciplinas');
+  if (!el) return;
+  if (!disciplinasCache.length) {
+    el.innerHTML = '<div class="vazio"><div class="icone-vazio">📘</div>Nenhuma disciplina cadastrada.<br>Clique em "+ Nova disciplina".</div>';
+    return;
+  }
+  el.innerHTML = disciplinasCache.map(disc => {
+    const tarefas = tarefasCache[disc.id];
+    let pctTxt = '';
+    if (tarefas && tarefas.length) {
+      const media = tarefas.reduce((s, t) => s + (Number(t.percentual) || 0), 0) / tarefas.length;
+      pctTxt = Math.round(media) + '% concluído';
+    }
+    return `
+      <div class="lista-disciplinas-item ${disc.id === disciplinaAtivaId ? 'ativa' : ''}" onclick="selecionarDisciplina('${disc.id}')">
+        <div>
+          <div class="nome">${esc(disc.nome)}</div>
+          ${pctTxt ? `<div class="pct">${pctTxt}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:0.3rem">
+          <button class="btn-fechar" style="font-size:0.95rem" title="Editar" onclick="event.stopPropagation();abrirModalDisciplina('${disc.id}')">✏️</button>
+          <button class="btn-fechar" style="font-size:0.95rem" title="Excluir" onclick="event.stopPropagation();excluirDisciplina('${disc.id}')">🗑️</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+window.selecionarDisciplina = async (id) => {
+  disciplinaAtivaId = id;
+  renderizarListaDisciplinas();
+const disc = disciplinasCache.find(d => d.id === id);
+  document.getElementById('disciplina-atual-titulo').textContent = disc ? disc.nome : 'Selecione uma disciplina';
+  document.getElementById('btn-nova-tarefa').style.display = disc ? '' : 'none';
+  await carregarTarefasDaDisciplina(id);
+};
+
+async function carregarTarefasDaDisciplina(disciplinaId) {
+  const el = document.getElementById('lista-tarefas');
+  el.innerHTML = '<div class="loader">Carregando...</div>';
+  try {
+    const snap = await getDocs(query(collection(db, 'concurso_tarefas'), where('disciplinaId', '==', disciplinaId)));
+    let tarefas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    tarefas.sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
+    tarefasCache[disciplinaId] = tarefas;
+    renderizarTarefas(disciplinaId);
+    renderizarListaDisciplinas();
+} catch (e) {
+    console.error(e);
+    erroCarregamento('lista-tarefas');
+  }
+}
+
+function renderizarTarefas(disciplinaId) {
+  const el = document.getElementById('lista-tarefas');
+  const tarefas = tarefasCache[disciplinaId] || [];
+  if (!tarefas.length) {
+    el.innerHTML = '<div class="vazio"><div class="icone-vazio">📝</div>Nenhuma tarefa cadastrada para esta disciplina.</div>';
+    return;
+  }
+  // Tarefa atual = primeira não concluída na ordem
+  const idxAtual = tarefas.findIndex(t => t.status !== 'concluida');
+
+  const STATUS_LABEL = {
+    pendente: { label: 'Pendente', cor: 'badge-cinza' },
+    andamento: { label: 'Em andamento', cor: 'badge-azul' },
+    concluida: { label: 'Concluída', cor: 'badge-verde' },
+  };
+
+  el.innerHTML = tarefas.map((t, i) => {
+    const st = STATUS_LABEL[t.status] || STATUS_LABEL.pendente;
+    const pct = Number(t.percentual) || 0;
+    const tempoAcum = fmtDuracao(t.tempoAcumulado || 0);
+    return `
+      <div class="tarefa-card ${i === idxAtual ? 'atual' : ''} ${t.status === 'concluida' ? 'concluida' : ''}" draggable="true"
+           data-tarefa-id="${t.id}" ondragstart="tarefaDragStart(event,'${t.id}')" ondragover="tarefaDragOver(event)" ondrop="tarefaDrop(event,'${disciplinaId}','${t.id}')" ondragend="tarefaDragEnd(event)">
+        <div class="tarefa-card-topo">
+          <span class="tarefa-drag-handle">⠿</span>
+          <div style="flex:1">
+            <div class="desc">${i === idxAtual ? '➡️ ' : ''}${esc(t.descricao || '(sem descrição)')}</div>
+            <div class="meta">Semana ${t.semana || '—'} · ⏱️ ${tempoAcum} acumulado</div>
+          </div>
+          <span class="badge ${st.cor}">${st.label}</span>
+        </div>
+        <div class="barra-prog"><div class="barra-prog-fill" style="width:${pct}%"></div></div>
+        <div style="font-size:0.75rem;color:var(--cinza);margin-top:3px">${pct}% concluído</div>
+        ${t.observacao ? `<div style="font-size:0.83rem;color:var(--cinza-escuro);margin-top:0.5rem;background:var(--cinza-claro);padding:0.5rem 0.7rem;border-radius:6px">📝 ${esc(t.observacao)}</div>` : ''}
+        <div class="tarefa-acoes">
+          <button class="btn-acao secundario" onclick="abrirModalTarefa('${t.id}')">✏️ Editar</button>
+          ${t.status !== 'concluida' ? `<button class="btn-acao verde" onclick="marcarTarefaConcluida('${disciplinaId}','${t.id}')">✓ Concluir</button>` : ''}
+          <button class="btn-acao secundario" onclick="excluirTarefa('${disciplinaId}','${t.id}')">🗑️ Excluir</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// Drag & drop simples para reordenar
+let _tarefaArrastada = null;
+window.tarefaDragStart = (ev, id) => {
+  _tarefaArrastada = id;
+  ev.currentTarget.classList.add('arrastando');
+};
+window.tarefaDragOver = (ev) => { ev.preventDefault(); };
+window.tarefaDragEnd = (ev) => { ev.currentTarget.classList.remove('arrastando'); };
+window.tarefaDrop = async (ev, disciplinaId, idDestino) => {
+  ev.preventDefault();
+  if (!_tarefaArrastada || _tarefaArrastada === idDestino) return;
+  const tarefas = tarefasCache[disciplinaId] || [];
+  const origemIdx = tarefas.findIndex(t => t.id === _tarefaArrastada);
+  const destinoIdx = tarefas.findIndex(t => t.id === idDestino);
+  if (origemIdx === -1 || destinoIdx === -1) return;
+  const [item] = tarefas.splice(origemIdx, 1);
+  tarefas.splice(destinoIdx, 0, item);
+  tarefasCache[disciplinaId] = tarefas;
+  renderizarTarefas(disciplinaId);
+  try {
+    const batch = writeBatch(db);
+    tarefas.forEach((t, i) => batch.update(doc(db, 'concurso_tarefas', t.id), { ordem: i }));
+    await batch.commit();
+    mostrarToast('Ordem atualizada!', 'sucesso');
+  } catch (e) {
+    mostrarToast('Erro ao reordenar: ' + e.message, 'erro');
+  }
+};
+
+window.abrirModalDisciplina = (id = null) => {
+  const disc = id ? disciplinasCache.find(d => d.id === id) : null;
+  document.getElementById('disciplina-edit-id').value = id || '';
+  document.getElementById('disciplina-edit-nome').value = disc ? disc.nome : '';
+  document.getElementById('modal-disciplina-titulo').textContent = id ? 'Editar disciplina' : 'Nova disciplina';
+  abrirModal('modal-disciplina');
+};
+
+window.salvarDisciplina = async () => {
+  const id = document.getElementById('disciplina-edit-id').value;
+  const nome = document.getElementById('disciplina-edit-nome').value.trim();
+  if (!nome) { mostrarToast('Informe o nome da disciplina', 'aviso'); return; }
+  try {
+    if (id) {
+      await updateDoc(doc(db, 'concurso_disciplinas', id), { nome });
+    } else {
+      await addDoc(collection(db, 'concurso_disciplinas'), { nome, criadoEm: serverTimestamp() });
+    }
+    fecharModal('modal-disciplina');
+    mostrarToast('Disciplina salva!', 'sucesso');
+    await carregarDisciplinas();
+  } catch (e) {
+    mostrarToast('Erro: ' + e.message, 'erro');
+  }
+};
+
+window.excluirDisciplina = async (id) => {
+  if (!confirm('Excluir esta disciplina e todas as suas tarefas? Esta ação não pode ser desfeita.')) return;
+  try {
+    const snap = await getDocs(query(collection(db, 'concurso_tarefas'), where('disciplinaId', '==', id)));
+    const batch = writeBatch(db);
+    snap.docs.forEach(d => batch.delete(d.ref));
+    batch.delete(doc(db, 'concurso_disciplinas', id));
+    await batch.commit();
+    if (disciplinaAtivaId === id) {
+      disciplinaAtivaId = null;
+      document.getElementById('disciplina-atual-titulo').textContent = 'Selecione uma disciplina';
+      document.getElementById('btn-nova-tarefa').style.display = 'none';
+      document.getElementById('lista-tarefas').innerHTML = '<div class="vazio"><div class="icone-vazio">👈</div>Selecione uma disciplina para ver suas tarefas</div>';
+    }
+    mostrarToast('Disciplina excluída', 'sucesso');
+    await carregarDisciplinas();
+  } catch (e) {
+    mostrarToast('Erro: ' + e.message, 'erro');
+  }
+};
+
+window.abrirModalTarefa = (id = null) => {
+  if (!disciplinaAtivaId) { mostrarToast('Selecione uma disciplina primeiro', 'aviso'); return; }
+  const tarefas = tarefasCache[disciplinaAtivaId] || [];
+  const t = id ? tarefas.find(x => x.id === id) : null;
+  document.getElementById('tarefa-edit-id').value = id || '';
+  document.getElementById('tarefa-edit-disciplina-id').value = disciplinaAtivaId;
+  document.getElementById('tarefa-edit-desc').value = t ? (t.descricao || '') : '';
+  document.getElementById('tarefa-edit-semana').value = t ? (t.semana || '') : '';
+  document.getElementById('tarefa-edit-pct').value = t ? (t.percentual || 0) : 0;
+  document.getElementById('tarefa-edit-status').value = t ? (t.status || 'pendente') : 'pendente';
+  document.getElementById('tarefa-edit-obs').value = t ? (t.observacao || '') : '';
+  document.getElementById('modal-tarefa-titulo').textContent = id ? 'Editar tarefa' : 'Nova tarefa';
+  abrirModal('modal-tarefa');
+};
+
+window.salvarTarefa = async () => {
+  const id = document.getElementById('tarefa-edit-id').value;
+  const disciplinaId = document.getElementById('tarefa-edit-disciplina-id').value;
+  const descricao = document.getElementById('tarefa-edit-desc').value.trim();
+  const semana = Number(document.getElementById('tarefa-edit-semana').value) || null;
+  let percentual = Number(document.getElementById('tarefa-edit-pct').value);
+  percentual = isNaN(percentual) ? 0 : Math.min(100, Math.max(0, percentual));
+  let status = document.getElementById('tarefa-edit-status').value;
+  if (percentual >= 100) status = 'concluida';
+  const observacao = document.getElementById('tarefa-edit-obs').value.trim();
+
+  if (!descricao) { mostrarToast('Informe a descrição da tarefa', 'aviso'); return; }
+
+  try {
+    if (id) {
+      await updateDoc(doc(db, 'concurso_tarefas', id), { descricao, semana, percentual, status, observacao });
+    } else {
+      const tarefas = tarefasCache[disciplinaId] || [];
+      const ordem = tarefas.length;
+      await addDoc(collection(db, 'concurso_tarefas'), {
+        disciplinaId, descricao, semana, percentual, status, observacao,
+        ordem, tempoAcumulado: 0, criadoEm: serverTimestamp()
+      });
+    }
+    fecharModal('modal-tarefa');
+    mostrarToast('Tarefa salva!', 'sucesso');
+    await carregarTarefasDaDisciplina(disciplinaId);
+    carregarDashboard();
+  } catch (e) {
+    mostrarToast('Erro: ' + e.message, 'erro');
+  }
+};
+
+window.marcarTarefaConcluida = async (disciplinaId, tarefaId) => {
+  try {
+    await updateDoc(doc(db, 'concurso_tarefas', tarefaId), { status: 'concluida', percentual: 100 });
+    mostrarToast('Tarefa concluída! 🎉', 'sucesso');
+    await carregarTarefasDaDisciplina(disciplinaId);
+    carregarDashboard();
+  } catch (e) {
+    mostrarToast('Erro: ' + e.message, 'erro');
+  }
+};
+
+window.excluirTarefa = async (disciplinaId, tarefaId) => {
+  if (!confirm('Excluir esta tarefa?')) return;
+  try {
+    await deleteDoc(doc(db, 'concurso_tarefas', tarefaId));
+    mostrarToast('Tarefa excluída', 'sucesso');
+    await carregarTarefasDaDisciplina(disciplinaId);
+    carregarDashboard();
+  } catch (e) {
+    mostrarToast('Erro: ' + e.message, 'erro');
+  }
+};
+
+function popularSelectsDisciplina() {
+  ['cron-disciplina-sel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const atual = el.value;
+    const placeholder =  '<option value="">— Selecione —</option>';
+    el.innerHTML = placeholder + disciplinasCache.map(d => `<option value="${d.id}">${esc(d.nome)}</option>`).join('');
+    if (atual) el.value = atual;
+  });
+  // Select de disciplinas dentro das prévias do coletor (se existirem)
+  document.querySelectorAll('.select-disciplina-preview').forEach(sel => {
+    const atual = sel.value;
+    sel.innerHTML = '<option value="">— Selecione —</option>' + disciplinasCache.map(d => `<option value="${d.id}">${esc(d.nome)}</option>`).join('');
+    if (atual) sel.value = atual;
+  });
+}
+</script>
+
+<script>
+// ============================================================
+// MÓDULO: COLETOR DE QUESTÕES
+// ============================================================
+
+function limparLinhas(texto) {
+  return texto.split('\n').map(l => l.trim());
+}
+
+
+// ----- Parser TecConcursos -----
+
+
+// ----- Interface do coletor -----
+window.detectarQuestoes = () => {
+  const texto = document.getElementById('coletor-texto').value;
+  if (!texto.trim()) { mostrarToast('Cole algum texto antes de detectar', 'aviso'); return; }
+
+  const formato = detectarFormatoTexto(texto);
+  let detectadas = [];
+  if (formato === 'tecconcursos') detectadas = parseTecConcursos(texto);
+  else if (formato === 'word') detectadas = parseWordPdf(texto);
+
+  if (!detectadas.length) {
+    detectadas = [{
+      idExterno: '', banca: '', ano: '', cargo: '', disciplinaSugerida: '', assunto: '',
+      enunciado: texto.trim(), alternativas: { A: '', B: '', C: '', D: '', E: '' },
+      tipo: 'multipla', gabarito: '', comentario: ''
+    }];
+    document.getElementById('coletor-status').textContent = 'Não foi possível detectar o padrão automaticamente — questão criada para edição manual.';
+  } else {
+    document.getElementById('coletor-status').textContent = `${detectadas.length} questão(ões) detectada(s) — formato: ${formato === 'tecconcursos' ? 'TecConcursos' : 'Word/PDF'}.`;
+  }
+
+  questoesPreviaAtual = detectadas.map(q => ({ ...q, alternativas: { ...q.alternativas }, disciplinaId: '', _salva: false }));
+  renderizarPreviasColetor();
+};
+
+
+// ---- Coletor simples ----
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ============================================================
+// MÓDULO: BANCO DE QUESTÕES
+// ============================================================
+
+
+
+
+
+window.abrirModalQuestao = (id) => {
+  const q = questoesCache.find(x => x.id === id);
+  if (!q) return;
+  _questaoModalAtualId = id;
+
+  const letras = ['A', 'B', 'C', 'D', 'E'];
+  let altsHtml = '';
+  if (q.tipo === 'certo_errado') {
+    altsHtml = ['Certo', 'Errado'].map(v => `
+      <div class="alt-modal-row ${q.gabarito === v ? 'correta' : ''}">
+        <span class="letra">${v === 'Certo' ? 'C' : 'E'}</span>
+        <span>${v}${q.gabarito === v ? ' ✓ (gabarito)' : ''}</span>
+      </div>`).join('');
+  } else {
+    altsHtml = letras.filter(l => q.alternativas && q.alternativas[l]).map(l => `
+      <div class="alt-modal-row ${q.gabarito === l ? 'correta' : ''}">
+        <span class="letra">${l})</span>
+        <span>${esc(q.alternativas[l])}${q.gabarito === l ? ' ✓ (gabarito)' : ''}</span>
+      </div>`).join('');
+    if (!altsHtml) altsHtml = '<p style="color:var(--cinza);font-size:0.85rem">Nenhuma alternativa cadastrada.</p>';
+  }
+
+  document.getElementById('modal-questao-corpo').innerHTML = `
+    <div class="questao-tags" style="margin-bottom:1rem">
+      ${q.disciplinaId ? `<span class="badge badge-azul">${esc(nomeDisciplina(q.disciplinaId))}</span>` : ''}
+      ${q.banca ? `<span class="badge badge-cinza">${esc(q.banca)}</span>` : ''}
+      ${q.ano ? `<span class="badge badge-cinza">${esc(q.ano)}</span>` : ''}
+      ${q.cargo ? `<span class="badge badge-cinza">${esc(q.cargo)}</span>` : ''}
+      ${q.idExterno ? `<span class="badge badge-cinza">#${esc(q.idExterno)}</span>` : ''}
+    </div>
+    <p style="margin-bottom:1rem;line-height:1.5">${esc(q.enunciado || '(sem enunciado)')}</p>
+    <div style="margin-bottom:1rem">${altsHtml}</div>
+    ${q.comentario ? `
+      <div style="background:var(--cinza-claro);border-radius:8px;padding:0.85rem 1rem;font-size:0.87rem;line-height:1.5">
+        <strong style="color:var(--azul)">Comentário/Resolução:</strong><br>${esc(q.comentario)}
+      </div>` : ''}
+  `;
+  abrirModal('modal-questao');
+};
+
+window.marcarQuestao = async (status) => {
+  if (!_questaoModalAtualId) return;
+  try {
+    await updateDoc(doc(db, 'concurso_questoes', _questaoModalAtualId), { status });
+    mostrarToast('Status atualizado!', 'sucesso');
+    fecharModal('modal-questao');
+    await carregarQuestoes();
+    carregarDashboard();
+  } catch (e) {
+    mostrarToast('Erro: ' + e.message, 'erro');
+  }
+};
+
+// ----- Exportação para Anki (.txt no formato de importação) -----
+window.abrirModalExportarAnki = () => {
+  popularSelectsDisciplina();
+  atualizarContagemAnki();
+  abrirModal('modal-exportar-anki');
+};
+
+
+window.atualizarContagemAnki = () => {
+  const lista = questoesParaExportar();
+  document.getElementById('anki-contagem').textContent = `${lista.length} questão(ões) serão exportadas.`;
+};
+document.addEventListener('change', (e) => {
+  
+});
+
+
+
+
+
+
+// ============================================================
+// MÓDULO: DASHBOARD
+// ============================================================
+
+
+// ============ META SEMANAL ============
+let metaSemanHoras = 0;
+
+async function carregarMeta() {
+  try {
+    const snap = await getDocs(query(collection(db, 'concurso_disciplinas'), where('_tipo', '==', 'config')));
+    // Meta salva como doc especial
+    const metaDoc = await getDoc(doc(db, 'concurso_sessoes', '_meta_semanal'));
+    if (metaDoc.exists()) metaSemanHoras = metaDoc.data().horas || 0;
+  } catch(e) {}
+  atualizarBarraMeta();
+}
+
+function atualizarBarraMeta() {
+  const texto = document.getElementById('dash-meta-texto');
+  const pct = document.getElementById('dash-meta-pct');
+  const barra = document.getElementById('dash-meta-barra');
+  if (!texto || !barra) return;
+
+  // Pegar horas da semana atual
+  const sessoes = window._sessoesSemanaCache || [];
+  const totalSeg = sessoes.reduce((s, x) => s + (Number(x.duracao) || 0), 0);
+  const horasFeitas = totalSeg / 3600;
+
+  if (!metaSemanHoras) {
+    texto.textContent = 'Meta não definida — clique em Editar meta para definir';
+    pct.textContent = '';
+    barra.style.width = '0%';
+    barra.style.background = 'var(--cinza)';
+    return;
+  }
+
+  const progresso = Math.min(100, Math.round((horasFeitas / metaSemanHoras) * 100));
+  texto.textContent = `${horasFeitas.toFixed(1)}h de ${metaSemanHoras}h`;
+  pct.textContent = progresso + '%';
+  barra.style.width = progresso + '%';
+  barra.style.background = progresso >= 100 ? 'var(--verde)' : progresso >= 60 ? 'var(--azul-medio)' : 'var(--laranja)';
+}
+
+window.abrirModalMeta = () => {
+  document.getElementById('meta-horas-input').value = metaSemanHoras || '';
+  abrirModal('modal-meta');
+};
+
+window.salvarMeta = async () => {
+  const val = parseInt(document.getElementById('meta-horas-input').value);
+  if (!val || val < 1) { mostrarToast('Digite um valor válido', 'aviso'); return; }
+  try {
+    await setDoc(doc(db, 'concurso_sessoes', '_meta_semanal'), { horas: val });
+    metaSemanHoras = val;
+    atualizarBarraMeta();
+    fecharModal('modal-meta');
+    mostrarToast('Meta salva: ' + val + 'h por semana', 'sucesso');
+  } catch(e) {
+    mostrarToast('Erro ao salvar meta', 'erro');
+  }
+};
+
+// ============ REGISTRO SEMANAL ============
+let _tarefasRegistro = [];
+
+window.abrirModalRegistroSemanal = async () => {
+  abrirModal('modal-registro-semanal');
+  const lista = document.getElementById('registro-semanal-lista');
+  lista.innerHTML = '<div class="loader">Carregando tarefas...</div>';
+
+  try {
+    const snap = await getDocs(collection(db, 'concurso_tarefas'));
+    _tarefasRegistro = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(t => t.status !== 'concluida')
+      .sort((a,b) => (a.ordem||0) - (b.ordem||0));
+
+    if (!_tarefasRegistro.length) {
+      lista.innerHTML = '<div class="vazio">Nenhuma tarefa pendente.</div>';
+      return;
+    }
+
+    // Agrupar por disciplina
+    const porDisc = {};
+    _tarefasRegistro.forEach(t => {
+      const disc = t.disciplinaNome || t.disciplinaId || 'Sem disciplina';
+      if (!porDisc[disc]) porDisc[disc] = [];
+      porDisc[disc].push(t);
+    });
+
+    lista.innerHTML = Object.entries(porDisc).map(([disc, tarefas]) => `
+      <div style="margin-bottom:1.25rem">
+        <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:.04em;margin-bottom:0.5rem">${esc(disc)}</div>
+        ${tarefas.map(t => `
+          <div style="background:var(--fundo);border:1px solid var(--borda);border-radius:8px;padding:0.75rem;margin-bottom:0.5rem">
+            <div style="font-size:0.9rem;font-weight:500;margin-bottom:0.5rem">${esc(t.descricao || 'Tarefa sem descrição')}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+              <div>
+                <label style="font-size:0.75rem;color:var(--cinza);display:block;margin-bottom:2px">Conclusão atual: ${t.percentual || 0}%</label>
+                <div style="display:flex;align-items:center;gap:0.5rem">
+                  <input type="range" min="0" max="100" step="5" value="${t.percentual || 0}"
+                    id="reg-pct-${t.id}" oninput="document.getElementById('reg-pct-val-${t.id}').textContent=this.value+'%'"
+                    style="flex:1">
+                  <span id="reg-pct-val-${t.id}" style="font-size:0.85rem;font-weight:600;min-width:36px">${t.percentual || 0}%</span>
+                </div>
+              </div>
+              <div>
+                <label style="font-size:0.75rem;color:var(--cinza);display:block;margin-bottom:2px">Observação</label>
+                <input type="text" id="reg-obs-${t.id}" value="${esc(t.observacao || '')}" placeholder="Anotação rápida..."
+                  style="width:100%;padding:0.3rem 0.5rem;border:1px solid var(--borda);border-radius:6px;font-size:0.82rem">
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>`).join('');
+  } catch(e) {
+    lista.innerHTML = '<div class="vazio">Erro ao carregar tarefas.</div>';
+  }
+};
+
+window.salvarRegistroSemanal = async () => {
+  if (!_tarefasRegistro.length) { fecharModal('modal-registro-semanal'); return; }
+  try {
+    const batch = writeBatch(db);
+    let concluidasAgora = 0;
+    _tarefasRegistro.forEach(t => {
+      const pct = parseInt(document.getElementById('reg-pct-' + t.id)?.value || t.percentual || 0);
+      const obs = document.getElementById('reg-obs-' + t.id)?.value || t.observacao || '';
+      const novoStatus = pct >= 100 ? 'concluida' : pct > 0 ? 'em_andamento' : 'pendente';
+      if (novoStatus === 'concluida') concluidasAgora++;
+      batch.update(doc(db, 'concurso_tarefas', t.id), {
+        percentual: pct, observacao: obs, status: novoStatus
+      });
+    });
+    await batch.commit();
+    fecharModal('modal-registro-semanal');
+    mostrarToast(`Progresso salvo! ${concluidasAgora > 0 ? concluidasAgora + ' tarefa(s) concluída(s).' : ''}`, 'sucesso');
+    carregarDashboard();
+  } catch(e) {
+    mostrarToast('Erro ao salvar: ' + e.message, 'erro');
+  }
+};
+
+async function carregarDashboard() {
+  // Desempenho geral
+  const comStatus = questoesCache.filter(q => q.status === 'acerto' || q.status === 'erro');
+  const acertos = questoesCache.filter(q => q.status === 'acerto').length;
+  const desempenho = comStatus.length ? Math.round((acertos / comStatus.length) * 100) : 0;
+  document.getElementById('dash-desempenho').textContent = comStatus.length ? desempenho + '%' : '—';
+  document.getElementById('dash-total-questoes').textContent = questoesCache.length;
+
+  // Horas estudadas na semana (a partir das sessões)
+  let sessoesSemana = [];
+  try {
+    const snap = await getDocs(collection(db, 'concurso_sessoes'));
+    const todasSessoes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const inicioSemana = inicioSemanaAtual();
+    sessoesSemana = todasSessoes.filter(s => {
+      const dt = s.data?.toDate ? s.data.toDate() : (s.data ? new Date(s.data) : null);
+      return dt && dt >= inicioSemana;
+    });
+    const totalSegundos = sessoesSemana.reduce((sum, s) => sum + (Number(s.duracao) || 0), 0);
+    const horas = (totalSegundos / 3600).toFixed(1);
+    document.getElementById('dash-horas-semana').textContent = horas + 'h';
+
+    window._sessoesSemanaCache = sessoesSemana;
+    atualizarBarraMeta();
+  } catch (e) {
+    document.getElementById('dash-horas-semana').textContent = '—';
+  }
+
+  // Tarefas concluídas na semana
+  let tarefasConcluidasSemana = 0;
+  try {
+    const snap = await getDocs(collection(db, 'concurso_tarefas'));
+    const todasTarefas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const inicioSemana = inicioSemanaAtual();
+    tarefasConcluidasSemana = todasTarefas.filter(t => {
+      if (t.status !== 'concluida') return false;
+      const dt = t.criadoEm?.toDate ? t.criadoEm.toDate() : null;
+      return true; // não há timestamp de conclusão dedicado; conta todas concluídas atualmente
+    }).length;
+    document.getElementById('dash-tarefas-semana').textContent = tarefasConcluidasSemana;
+
+    renderizarProgressoSemanal(todasTarefas);
+  } catch (e) {
+    document.getElementById('dash-tarefas-semana').textContent = '—';
+  }
+
+  renderizarGraficoDesempenho();
+}
+
+function renderizarGraficoDesempenho() {
+  const el = document.getElementById('dash-grafico-disciplinas');
+  if (!disciplinasCache.length) {
+    el.innerHTML = '<div class="vazio"><div class="icone-vazio">📊</div>Cadastre disciplinas e responda questões para ver o desempenho aqui.</div>';
+    return;
+  }
+
+  const linhas = disciplinasCache.map(disc => {
+    const qs = questoesCache.filter(q => q.disciplinaId === disc.id && (q.status === 'acerto' || q.status === 'erro'));
+    if (!qs.length) return { nome: disc.nome, pct: null, total: 0 };
+    const acertos = qs.filter(q => q.status === 'acerto').length;
+    return { nome: disc.nome, pct: Math.round((acertos / qs.length) * 100), total: qs.length };
+  });
+
+  if (!linhas.some(l => l.total > 0)) {
+    el.innerHTML = '<div class="vazio"><div class="icone-vazio">📊</div>Nenhuma questão registrada ainda.</div>';
+    return;
+  }
+
+  el.innerHTML = linhas.map(l => {
+    const cor = l.pct === null ? 'var(--cinza)' : l.pct >= 70 ? 'var(--verde)' : l.pct >= 40 ? 'var(--amarelo)' : 'var(--vermelho)';
+    return `
+      <div style="margin-bottom:0.9rem">
+        <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:3px">
+          <span style="font-weight:600">${esc(l.nome)}</span>
+          <span style="color:var(--cinza)">${l.pct === null ? 'sem dados' : l.pct + '% (' + l.total + ' questões)'}</span>
+        </div>
+        <div class="barra-prog" style="height:10px">
+          <div class="barra-prog-fill" style="width:${l.pct || 0}%;background:${cor}"></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderizarProgressoSemanal(todasTarefas) {
+  const el = document.getElementById('dash-progresso-semanal');
+  if (!todasTarefas.length) {
+    el.innerHTML = '<div class="vazio"><div class="icone-vazio">📅</div>Nenhuma tarefa cadastrada ainda.</div>';
+    return;
+  }
+  // Mostra todas as tarefas não concluídas + recentemente concluídas, ordenadas por disciplina/ordem
+  const linhas = todasTarefas
+    .slice()
+    .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+    .map(t => {
+      const disc = disciplinasCache.find(d => d.id === t.disciplinaId);
+      return `
+        <tr>
+          <td>${esc(disc ? disc.nome : '—')}</td>
+          <td>${esc(t.descricao || '—')}</td>
+          <td>Semana ${t.semana || '—'}</td>
+          <td style="min-width:120px">
+            <div class="barra-prog"><div class="barra-prog-fill" style="width:${t.percentual || 0}%"></div></div>
+            <div style="font-size:0.72rem;color:var(--cinza);margin-top:2px">${t.percentual || 0}%</div>
+          </td>
+        </tr>`;
+    }).join('');
+
+  el.innerHTML = `<table><thead><tr><th>Disciplina</th><th>Tarefa</th><th>Semana</th><th>Progresso</th></tr></thead><tbody>${linhas}</tbody></table>`;
+}
+</script>
+
+<script>
+// ============================================================
+// MÓDULO: CRONÔMETRO
+// ============================================================
+
+let cronEstado = 'parado'; // parado | rodando | pausado
+let cronInicioTimestamp = null;   // momento em que o cronômetro começou a contar (ms)
+let cronSegundosAcumulados = 0;   // segundos já contabilizados antes da contagem atual
+let cronIntervalId = null;
+const CRON_LS_KEY = 'estudos_cron_estado';
+
+function cronSalvarLocalStorage() {
+  try {
+    localStorage.setItem(CRON_LS_KEY, JSON.stringify({
+      estado: cronEstado,
+      inicioTimestamp: cronInicioTimestamp,
+      segundosAcumulados: cronSegundosAcumulados,
+      disciplinaId: document.getElementById('cron-disciplina-sel')?.value || '',
+      tarefaId: document.getElementById('cron-tarefa-sel')?.value || '',
+    }));
+  } catch (e) { /* ignora */ }
+}
+
+function cronRestaurarEstado() {
+  try {
+    const raw = localStorage.getItem(CRON_LS_KEY);
+    if (!raw) return;
+    const dados = JSON.parse(raw);
+    cronEstado = dados.estado || 'parado';
+    cronInicioTimestamp = dados.inicioTimestamp || null;
+    cronSegundosAcumulados = dados.segundosAcumulados || 0;
+
+    if (cronEstado === 'rodando' || cronEstado === 'pausado') {
+      // Espera disciplinas carregarem antes de selecionar valores
+      const aplicarSelecoes = () => {
+        if (dados.disciplinaId) {
+          const sel = document.getElementById('cron-disciplina-sel');
+          if (sel) { sel.value = dados.disciplinaId; cronCarregarTarefasSelect(); }
+        }
+        if (dados.tarefaId) {
+          setTimeout(() => {
+            const selT = document.getElementById('cron-tarefa-sel');
+            if (selT) selT.value = dados.tarefaId;
+          }, 50);
+        }
+      };
+      setTimeout(aplicarSelecoes, 300);
+
+      atualizarBotoesCron();
+      document.getElementById('cronometro-mini').classList.add('ativo');
+      if (cronEstado === 'rodando') {
+        cronIntervalId = setInterval(cronTick, 1000);
+      }
+      cronTick();
+    }
+  } catch (e) { /* ignora */ }
+}
+
+function cronSegundosAtuais() {
+  if (cronEstado === 'rodando' && cronInicioTimestamp) {
+    return cronSegundosAcumulados + Math.floor((Date.now() - cronInicioTimestamp) / 1000);
+  }
+  return cronSegundosAcumulados;
+}
+
+function cronTick() {
+  const seg = cronSegundosAtuais();
+  const txt = fmtDuracao(seg);
+  const display = document.getElementById('cron-display');
+  if (display) display.textContent = txt;
+  const mini = document.getElementById('cronometro-mini-tempo');
+  if (mini) mini.textContent = txt;
+}
+
+function atualizarBotoesCron() {
+  const btnIniciar = document.getElementById('cron-btn-iniciar');
+  const btnPausar = document.getElementById('cron-btn-pausar');
+  const btnRetomar = document.getElementById('cron-btn-retomar');
+  const btnFinalizar = document.getElementById('cron-btn-finalizar');
+  const selDisc = document.getElementById('cron-disciplina-sel');
+  const selTarefa = document.getElementById('cron-tarefa-sel');
+
+  if (cronEstado === 'parado') {
+    btnIniciar.style.display = '';
+    btnPausar.style.display = 'none';
+    btnRetomar.style.display = 'none';
+    btnFinalizar.style.display = 'none';
+    selDisc.disabled = false;
+    selTarefa.disabled = false;
+  } else if (cronEstado === 'rodando') {
+    btnIniciar.style.display = 'none';
+    btnPausar.style.display = '';
+    btnRetomar.style.display = 'none';
+    btnFinalizar.style.display = '';
+    selDisc.disabled = true;
+    selTarefa.disabled = true;
+  } else if (cronEstado === 'pausado') {
+    btnIniciar.style.display = 'none';
+    btnPausar.style.display = 'none';
+    btnRetomar.style.display = '';
+    btnFinalizar.style.display = '';
+    selDisc.disabled = true;
+    selTarefa.disabled = true;
+  }
+}
+
+window.cronCarregarTarefasSelect = () => {
+  const discId = document.getElementById('cron-disciplina-sel').value;
+  const selTarefa = document.getElementById('cron-tarefa-sel');
+  if (!discId) {
+    selTarefa.innerHTML = '<option value="">— Selecione a disciplina primeiro —</option>';
+    return;
+  }
+  const tarefas = tarefasCache[discId];
+  if (tarefas) {
+    preencherSelectTarefas(tarefas, selTarefa);
+  } else {
+    selTarefa.innerHTML = '<option value="">Carregando...</option>';
+    getDocs(query(collection(db, 'concurso_tarefas'), where('disciplinaId', '==', discId))).then(snap => {
+      const lista = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
+      tarefasCache[discId] = lista;
+      preencherSelectTarefas(lista, selTarefa);
+    }).catch(() => {
+      selTarefa.innerHTML = '<option value="">Erro ao carregar tarefas</option>';
+    });
+  }
+};
+
+function preencherSelectTarefas(tarefas, selTarefa) {
+  if (!tarefas.length) {
+    selTarefa.innerHTML = '<option value="">Nenhuma tarefa cadastrada</option>';
+    return;
+  }
+  selTarefa.innerHTML = '<option value="">— Selecione —</option>' +
+    tarefas.map(t => `<option value="${t.id}">${esc(t.descricao || '(sem descrição)')}</option>`).join('');
+}
+
+window.cronIniciar = () => {
+  const discId = document.getElementById('cron-disciplina-sel').value;
+  const tarefaId = document.getElementById('cron-tarefa-sel').value;
+  if (!discId || !tarefaId) { mostrarToast('Selecione a disciplina e a tarefa antes de iniciar', 'aviso'); return; }
+
+  cronEstado = 'rodando';
+  cronInicioTimestamp = Date.now();
+  cronSegundosAcumulados = 0;
+  atualizarBotoesCron();
+  document.getElementById('cronometro-mini').classList.add('ativo');
+  cronIntervalId = setInterval(cronTick, 1000);
+  cronTick();
+  cronSalvarLocalStorage();
+  mostrarToast('Cronômetro iniciado!', 'sucesso');
+};
+
+window.cronPausar = () => {
+  cronSegundosAcumulados = cronSegundosAtuais();
+  cronInicioTimestamp = null;
+  cronEstado = 'pausado';
+  clearInterval(cronIntervalId);
+  atualizarBotoesCron();
+  cronSalvarLocalStorage();
+};
+
+window.cronRetomar = () => {
+  cronInicioTimestamp = Date.now();
+  cronEstado = 'rodando';
+  cronIntervalId = setInterval(cronTick, 1000);
+  atualizarBotoesCron();
+  cronSalvarLocalStorage();
+};
+
+window.cronFinalizar = async () => {
+  const segundosFinal = cronSegundosAtuais();
+  const discId = document.getElementById('cron-disciplina-sel').value;
+  const tarefaId = document.getElementById('cron-tarefa-sel').value;
+
+  clearInterval(cronIntervalId);
+  cronIntervalId = null;
+
+  if (segundosFinal < 1) {
+    mostrarToast('Sessão muito curta, não foi salva.', 'aviso');
+    cronResetar();
+    return;
+  }
+
+  try {
+    await addDoc(collection(db, 'concurso_sessoes'), {
+      disciplinaId: discId,
+      tarefaId: tarefaId,
+      duracao: segundosFinal,
+      data: serverTimestamp(),
+      criadoEm: serverTimestamp()
+    });
+
+    // Atualiza tempo acumulado na tarefa
+    if (tarefaId) {
+      const tarefas = tarefasCache[discId] || [];
+      const t = tarefas.find(x => x.id === tarefaId);
+      const tempoAtual = (t && t.tempoAcumulado) || 0;
+      await updateDoc(doc(db, 'concurso_tarefas', tarefaId), { tempoAcumulado: tempoAtual + segundosFinal });
+      if (disciplinaAtivaId === discId) await carregarTarefasDaDisciplina(discId);
+      if (t) t.tempoAcumulado = tempoAtual + segundosFinal;
+    }
+
+    mostrarToast(`Sessão de ${fmtDuracao(segundosFinal)} salva!`, 'sucesso');
+    cronResetar();
+    cronCarregarSessoesHoje();
+    carregarDashboard();
+  } catch (e) {
+    mostrarToast('Erro ao salvar sessão: ' + e.message, 'erro');
+  }
+};
+
+function cronResetar() {
+  cronEstado = 'parado';
+  cronInicioTimestamp = null;
+  cronSegundosAcumulados = 0;
+  document.getElementById('cron-display').textContent = '00:00:00';
+  document.getElementById('cronometro-mini').classList.remove('ativo');
+  atualizarBotoesCron();
+  try { localStorage.removeItem(CRON_LS_KEY); } catch (e) {}
+}
+
+async function cronCarregarSessoesHoje() {
+  const el = document.getElementById('cron-sessoes-hoje');
+  const elHoras = document.getElementById('cron-horas-disciplina');
+  if (!el) return;
+  el.innerHTML = '<div class="loader">Carregando...</div>';
+  try {
+    const snap = await getDocs(collection(db, 'concurso_sessoes'));
+    const todas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const sessoesHoje = todas.filter(s => {
+      const dt = s.data?.toDate ? s.data.toDate() : null;
+      return dt && dt >= hoje;
+    }).sort((a, b) => (b.data?.toMillis?.() || 0) - (a.data?.toMillis?.() || 0));
+
+    sessoesHojeCache = sessoesHoje;
+
+    if (!sessoesHoje.length) {
+      el.innerHTML = '<div class="vazio"><div class="icone-vazio">⏱️</div>Nenhuma sessão registrada hoje ainda.</div>';
+    } else {
+      const totalHoje = sessoesHoje.reduce((s, x) => s + (Number(x.duracao) || 0), 0);
+      el.innerHTML = `
+        <table>
+          <thead><tr><th>Disciplina</th><th>Tarefa</th><th>Duração</th></tr></thead>
+          <tbody>
+            ${sessoesHoje.map(s => `
+              <tr>
+                <td>${esc(nomeDisciplina(s.disciplinaId) || '—')}</td>
+                <td>${esc(nomeTarefa(s.disciplinaId, s.tarefaId) || '—')}</td>
+                <td>${fmtDuracao(s.duracao)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        <div style="padding:0.75rem 1.25rem;font-weight:700;color:var(--azul);border-top:1px solid var(--borda)">
+          Total hoje: ${fmtDuracao(totalHoje)}
+        </div>`;
+    }
+
+    // Horas por disciplina na semana
+    const inicioSemana = inicioSemanaAtual();
+    const sessoesSemana = todas.filter(s => {
+      const dt = s.data?.toDate ? s.data.toDate() : null;
+      return dt && dt >= inicioSemana;
+    });
+    const porDisciplina = {};
+    sessoesSemana.forEach(s => {
+      porDisciplina[s.disciplinaId] = (porDisciplina[s.disciplinaId] || 0) + (Number(s.duracao) || 0);
+    });
+    const linhasDisc = Object.entries(porDisciplina).sort((a, b) => b[1] - a[1]);
+
+    if (!linhasDisc.length) {
+      elHoras.innerHTML = '<div class="vazio"><div class="icone-vazio">📅</div>Nenhuma sessão registrada nesta semana.</div>';
+    } else {
+      elHoras.innerHTML = `
+        <table>
+          <thead><tr><th>Disciplina</th><th>Total na semana</th></tr></thead>
+          <tbody>
+            ${linhasDisc.map(([discId, seg]) => `
+              <tr><td>${esc(nomeDisciplina(discId) || '—')}</td><td>${fmtDuracao(seg)}</td></tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+  } catch (e) {
+    console.error(e);
+    erroCarregamento(['cron-sessoes-hoje', 'cron-horas-disciplina']);
+  }
+}
+
+function nomeTarefa(discId, tarefaId) {
+  const tarefas = tarefasCache[discId];
+  if (!tarefas) return '';
+  const t = tarefas.find(x => x.id === tarefaId);
+  return t ? t.descricao : '';
+}
+</script>
+
+<!-- Módulo Firebase: colocado ao final propositalmente. Scripts type="module" são
+     sempre executados de forma assíncrona/deferida (depois do parsing do HTML),
+     então posicioná-lo aqui garante que todos os scripts síncronos acima -- que
+     definem iniciarAplicacao() e registram o listener de 'firebase-pronto' --
+     já tenham sido executados antes deste módulo disparar o evento. -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, doc, getDoc, getDocs, addDoc, setDoc,
+  updateDoc, deleteDoc, writeBatch, query, where, orderBy, limit, onSnapshot, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyABWwa6Y0SCBK8jXTNNB_zhQeIOVvfLHrI",
+  authDomain: "pnad-c-campos.firebaseapp.com",
+  projectId: "pnad-c-campos",
+  storageBucket: "pnad-c-campos.firebasestorage.app",
+  messagingSenderId: "816527372751",
+  appId: "1:816527372751:web:b7b251d0060663a384e2ba",
+  measurementId: "G-XPH45VH7YC"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
+
+window._db = db;
+window._fb = { collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, query, where, orderBy, limit, onSnapshot, serverTimestamp };
+
+// Sinaliza que o Firebase terminou de inicializar
+window.dispatchEvent(new Event('firebase-pronto'));
+</script>
+</body>
+</html>
