@@ -1065,6 +1065,7 @@
               <button onclick="gerarRoteiroCarta(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">✉️ Primeira entrevista</button>
               <button onclick="gerarResumoPendencias(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">📱 Resumo pendências</button>
               <button onclick="abrirControlePendencias();this.closest('.dropdown-listagens').classList.remove('aberto')">📊 Controle de pendências</button>
+              <button onclick="abrirControleNaoRealizadas();this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Controle de não realizadas</button>
             </div>
           </div>
         </div>
@@ -2388,6 +2389,32 @@
         <button class="filtro-chip ctrpend-sem" data-sem="4" onclick="selecionarSemanaCtrPend(this)">Sem. 4</button>
       </div>
       <div id="ctrpend-tabela"><div class="loader">Carregando...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Controle de Não Realizadas -->
+<div class="modal-overlay" id="modal-controle-nr" onclick="if(event.target===this)fecharModal('modal-controle-nr')">
+  <div class="modal" style="max-width:780px;width:100%">
+    <div class="modal-header" style="padding:1rem 1.25rem">
+      <div>
+        <h3 id="ctrnr-titulo" style="font-size:0.95rem;font-weight:700;color:var(--azul)">Controle de Não Realizadas</h3>
+        <div style="font-size:0.75rem;color:var(--cinza);margin-top:2px">PNAD Contínua · Campos dos Goytacazes</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem">
+        <button onclick="imprimirControleNR()" style="background:none;border:1.5px solid var(--borda);border-radius:6px;padding:0.3rem 0.75rem;font-size:0.8rem;font-family:var(--fonte);cursor:pointer;color:var(--cinza-escuro)">🖨️ Imprimir</button>
+        <button class="btn-fechar" onclick="fecharModal('modal-controle-nr')">×</button>
+      </div>
+    </div>
+    <div class="modal-body" style="padding:1rem 1.25rem">
+      <div style="display:flex;gap:0.3rem;margin-bottom:1rem;flex-wrap:wrap">
+        <button class="filtro-chip ctrnr-sem ativo" data-sem="todas" onclick="selecionarSemanaNR(this)">Todas</button>
+        <button class="filtro-chip ctrnr-sem" data-sem="1" onclick="selecionarSemanaNR(this)">Sem. 1</button>
+        <button class="filtro-chip ctrnr-sem" data-sem="2" onclick="selecionarSemanaNR(this)">Sem. 2</button>
+        <button class="filtro-chip ctrnr-sem" data-sem="3" onclick="selecionarSemanaNR(this)">Sem. 3</button>
+        <button class="filtro-chip ctrnr-sem" data-sem="4" onclick="selecionarSemanaNR(this)">Sem. 4</button>
+      </div>
+      <div id="ctrnr-tabela"><div class="loader">Carregando...</div></div>
     </div>
   </div>
 </div>
@@ -4035,6 +4062,133 @@ window.imprimirControlePendencias = () => {
   th:first-child,th:last-child{text-align:left}
   td{padding:6px 10px;border:0.5px solid #EEEDE8;text-align:center}
   td:first-child,td:last-child{text-align:left}
+  tfoot td{background:#EEEDE8;font-weight:600;border-top:0.5px solid #D3D1C7}
+  @media print{@page{margin:1.2cm}}
+</style></head><body>
+<h2>${esc(titulo)}</h2>
+<div class="sub">PNAD Contínua · Campos dos Goytacazes</div>
+${clone.innerHTML}
+<script>window.onload=()=>{window.print();window.close()}<\/script>
+</body></html>`);
+  win.document.close();
+};
+
+// ── CONTROLE DE NÃO REALIZADAS ──────────────────────────────────────────────
+
+let _ctrNrSemana = 'todas';
+
+const _STATUS_VAGO_OCC = new Set(['vago', 'uso_ocasional']);
+
+window.abrirControleNaoRealizadas = async () => {
+  _ctrNrSemana = 'todas';
+  document.querySelectorAll('.ctrnr-sem').forEach(b => {
+    b.classList.toggle('ativo', b.dataset.sem === 'todas');
+  });
+  abrirModal('modal-controle-nr');
+  await _renderControleNR();
+};
+
+window.selecionarSemanaNR = async (btn) => {
+  document.querySelectorAll('.ctrnr-sem').forEach(b => b.classList.remove('ativo'));
+  btn.classList.add('ativo');
+  _ctrNrSemana = btn.dataset.sem;
+  await _renderControleNR();
+};
+
+async function _renderControleNR() {
+  const container = document.getElementById('ctrnr-tabela');
+  container.innerHTML = '<div class="loader">Carregando...</div>';
+
+  const semana = _ctrNrSemana;
+  const docsPeriodo = todosdomicilios.filter(pertencePeriodo);
+  const semLabel = semana === 'todas' ? 'Todas as semanas' : `Semana ${semana}`;
+  document.getElementById('ctrnr-titulo').textContent =
+    `Controle de Não Realizadas — ${semLabel}`;
+
+  const docsFiltrados = semana === 'todas'
+    ? docsPeriodo
+    : docsPeriodo.filter(d => String(d.semana) === semana);
+
+  const _pendSet = new Set(STATUS_PENDENTES);
+
+  const porEntr = {};
+  for (const d of docsFiltrados) {
+    const nome = d.entrevistador_nome?.trim() || '(sem entrevistador)';
+    if (!porEntr[nome]) porEntr[nome] = { total: 0, realizadas: 0, pendentes: 0, vagoOcc: 0, outros: 0 };
+    const st = d.status_atual || 'nao_visitado';
+    porEntr[nome].total++;
+    if (st === 'realizada')         porEntr[nome].realizadas++;
+    else if (_pendSet.has(st))      porEntr[nome].pendentes++;
+    else if (_STATUS_VAGO_OCC.has(st)) porEntr[nome].vagoOcc++;
+    else                            porEntr[nome].outros++;
+  }
+
+  const entrevistadores = Object.keys(porEntr).sort((a, b) => a.localeCompare(b));
+
+  if (entrevistadores.length === 0) {
+    container.innerHTML = '<p style="color:var(--cinza);font-size:0.85rem;padding:0.5rem 0">Nenhum dado encontrado para o período/semana selecionado.</p>';
+    return;
+  }
+
+  let sTotal = 0, sRealiz = 0, sPend = 0, sVagoOcc = 0, sOutros = 0;
+
+  const linhas = entrevistadores.map(nome => {
+    const { total, realizadas, pendentes, vagoOcc, outros } = porEntr[nome];
+    sTotal += total; sRealiz += realizadas; sPend += pendentes;
+    sVagoOcc += vagoOcc; sOutros += outros;
+    return `<tr>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8">${esc(nome)}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center">${total}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center;color:#2C7A4B;font-weight:500">${realizadas}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center;color:${pendentes>0?'#A02020':'#444'};font-weight:500">${pendentes}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center">${vagoOcc}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center">${outros}</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="border:0.5px solid #D3D1C7;border-radius:8px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead>
+          <tr style="background:#EEEDE8">
+            <th style="padding:6px 10px;text-align:left;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Entrevistador</th>
+            <th style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Total</th>
+            <th style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Realizadas</th>
+            <th style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Pendentes</th>
+            <th style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Vago / Uso Ocasional</th>
+            <th style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Outros</th>
+          </tr>
+        </thead>
+        <tbody>${linhas}</tbody>
+        <tfoot>
+          <tr style="background:#EEEDE8;border-top:0.5px solid #D3D1C7;font-weight:600">
+            <td style="padding:6px 10px">Total</td>
+            <td style="padding:6px 10px;text-align:center">${sTotal}</td>
+            <td style="padding:6px 10px;text-align:center;color:#2C7A4B">${sRealiz}</td>
+            <td style="padding:6px 10px;text-align:center;color:${sPend>0?'#A02020':'#444'}">${sPend}</td>
+            <td style="padding:6px 10px;text-align:center">${sVagoOcc}</td>
+            <td style="padding:6px 10px;text-align:center">${sOutros}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>`;
+}
+
+window.imprimirControleNR = () => {
+  const titulo = document.getElementById('ctrnr-titulo').textContent;
+  const clone = document.getElementById('ctrnr-tabela').cloneNode(true);
+  const win = window.open('', '_blank', 'width=800,height=600');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>${esc(titulo)}</title>
+<style>
+  body{font-family:Arial,sans-serif;padding:1.5rem;color:#222}
+  h2{font-size:13px;margin:0 0 2px}
+  .sub{font-size:10px;color:#666;margin-bottom:1rem}
+  table{width:100%;border-collapse:collapse;font-size:11px}
+  th{background:#EEEDE8;padding:6px 10px;font-weight:600;color:#444441;border:0.5px solid #D3D1C7;text-align:center}
+  th:first-child{text-align:left}
+  td{padding:6px 10px;border:0.5px solid #EEEDE8;text-align:center}
+  td:first-child{text-align:left}
   tfoot td{background:#EEEDE8;font-weight:600;border-top:0.5px solid #D3D1C7}
   @media print{@page{margin:1.2cm}}
 </style></head><body>
