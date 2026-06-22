@@ -580,6 +580,7 @@
   <button class="mod-btn" onclick="irParaModulo(3)">💼 Trabalho</button>
   <button class="mod-btn" onclick="irParaModulo(4)">🏭 MEI</button>
   <button class="mod-btn" onclick="irParaModulo(5)">💰 Rendimentos</button>
+  <button class="mod-btn" onclick="irParaModulo(6)">🔄 Outras Formas</button>
 </div>
 
 <div id="loading"><div class="spinner"></div></div>
@@ -645,6 +646,7 @@ let dadosGlobais = {
   trabalho: [],
   mei: [],
   rendimentos: [],
+  outrasFormas: [],
   entrevistador: {},
   observacoes: { texto: '' }
 };
@@ -663,6 +665,7 @@ const MODULOS = [
   { id: 'trabalho', label: 'Trabalho', icon: '💼', render: renderTrabalho },
   { id: 'mei', label: 'MEI', icon: '🏭', render: renderMEI },
   { id: 'rendimentos', label: 'Rendimentos', icon: '💰', render: renderRendimentos },
+  { id: 'outrasFormas', label: 'Outras Formas', icon: '🔄', render: renderOutrasFormas },
 ];
 
 // ============================================================
@@ -863,6 +866,7 @@ function excluirMorador(index) {
   if (dadosGlobais.trabalho.length > index) dadosGlobais.trabalho.splice(index, 1);
   if (dadosGlobais.mei.length > index) dadosGlobais.mei.splice(index, 1);
   if (dadosGlobais.rendimentos.length > index) dadosGlobais.rendimentos.splice(index, 1);
+  if (dadosGlobais.outrasFormas.length > index) dadosGlobais.outrasFormas.splice(index, 1);
 
   totalMoradores--;
   setVal(dadosGlobais.habitacao, 'H_total_moradores', totalMoradores);
@@ -3647,6 +3651,358 @@ function renderRendimentosMorador(area) {
 }
 
 // ============================================================
+// MÓDULO 6 – OUTRAS FORMAS DE TRABALHO (5ª entrevista)
+// ============================================================
+function renderTabsOutrasFormas() {
+  const bar = document.getElementById('tab-bar-outras-formas');
+  if (!bar) return;
+  bar.innerHTML = '';
+  for (let i = 0; i < totalMoradores; i++) {
+    const sc = getMoradorScope(i);
+    if (parseInt(getVal(sc,'M9_idade') || '0') < 14) continue;
+    const nome = getVal(sc,'M4_nome') || ('Morador '+(i+1));
+    const btn = document.createElement('button');
+    const conc = (dadosGlobais.outrasFormas[i] || {})['_concluido'];
+    btn.className = 'morador-tab' + (i === moradorAtual ? ' ativo' : '') + (conc ? ' concluido' : '');
+    btn.textContent = nome.split(' ')[0];
+    btn.addEventListener('click', () => {
+      moradorAtual = i;
+      renderTabsOutrasFormas();
+      renderOutrasFormasMorador(document.getElementById('area-outras-formas'));
+      renderEtiquetasMoradores();
+    });
+    bar.appendChild(btn);
+  }
+}
+
+function renderOutrasFormas() {
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+  const mh = document.createElement('div');
+  mh.className = 'modulo-header';
+  mh.innerHTML = `<div class="mod-icon">🔄</div><div><h2>Módulo 6 – Outras Formas de Trabalho</h2><p>Produção para consumo próprio, cuidados, afazeres domésticos e voluntariado — 5ª entrevista</p></div>`;
+  main.appendChild(mh);
+  if (etapaAtual() !== '5') {
+    const av = document.createElement('div'); av.className='alerta-info'; av.style.margin='12px 0';
+    av.innerHTML = `⚠️ Este módulo é aplicado somente na <strong>5ª entrevista</strong>. Entrevista atual: <strong>${etapaAtual()}ª</strong>. Você pode preencher antecipadamente.`;
+    main.appendChild(av);
+  }
+  const tabBar = document.createElement('div'); tabBar.className='morador-tab-bar'; tabBar.id='tab-bar-outras-formas';
+  main.appendChild(tabBar);
+  const area = document.createElement('div'); area.id='area-outras-formas';
+  main.appendChild(area);
+  renderTabsOutrasFormas();
+  renderOutrasFormasMorador(area);
+  renderEtiquetasMoradores();
+}
+
+function aplicarSaltosOutrasFormas(ofscope, area) {
+  const g = (k) => getVal(ofscope, k);
+  const mo = (id, show) => { const el = document.getElementById(id); if (el) mostrarOcultar(el, show); };
+  mo('sub_OF_Q99',  g('OF_Q99')==='1');
+  mo('sub_OF_Q102', g('OF_Q102')==='1');
+  mo('sub_OF_Q105', g('OF_Q105')==='1');
+  mo('sub_OF_Q108', g('OF_Q108')==='1');
+  const temCuid = ['OF_Q117c_1','OF_Q117c_2','OF_Q117c_3'].some(k=>g(k)==='1');
+  mo('card_OF_Q117d', temCuid);
+  const temVol = ['OF_Q123_1','OF_Q123_2','OF_Q123_3'].some(k=>g(k)==='1');
+  mo('card_OF_Q124', temVol);
+  const temQ125 = ['OF_Q125_1','OF_Q125_2'].some(k=>g(k)==='1');
+  const temQual = temVol || temQ125;
+  ['card_OF_Q126','card_OF_Q127','card_OF_Q128'].forEach(id=>mo(id, temQual));
+  mo('card_OF_Q129', temQual && g('OF_Q128')==='1');
+}
+
+function renderOutrasFormasMorador(area) {
+  if (!area) return;
+  area.innerHTML = '';
+  const mscope = getMoradorScope(moradorAtual);
+  const ofscope = dadosGlobais.outrasFormas[moradorAtual] || {};
+  dadosGlobais.outrasFormas[moradorAtual] = ofscope;
+  const hscope = dadosGlobais.habitacao;
+  const nome = getVal(mscope,'M4_nome') || ('Morador '+(moradorAtual+1));
+  const g = (k) => getVal(ofscope, k);
+  const onChange = () => aplicarSaltosOutrasFormas(ofscope, area);
+
+  const al = document.createElement('div'); al.className='alerta-info'; al.textContent=`Respondendo para: ${nome}`;
+  area.appendChild(al);
+
+  // ── SEÇÃO 1: PRODUÇÃO PARA CONSUMO PRÓPRIO ──
+  const b1 = document.createElement('div'); b1.className='badge-modulo'; b1.textContent='SEÇÃO 1 – PRODUÇÃO PARA CONSUMO PRÓPRIO E CONSTRUÇÃO PARA PRÓPRIO USO';
+  area.appendChild(b1);
+
+  area.appendChild(criarCard('OF_Q99',
+    'Q99 – Na semana de referência, exerceu atividades em cultivo, pesca, caça ou criação de animais destinados somente à alimentação das pessoas moradoras do domicílio ou de parente?', true,
+    criarRadio(ofscope,'OF_Q99',[{val:'1',label:'Sim'},{val:'2',label:'Não'}], onChange)));
+
+  const sub99 = document.createElement('div'); sub99.id='sub_OF_Q99'; sub99.className='subquestao'+(g('OF_Q99')==='1'?'':' oculta');
+  sub99.appendChild(criarCard('OF_Q100','Q100 – Quantas horas dedicou efetivamente a todas essas atividades na semana de referência?', false,
+    (() => { const d=document.createElement('div'); d.appendChild(criarInput(ofscope,'OF_Q100_horas','number','Ex: 8')); return d; })()));
+  sub99.appendChild(criarCard('OF_Q101','Q101 – Qual foi a principal atividade que exerceu na semana de referência?', false,
+    (() => { const d=document.createElement('div'); d.appendChild(criarInput(ofscope,'OF_Q101_atividade','text','Ex: Cultivo de tomates, Criação de galinhas, Pesca de pirarucu')); return d; })()));
+  area.appendChild(sub99);
+
+  area.appendChild(criarCard('OF_Q102',
+    'Q102 – Na semana de referência, exerceu atividades na produção de carvão, corte ou coleta de lenha, coleta de água, extração de sementes, de ervas, de areia, de argila ou de outro material destinado somente ao próprio uso das pessoas moradoras do domicílio ou de parente?', true,
+    criarRadio(ofscope,'OF_Q102',[{val:'1',label:'Sim'},{val:'2',label:'Não'}], onChange)));
+
+  const sub102 = document.createElement('div'); sub102.id='sub_OF_Q102'; sub102.className='subquestao'+(g('OF_Q102')==='1'?'':' oculta');
+  sub102.appendChild(criarCard('OF_Q103','Q103 – Quantas horas dedicou efetivamente a todas essas atividades na semana de referência?', false,
+    (() => { const d=document.createElement('div'); d.appendChild(criarInput(ofscope,'OF_Q103_horas','number','Ex: 5')); return d; })()));
+  sub102.appendChild(criarCard('OF_Q104','Q104 – Qual foi a principal atividade que exerceu na semana de referência?', false,
+    (() => { const d=document.createElement('div'); d.appendChild(criarInput(ofscope,'OF_Q104_atividade','text','Ex: Produção de carvão, Coleta de lenha, Extração de areia')); return d; })()));
+  area.appendChild(sub102);
+
+  area.appendChild(criarCard('OF_Q105',
+    'Q105 – Na semana de referência, exerceu atividades na fabricação de roupas, tricô, bordado, cerâmicas, redes de pesca, alimentos de longa durabilidade, bebidas alcoólicas, produtos medicinais ou outros bens de uso doméstico, destinados somente ao próprio uso das pessoas moradoras do domicílio ou de parente?', true,
+    criarRadio(ofscope,'OF_Q105',[{val:'1',label:'Sim'},{val:'2',label:'Não'}], onChange)));
+
+  const sub105 = document.createElement('div'); sub105.id='sub_OF_Q105'; sub105.className='subquestao'+(g('OF_Q105')==='1'?'':' oculta');
+  sub105.appendChild(criarCard('OF_Q106','Q106 – Quantas horas dedicou efetivamente a todas essas atividades na semana de referência?', false,
+    (() => { const d=document.createElement('div'); d.appendChild(criarInput(ofscope,'OF_Q106_horas','number','Ex: 12')); return d; })()));
+  sub105.appendChild(criarCard('OF_Q107','Q107 – Qual foi a principal atividade que exerceu na semana de referência?', false,
+    (() => { const d=document.createElement('div'); d.appendChild(criarInput(ofscope,'OF_Q107_atividade','text','Ex: Confecção de vestidos, Fabricação de armários, Produção de queijo')); return d; })()));
+  area.appendChild(sub105);
+
+  area.appendChild(criarCard('OF_Q108',
+    'Q108 – Na semana de referência, exerceu atividades de construção de casa, cômodo, muro, telhado, forno, churrasqueira, piscina, cerca, poço ou outra edificação destinada somente ao próprio uso, ou fez ampliação ou grandes reparos na moradia?', true,
+    criarRadio(ofscope,'OF_Q108',[{val:'1',label:'Sim'},{val:'2',label:'Não'}], onChange)));
+
+  const sub108 = document.createElement('div'); sub108.id='sub_OF_Q108'; sub108.className='subquestao'+(g('OF_Q108')==='1'?'':' oculta');
+  sub108.appendChild(criarCard('OF_Q109','Q109 – Quantas horas dedicou efetivamente a todas essas atividades na semana de referência?', false,
+    (() => { const d=document.createElement('div'); d.appendChild(criarInput(ofscope,'OF_Q109_horas','number','Ex: 20')); return d; })()));
+  sub108.appendChild(criarCard('OF_Q110','Q110 – Qual foi a principal atividade que exerceu na semana de referência?', false,
+    (() => { const d=document.createElement('div'); d.appendChild(criarInput(ofscope,'OF_Q110_atividade','text','Ex: Construção de cerca, Reforma do banheiro, Construção de cisterna')); return d; })()));
+  area.appendChild(sub108);
+
+  // ── SEÇÃO 2: TRABALHO NÃO REMUNERADO DE CUIDADO DE PESSOAS ──
+  const b2 = document.createElement('div'); b2.className='badge-modulo'; b2.textContent='SEÇÃO 2 – TRABALHO NÃO REMUNERADO DE CUIDADO DE PESSOAS';
+  area.appendChild(b2);
+
+  const itens117c = [
+    {key:'OF_Q117c_1', label:'1. Alimentar, dar remédio, dar banho, ler, brincar, colocar para dormir ou ajudar em outras atividades de cuidados pessoais?', hk:'OF_Q117c_1_horas'},
+    {key:'OF_Q117c_2', label:'2. Levar para a escola, médico, exame, parque, praça ou para outras atividades (esportivas, de lazer etc.)?', hk:'OF_Q117c_2_horas'},
+    {key:'OF_Q117c_3', label:'3. Ajudar nas tarefas escolares, participar de reuniões da escola ou outras atividades educacionais?', hk:'OF_Q117c_3_horas'},
+  ];
+  area.appendChild(criarCard('OF_Q117c',
+    'Q117c – Na semana de referência, fez atividades de cuidado, sem receber remuneração, para crianças, adolescentes, pessoas com deficiência, idosas ou adoentadas deste domicílio, tais como:', true,
+    (() => {
+      const d = document.createElement('div');
+      itens117c.forEach(it => {
+        const w = document.createElement('div'); w.className='campo-grupo'; w.style.marginBottom='10px';
+        const lb = document.createElement('div'); lb.className='campo-label'; lb.style.fontWeight='600'; lb.textContent=it.label; w.appendChild(lb);
+        w.appendChild(criarRadio(ofscope, it.key, [{val:'1',label:'Sim'},{val:'2',label:'Não'}], (v) => {
+          const sh = document.getElementById('sub_'+it.key); if(sh) mostrarOcultar(sh, v==='1');
+          onChange();
+        }));
+        const sh = document.createElement('div'); sh.id='sub_'+it.key; sh.className='subquestao'+(g(it.key)==='1'?'':' oculta');
+        const hl = document.createElement('div'); hl.className='subquestao-label'; hl.textContent='Por quantas horas nessa semana?';
+        sh.appendChild(hl); sh.appendChild(criarInput(ofscope, it.hk, 'number', 'Ex: 10'));
+        w.appendChild(sh); d.appendChild(w);
+      });
+      return d;
+    })()
+  ));
+
+  const temCuid117c = itens117c.some(it => g(it.key)==='1');
+  const cardQ117d = criarCard('OF_Q117d',
+    'Q117d – Fez essas atividades de cuidado para quais moradores deste domicílio?', false,
+    (() => {
+      const d = document.createElement('div'); d.className='campo-grupo';
+      let temOpcoes = false;
+      for (let i = 0; i < totalMoradores; i++) {
+        if (i === moradorAtual) continue;
+        const sc = getMoradorScope(i); const mNome = getVal(sc,'M4_nome') || ('Morador '+(i+1));
+        const mIdade = parseInt(getVal(sc,'M9_idade') || '0');
+        temOpcoes = true;
+        const lbl = document.createElement('label'); lbl.className='opcao-label checkbox'; lbl.style.marginBottom='4px';
+        const inp = document.createElement('input'); inp.type='checkbox'; inp.style.display='none';
+        const ck = 'OF_Q117d_mor'+i; inp.checked = g(ck)==='1';
+        inp.addEventListener('change', () => { setVal(ofscope, ck, inp.checked?'1':'0'); salvarDados(); lbl.classList.toggle('selecionada', inp.checked); });
+        const vis = document.createElement('div'); vis.className='opcao-check-visual';
+        const txt = document.createElement('span'); txt.textContent=`${mNome} (${mIdade} anos)`;
+        lbl.appendChild(inp); lbl.appendChild(vis); lbl.appendChild(txt);
+        if (inp.checked) lbl.classList.add('selecionada');
+        d.appendChild(lbl);
+      }
+      if (!temOpcoes) { const info=document.createElement('div'); info.className='questao-ajuda'; info.textContent='Domicílio com um único morador.'; d.appendChild(info); }
+      return d;
+    })()
+  );
+  cardQ117d.id='card_OF_Q117d';
+  if (!temCuid117c) cardQ117d.classList.add('oculta');
+  area.appendChild(cardQ117d);
+
+  area.appendChild(criarCard('OF_Q119a',
+    'Q119a – Na semana de referência, fez atividades de cuidados, sem receber remuneração, para parente(s) que morava(m) em outro domicílio e que precisava(m) de cuidados (crianças, adolescentes, pessoas com deficiência, idosas ou adoentadas)?', true,
+    (() => {
+      const d=document.createElement('div'); d.className='campo-grupo';
+      d.appendChild(criarRadio(ofscope,'OF_Q119a',[{val:'1',label:'Sim'},{val:'2',label:'Não'}], (v) => {
+        const sh=document.getElementById('sub_OF_Q119a'); if(sh) mostrarOcultar(sh, v==='1');
+      }));
+      const sh=document.createElement('div'); sh.id='sub_OF_Q119a'; sh.className='subquestao'+(g('OF_Q119a')==='1'?'':' oculta');
+      const hl=document.createElement('div'); hl.className='subquestao-label'; hl.textContent='Por quantas horas nessa semana (soma de todos os parentes)?';
+      sh.appendChild(hl); sh.appendChild(criarInput(ofscope,'OF_Q119a_horas','number','Ex: 6')); d.appendChild(sh); return d;
+    })()
+  ));
+
+  // ── SEÇÃO 3: TRABALHO DOMÉSTICO NÃO REMUNERADO ──
+  const b3 = document.createElement('div'); b3.className='badge-modulo'; b3.textContent='SEÇÃO 3 – TRABALHO DOMÉSTICO NÃO REMUNERADO';
+  area.appendChild(b3);
+
+  const itens120a = [
+    {key:'OF_Q120a_1', label:'1. Preparar as refeições, esquentar, lavar a louça ou limpar o fogão para os moradores do domicílio?', hk:'OF_Q120a_1_horas'},
+    {key:'OF_Q120a_2', label:'2. Limpar ou arrumar a casa, o quintal, a garagem ou cuidar das plantas?', hk:'OF_Q120a_2_horas'},
+    {key:'OF_Q120a_3', label:'3. Lavar roupa, estender, guardar, passar ou limpar sapatos?', hk:'OF_Q120a_3_horas'},
+    {key:'OF_Q120a_4', label:'4. Fazer compras, pagar contas, contratar serviços para o domicílio ou orientar os(as) empregados(as)?', hk:'OF_Q120a_4_horas'},
+    {key:'OF_Q120a_5', label:'5. Fazer pequenos reparos, instalações ou manutenção do domicílio, do automóvel, de eletrodomésticos e outros equipamentos?', hk:'OF_Q120a_5_horas'},
+    {key:'OF_Q120a_6', label:'6. Cuidar dos animais domésticos: alimentar, dar banho ou levar para passear?', hk:'OF_Q120a_6_horas'},
+  ];
+  area.appendChild(criarCard('OF_Q120a',
+    'Q120a – Na semana de referência, fez alguma das seguintes tarefas domésticas, sem receber qualquer remuneração, para o seu domicílio?', true,
+    (() => {
+      const d=document.createElement('div');
+      itens120a.forEach(it => {
+        const w=document.createElement('div'); w.className='campo-grupo'; w.style.marginBottom='10px';
+        const lb=document.createElement('div'); lb.className='campo-label'; lb.style.fontWeight='600'; lb.textContent=it.label; w.appendChild(lb);
+        w.appendChild(criarRadio(ofscope, it.key, [{val:'1',label:'Sim'},{val:'2',label:'Não'}], (v) => {
+          const sh=document.getElementById('sub_'+it.key); if(sh) mostrarOcultar(sh, v==='1');
+        }));
+        const sh=document.createElement('div'); sh.id='sub_'+it.key; sh.className='subquestao'+(g(it.key)==='1'?'':' oculta');
+        const hl=document.createElement('div'); hl.className='subquestao-label'; hl.textContent='Por quantas horas nessa semana?';
+        sh.appendChild(hl); sh.appendChild(criarInput(ofscope, it.hk, 'number', 'Ex: 7')); w.appendChild(sh); d.appendChild(w);
+      });
+      return d;
+    })()
+  ));
+
+  area.appendChild(criarCard('OF_Q121c',
+    'Q121c – Na semana de referência, fez tarefa doméstica, sem receber remuneração, para parente(s) que morava(m) em outro domicílio?', true,
+    (() => {
+      const d=document.createElement('div'); d.className='campo-grupo';
+      d.appendChild(criarRadio(ofscope,'OF_Q121c',[{val:'1',label:'Sim'},{val:'2',label:'Não'}], (v) => {
+        const sh=document.getElementById('sub_OF_Q121c'); if(sh) mostrarOcultar(sh, v==='1');
+      }));
+      const sh=document.createElement('div'); sh.id='sub_OF_Q121c'; sh.className='subquestao'+(g('OF_Q121c')==='1'?'':' oculta');
+      const hl=document.createElement('div'); hl.className='subquestao-label'; hl.textContent='Por quantas horas nessa semana?';
+      sh.appendChild(hl); sh.appendChild(criarInput(ofscope,'OF_Q121c_horas','number','Ex: 4')); d.appendChild(sh); return d;
+    })()
+  ));
+
+  // Q121d é nível domicílio — exibe apenas para o primeiro morador elegível
+  if (moradorAtual === 0 || !dadosGlobais.outrasFormas.slice(0, moradorAtual).some((_, i) => parseInt(getVal(getMoradorScope(i),'M9_idade')||'0') >= 14)) {
+    area.appendChild(criarCard('OF_Q121d',
+      'Q121d – Na semana de referência, este domicílio tinha serviço remunerado de empregado(a) doméstico(a), diarista, faxineira(o), babá ou cuidador(a)? (pergunta sobre o domicílio)', false,
+      (() => {
+        const d=document.createElement('div'); d.className='campo-grupo';
+        d.appendChild(criarRadio(hscope,'OF_Q121d',[{val:'1',label:'Sim'},{val:'2',label:'Não'}], (v) => {
+          const sh=document.getElementById('sub_OF_Q121d'); if(sh) mostrarOcultar(sh, v==='1');
+        }));
+        const sh=document.createElement('div'); sh.id='sub_OF_Q121d'; sh.className='subquestao'+(getVal(hscope,'OF_Q121d')==='1'?'':' oculta');
+        const hl=document.createElement('div'); hl.className='subquestao-label'; hl.textContent='Por quantas horas nessa semana (total de todos os profissionais)?';
+        sh.appendChild(hl); sh.appendChild(criarInput(hscope,'OF_Q121d_horas','number','Ex: 8')); d.appendChild(sh); return d;
+      })()
+    ));
+  }
+
+  // ── SEÇÃO 4: TRABALHO VOLUNTÁRIO (30 dias) ──
+  const b4 = document.createElement('div'); b4.className='badge-modulo'; b4.textContent='SEÇÃO 4 – TRABALHO VOLUNTÁRIO (período de 30 dias)';
+  area.appendChild(b4);
+
+  const itens123 = [
+    {key:'OF_Q123_1', label:'1. Organização, associação, instituição religiosa, ONG, hospital, entre outras?'},
+    {key:'OF_Q123_2', label:'2. Pessoas em situação de rua, moradores de uma localidade ou comunidade (organizando ou distribuindo doações, participando de mutirão)?'},
+    {key:'OF_Q123_3', label:'3. Conservação do meio ambiente ou de proteção aos animais?'},
+  ];
+  area.appendChild(criarCard('OF_Q123',
+    'Q123 – No período de referência (30 dias), fez trabalho voluntário, durante pelo menos 1 hora, para:', true,
+    (() => {
+      const d=document.createElement('div');
+      itens123.forEach(it => {
+        const w=document.createElement('div'); w.className='campo-grupo'; w.style.marginBottom='8px';
+        const lb=document.createElement('div'); lb.className='campo-label'; lb.style.fontWeight='600'; lb.textContent=it.label; w.appendChild(lb);
+        w.appendChild(criarRadio(ofscope, it.key, [{val:'1',label:'Sim'},{val:'2',label:'Não'}], onChange));
+        d.appendChild(w);
+      });
+      return d;
+    })()
+  ));
+
+  const temVol123 = itens123.some(it => g(it.key)==='1');
+  const cardQ124 = criarCard('OF_Q124','Q124 – No período de referência (30 dias), por quantas horas fez essas atividades voluntárias (Q123)?', false,
+    (() => { const d=document.createElement('div'); d.appendChild(criarInput(ofscope,'OF_Q124_horas','number','Ex: 16')); return d; })());
+  cardQ124.id='card_OF_Q124'; if(!temVol123) cardQ124.classList.add('oculta');
+  area.appendChild(cardQ124);
+
+  const itens125 = [
+    {key:'OF_Q125_1', label:'1. Fazendo tarefas domésticas ou cuidando de crianças, adolescentes, pessoas com deficiência, idosas ou adoentadas?', hk:'OF_Q125_1_horas'},
+    {key:'OF_Q125_2', label:'2. Realizando outro tipo de ajuda ou serviços profissionais como eletricista, pedreiro(a), advogado(a), contador(a), professor(a) ou outro?', hk:'OF_Q125_2_horas'},
+  ];
+  area.appendChild(criarCard('OF_Q125',
+    'Q125 – No período de referência (30 dias), ajudou amigos(as), vizinhos(as) ou desconhecidos(as), sem receber remuneração, durante pelo menos uma hora:', true,
+    (() => {
+      const d=document.createElement('div');
+      itens125.forEach(it => {
+        const w=document.createElement('div'); w.className='campo-grupo'; w.style.marginBottom='10px';
+        const lb=document.createElement('div'); lb.className='campo-label'; lb.style.fontWeight='600'; lb.textContent=it.label; w.appendChild(lb);
+        w.appendChild(criarRadio(ofscope, it.key, [{val:'1',label:'Sim'},{val:'2',label:'Não'}], (v) => {
+          const sh=document.getElementById('sub_'+it.key); if(sh) mostrarOcultar(sh, v==='1');
+          onChange();
+        }));
+        const sh=document.createElement('div'); sh.id='sub_'+it.key; sh.className='subquestao'+(g(it.key)==='1'?'':' oculta');
+        const hl=document.createElement('div'); hl.className='subquestao-label'; hl.textContent='Por quantas horas nesses 30 dias?';
+        sh.appendChild(hl); sh.appendChild(criarInput(ofscope, it.hk, 'number', 'Ex: 5')); w.appendChild(sh); d.appendChild(w);
+      });
+      return d;
+    })()
+  ));
+
+  const temQ125 = itens125.some(it => g(it.key)==='1');
+  const temQual = temVol123 || temQ125;
+
+  const cardQ126 = criarCard('OF_Q126','Q126 – Com que frequência costuma fazer essas atividades de trabalho voluntário ou ajuda?', false,
+    criarRadio(ofscope,'OF_Q126',[
+      {val:'1',label:'Todo dia'},{val:'2',label:'Toda semana'},
+      {val:'3',label:'Com outra frequência'},{val:'4',label:'Sem frequência definida'},
+    ], onChange));
+  cardQ126.id='card_OF_Q126'; if(!temQual) cardQ126.classList.add('oculta');
+  area.appendChild(cardQ126);
+
+  const cardQ127 = criarCard('OF_Q127','Q127 – No período de referência, qual foi a principal tarefa de trabalho voluntário ou ajuda que fez?', false,
+    (() => { const d=document.createElement('div'); d.appendChild(criarInput(ofscope,'OF_Q127_tarefa','text','Ex: Arrecadar donativos para a Igreja, Dar aulas de reforço para crianças')); return d; })());
+  cardQ127.id='card_OF_Q127'; if(!temQual) cardQ127.classList.add('oculta');
+  area.appendChild(cardQ127);
+
+  const cardQ128 = criarCard('OF_Q128','Q128 – Quem organizou essa tarefa?', false,
+    (() => {
+      const d=document.createElement('div'); d.className='campo-grupo';
+      d.appendChild(criarRadio(ofscope,'OF_Q128',[
+        {val:'1',label:'Empresa, organização ou instituição'},
+        {val:'2',label:'Comunidade ou grupo de pessoas'},
+        {val:'3',label:'A própria pessoa'},
+        {val:'4',label:'Outra pessoa'},
+      ], (v) => {
+        const sh=document.getElementById('sub_OF_Q128_quem'); if(sh) mostrarOcultar(sh, v==='4');
+        onChange();
+      }));
+      const sh=document.createElement('div'); sh.id='sub_OF_Q128_quem'; sh.className='subquestao'+(g('OF_Q128')==='4'?'':' oculta');
+      const hl=document.createElement('div'); hl.className='subquestao-label'; hl.textContent='Quem foi essa pessoa?';
+      sh.appendChild(hl); sh.appendChild(criarInput(ofscope,'OF_Q128_quem','text','Ex: vizinho, amigo')); d.appendChild(sh); return d;
+    })());
+  cardQ128.id='card_OF_Q128'; if(!temQual) cardQ128.classList.add('oculta');
+  area.appendChild(cardQ128);
+
+  const cardQ129 = criarCard('OF_Q129','Q129 – Qual era a principal atividade da empresa, organização ou instituição para (através da) qual fez essa tarefa?', false,
+    (() => { const d=document.createElement('div'); d.appendChild(criarInput(ofscope,'OF_Q129_atividade','text','Ex: Assistência social a moradores de rua, Melhoria das escolas públicas')); return d; })());
+  cardQ129.id='card_OF_Q129'; if(!temQual || g('OF_Q128')!=='1') cardQ129.classList.add('oculta');
+  area.appendChild(cardQ129);
+
+  area.appendChild(criarCardInformante(ofscope, 'OF_Q130', 'Q130 – Quem foi o informante desta parte (Outras Formas de Trabalho)?', [
+    {val:'1',label:'A própria pessoa'},{val:'2',label:'Pessoa não moradora'}
+  ]));
+}
+
+// ============================================================
 // NAVEGAÇÃO ENTRE MÓDULOS
 // ============================================================
 function irParaModulo(idx) {
@@ -3659,12 +4015,13 @@ function irParaModulo(idx) {
 }
 
 // Módulos que têm navegação por morador (índices no array MODULOS)
-const MODULOS_POR_MORADOR = [1, 2, 3, 4, 5]; // Moradores, Educação, Trabalho, MEI, Rendimentos
+const MODULOS_POR_MORADOR = [1, 2, 3, 4, 5, 6]; // Moradores, Educação, Trabalho, MEI, Rendimentos, Outras Formas
 
 function idadeMinimaPorModulo(mod) {
   if (mod === 2) return 5;   // Educação
   if (mod === 3) return 14;  // Trabalho
   if (mod === 4) return 14;  // MEI
+  if (mod === 6) return 14;  // Outras Formas
   return 0;
 }
 
@@ -3678,7 +4035,7 @@ function salvarMoradorModuloAtual() {
   if (moduloAtual === 1) return validarESalvarMorador();
 
   // Para os demais módulos por morador, apenas marca como concluído
-  const scopeKey = ['', 'moradores', 'educacao', 'trabalho', 'mei', 'rendimentos'][moduloAtual];
+  const scopeKey = ['', 'moradores', 'educacao', 'trabalho', 'mei', 'rendimentos', 'outrasFormas'][moduloAtual];
   if (!scopeKey) return true;
   const arr = dadosGlobais[scopeKey];
   while (arr.length <= moradorAtual) arr.push({});
@@ -3700,6 +4057,7 @@ function renderModuloMoradorAtual() {
   else if (moduloAtual === 3) { renderTabsTrabalho(); renderTrabalhoMorador(); }
   else if (moduloAtual === 4) { renderTabsMEI(); renderMEIMorador(document.getElementById('area-mei')); }
   else if (moduloAtual === 5) { renderTabsRendimentos(); renderRendimentosMorador(document.getElementById('area-rend')); }
+  else if (moduloAtual === 6) { renderTabsOutrasFormas(); renderOutrasFormasMorador(document.getElementById('area-outras-formas')); }
   renderEtiquetasMoradores();
 }
 
@@ -3970,6 +4328,35 @@ function gerarResumo() {
   }
 
   linhas.push('');
+  linhas.push('=== MÓDULO 6 – OUTRAS FORMAS DE TRABALHO (5ª entrevista) ===');
+  for (let i = 0; i < totalMoradores; i++) {
+    const msc = getMoradorScope(i);
+    const idade = parseInt(getVal(msc,'M9_idade') || '0');
+    if (idade < 14) continue;
+    const ofsc = dadosGlobais.outrasFormas[i] || {};
+    const ov = (k) => getVal(ofsc, k) || '—';
+    linhas.push('');
+    linhas.push(`-- ${getVal(msc,'M4_nome') || 'Morador '+(i+1)} (${idade} anos) --`);
+    const sn = (k) => ov(k)==='1'?'Sim':(ov(k)==='2'?'Não':'—');
+    linhas.push(`Q99 Cultivo/pesca/caça/criação p/consumo: ${sn('OF_Q99')}` + (ov('OF_Q99')==='1'?` | ${ov('OF_Q100_horas')}h | ${ov('OF_Q101_atividade')}` : ''));
+    linhas.push(`Q102 Carvão/lenha/extração p/consumo: ${sn('OF_Q102')}` + (ov('OF_Q102')==='1'?` | ${ov('OF_Q103_horas')}h | ${ov('OF_Q104_atividade')}` : ''));
+    linhas.push(`Q105 Fabricação bens domésticos p/consumo: ${sn('OF_Q105')}` + (ov('OF_Q105')==='1'?` | ${ov('OF_Q106_horas')}h | ${ov('OF_Q107_atividade')}` : ''));
+    linhas.push(`Q108 Construção/reforma p/uso próprio: ${sn('OF_Q108')}` + (ov('OF_Q108')==='1'?` | ${ov('OF_Q109_horas')}h | ${ov('OF_Q110_atividade')}` : ''));
+    linhas.push(`Q117c Cuidados pessoais moradores: alimentar=${sn('OF_Q117c_1')} (${ov('OF_Q117c_1_horas')}h) | transportar=${sn('OF_Q117c_2')} (${ov('OF_Q117c_2_horas')}h) | escola=${sn('OF_Q117c_3')} (${ov('OF_Q117c_3_horas')}h)`);
+    linhas.push(`Q119a Cuidados p/parentes outro domicílio: ${sn('OF_Q119a')}` + (ov('OF_Q119a')==='1'?` | ${ov('OF_Q119a_horas')}h` : ''));
+    linhas.push(`Q120a Afazeres domésticos: cozinhar=${sn('OF_Q120a_1')} (${ov('OF_Q120a_1_horas')}h) | limpar=${sn('OF_Q120a_2')} (${ov('OF_Q120a_2_horas')}h) | roupa=${sn('OF_Q120a_3')} (${ov('OF_Q120a_3_horas')}h)`);
+    linhas.push(`  compras=${sn('OF_Q120a_4')} (${ov('OF_Q120a_4_horas')}h) | reparos=${sn('OF_Q120a_5')} (${ov('OF_Q120a_5_horas')}h) | animais=${sn('OF_Q120a_6')} (${ov('OF_Q120a_6_horas')}h)`);
+    linhas.push(`Q121c Afazeres p/parentes outro domicílio: ${sn('OF_Q121c')}` + (ov('OF_Q121c')==='1'?` | ${ov('OF_Q121c_horas')}h` : ''));
+    const q123 = ['OF_Q123_1','OF_Q123_2','OF_Q123_3'].some(k=>ov(k)==='1');
+    linhas.push(`Q123 Trabalho voluntário: org=${sn('OF_Q123_1')} | comunidade=${sn('OF_Q123_2')} | meio-amb=${sn('OF_Q123_3')}` + (q123?` | ${ov('OF_Q124_horas')}h`:''));
+    linhas.push(`Q125 Ajuda amigos/vizinhos: domést/cuidados=${sn('OF_Q125_1')} (${ov('OF_Q125_1_horas')}h) | outros serviços=${sn('OF_Q125_2')} (${ov('OF_Q125_2_horas')}h)`);
+  }
+  const hsc = dadosGlobais.habitacao;
+  if (getVal(hsc,'OF_Q121d')) {
+    linhas.push(`Q121d Empregado doméstico remunerado no domicílio: ${getVal(hsc,'OF_Q121d')==='1'?'Sim':'Não'}` + (getVal(hsc,'OF_Q121d')==='1'?` | ${getVal(hsc,'OF_Q121d_horas')||'—'}h`:''));
+  }
+
+  linhas.push('');
   linhas.push('=== MÓDULO MEI ===');
   for (let i = 0; i < totalMoradores; i++) {
     const msc = getMoradorScope(i);
@@ -4165,7 +4552,7 @@ function enviarWhatsApp() {
 
 function reiniciar() {
   if (!confirm('Deseja iniciar um novo questionário? Os dados atuais serão apagados.')) return;
-  dadosGlobais = { habitacao:{}, moradores:[], educacao:[], trabalho:[], mei:[], rendimentos:[], entrevistador:{} };
+  dadosGlobais = { habitacao:{}, moradores:[], educacao:[], trabalho:[], mei:[], rendimentos:[], outrasFormas:[], entrevistador:{} };
   totalMoradores = 1; moradorAtual = 0; salvarDados();
   document.getElementById('tela-resumo').style.display = 'none'; document.getElementById('main').style.display = 'block'; document.getElementById('nav-btns').style.display = 'flex';
 
