@@ -2065,6 +2065,42 @@ function renderTrabalhoMorador() {
   area.appendChild(criarCard('T4', 'T4 – Na semana de referência, ajudou durante pelo menos 1 hora, sem receber pagamento, no trabalho remunerado de algum morador do domicílio ou de parente?', false, criarRadio(tscope,'T4_ajuda',[{val:'1',label:'Sim'},{val:'2',label:'Não'}], () => aplicarSaltosTrabalho(tscope, area))));
   area.appendChild(criarCard('T5', 'T5 – Na semana de referência, tinha algum trabalho remunerado do qual estava temporariamente afastado?', false, criarRadio(tscope,'T5_afastado',[{val:'1',label:'Sim'},{val:'2',label:'Não'}], () => aplicarSaltosTrabalho(tscope, area))));
 
+  const cardT6A = criarCard('T6A',
+    'T6A – Por que motivo estava afastado desse trabalho?', false,
+    criarRadio(tscope,'T6A_motivo',[
+      {val:'1',label:'Férias'},
+      {val:'2',label:'Licença médica / tratamento de saúde ou acidente de trabalho'},
+      {val:'3',label:'Licença maternidade / paternidade'},
+      {val:'4',label:'Serviço militar'},
+      {val:'5',label:'Suspensão temporária do contrato de trabalho / Lay off'},
+      {val:'6',label:'Greve ou lockout'},
+      {val:'7',label:'Outro motivo'},
+    ])
+  );
+  area.appendChild(cardT6A);
+
+  const cardT8 = criarCard('T8',
+    'T8 – Até o último dia da semana de referência, fazia quanto tempo que estava afastado desse trabalho?', false,
+    (() => {
+      const d = document.createElement('div'); d.className='campo-grupo';
+      d.appendChild(criarRadio(tscope,'T8_tempo',[
+        {val:'1',label:'Menos de 1 mês'},
+        {val:'2',label:'De 1 mês a menos de 1 ano'},
+        {val:'3',label:'De 1 ano a menos de 2 anos'},
+        {val:'4',label:'2 anos ou mais'},
+      ], (v) => {
+        const sub = document.getElementById('sub_T8_qtd'); if(sub) mostrarOcultar(sub, v==='2'||v==='3'||v==='4');
+      }));
+      const sub = document.createElement('div'); sub.id='sub_T8_qtd';
+      const showSub = ['2','3','4'].includes(getVal(tscope,'T8_tempo'));
+      sub.className='subquestao'+(showSub?'':' oculta');
+      const hl = document.createElement('div'); hl.className='subquestao-label'; hl.textContent='Quantidade exata (ex: 8 meses, 1 ano e 4 meses):';
+      sub.appendChild(hl); sub.appendChild(criarInput(tscope,'T8_qtd_exata','text','Ex: 8 meses'));
+      d.appendChild(sub); return d;
+    })()
+  );
+  area.appendChild(cardT8);
+
   const cardT9 = criarCard('T9',
     'T9 – Quantos trabalhos tinha na semana de referência?', false,
     criarRadio(tscope,'T9_qtd_trabalhos',[
@@ -2161,6 +2197,19 @@ function renderTrabalhoMorador() {
       {val:'3',label:'Não tinha estabelecimento para funcionar'}
     ], () => aplicarSaltosTrabalho(tscope, area))
   ));
+  {
+    const cardT31p = criarCard('T31_priv',
+      'T31 – Nesse trabalho em estabelecimento agropecuário, você era:', false,
+      criarRadio(tscope,'T31_priv_cond',[
+        {val:'1',label:'Proprietário'},
+        {val:'2',label:'Arrendatário'},
+        {val:'3',label:'Parceiro'},
+        {val:'4',label:'Cessionário'},
+        {val:'5',label:'Posseiro'},
+      ])
+    );
+    divBlocoPRIV.appendChild(cardT31p);
+  }
   {
     const cardT21p = criarCard('T21_priv',
       'T21 – Exercia normalmente o trabalho em estabelecimento desse negócio/empresa?', false,
@@ -2265,6 +2314,19 @@ function renderTrabalhoMorador() {
     ], () => aplicarSaltosTrabalho(tscope, area))
   ));
   {
+    const cardT31e = criarCard('T31_emp',
+      'T31 – Nesse trabalho em estabelecimento agropecuário, você era:', false,
+      criarRadio(tscope,'T31_emp_cond',[
+        {val:'1',label:'Proprietário'},
+        {val:'2',label:'Arrendatário'},
+        {val:'3',label:'Parceiro'},
+        {val:'4',label:'Cessionário'},
+        {val:'5',label:'Posseiro'},
+      ])
+    );
+    divBlocoEMP.appendChild(cardT31e);
+  }
+  {
     const cardT21e = criarCard('T21_emp',
       'T21 – Exercia normalmente o trabalho em estabelecimento desse negócio/empresa?', false,
       criarRadio(tscope,'T21_emp_estab',[{val:'1',label:'Sim'},{val:'2',label:'Não'}], () => aplicarSaltosTrabalho(tscope, area))
@@ -2347,6 +2409,19 @@ function renderTrabalhoMorador() {
       {val:'3',label:'Não tinha estabelecimento para funcionar'}
     ], () => aplicarSaltosTrabalho(tscope, area))
   ));
+  {
+    const cardT31cp = criarCard('T31_cp',
+      'T31 – Nesse trabalho em estabelecimento agropecuário, você era:', false,
+      criarRadio(tscope,'T31_cp_cond',[
+        {val:'1',label:'Proprietário'},
+        {val:'2',label:'Arrendatário'},
+        {val:'3',label:'Parceiro'},
+        {val:'4',label:'Cessionário'},
+        {val:'5',label:'Posseiro'},
+      ])
+    );
+    divBlocoCP.appendChild(cardT31cp);
+  }
   {
     const cardT21cp = criarCard('T21_cp',
       'T21 – Exercia normalmente o trabalho em estabelecimento desse negócio/empresa?', false,
@@ -3147,15 +3222,26 @@ function renderTrabalhoMorador() {
 
   const cardT69 = criarCard('T69',
     'T69 – Qual foi o principal motivo que o levou a procurar outro trabalho no período de referência de 30 dias?', false,
-    criarRadio(tscope,'T69_motivo',[
-      {val:'1',label:'Achava que seria dispensado ou que o negócio fecharia'},
-      {val:'2',label:'Ter um trabalho com garantias trabalhistas ou com maior estabilidade'},
-      {val:'3',label:'Ter o seu próprio negócio/empresa'},
-      {val:'4',label:'Conseguir um trabalho de acordo com a sua experiência profissional e/ou formação'},
-      {val:'5',label:'Melhorar as suas condições de bem-estar'},
-      {val:'6',label:'Aumentar os rendimentos'},
-      {val:'7',label:'Trabalhar menos horas, mesmo com redução dos rendimentos'}
-    ])
+    (() => {
+      const d = document.createElement('div'); d.className='campo-grupo';
+      d.appendChild(criarRadio(tscope,'T69_motivo',[
+        {val:'1',label:'Achava que seria dispensado ou que o negócio fecharia'},
+        {val:'2',label:'Ter um trabalho com garantias trabalhistas ou com maior estabilidade'},
+        {val:'3',label:'Ter o seu próprio negócio/empresa'},
+        {val:'4',label:'Conseguir um trabalho de acordo com a sua experiência profissional e/ou formação'},
+        {val:'5',label:'Melhorar as suas condições de bem-estar'},
+        {val:'6',label:'Aumentar os rendimentos'},
+        {val:'7',label:'Trabalhar menos horas, mesmo com redução dos rendimentos'},
+        {val:'8',label:'Outro motivo'},
+      ], (v) => {
+        const sub = document.getElementById('sub_T69_outro'); if(sub) mostrarOcultar(sub, v==='8');
+      }));
+      const sub = document.createElement('div'); sub.id='sub_T69_outro';
+      sub.className='subquestao'+(getVal(tscope,'T69_motivo')==='8'?'':' oculta');
+      const hl = document.createElement('div'); hl.className='subquestao-label'; hl.textContent='Especifique o motivo:';
+      sub.appendChild(hl); sub.appendChild(criarInput(tscope,'T69_outro_esp','text','Descreva o motivo...'));
+      d.appendChild(sub); return d;
+    })()
   );
   area.appendChild(cardT69);
 
@@ -3229,6 +3315,8 @@ function aplicarSaltosTrabalho(scope, area) {
   set('T3', t1 === '2' && t2 === '2');
   set('T4', t1 === '2' && t2 === '2' && t3 === '2');
   set('T5', t1 === '2' && t2 === '2' && t3 === '2' && t4 === '2');
+  set('T6A', t5 === '1');
+  set('T8', t5 === '1');
 
   const ocupado = estaOcupado(scope);
   const isNaoOcupado = (t1 === '2' && t2 === '2' && t3 === '2' && t4 === '2' && t5 === '2');
@@ -3283,18 +3371,21 @@ function aplicarSaltosTrabalho(scope, area) {
   ));
 
   const localPRIV = getVal(scope,'T20_priv_local');
+  set('T31_priv', showPrincipal && isPRIV && localPRIV === '2');
   set('T21_priv', showPrincipal && isPRIV && (localPRIV==='1'||localPRIV==='2'));
   const t21privNao = getVal(scope,'T21_priv_estab') === '2';
   set('T22_priv', showPrincipal && isPRIV && (localPRIV==='3' || t21privNao));
   set('T23_priv', showPrincipal && isPRIV && getVal(scope,'T22_priv_onde')==='1');
 
   const localEMP = getVal(scope,'T20_emp_local');
+  set('T31_emp', showPrincipal && isEMP && localEMP === '2');
   set('T21_emp', showPrincipal && isEMP && (localEMP==='1'||localEMP==='2'));
   const t21empNao = getVal(scope,'T21_emp_estab') === '2';
   set('T22_emp', showPrincipal && isEMP && (localEMP==='3' || t21empNao));
   set('T23_emp', showPrincipal && isEMP && getVal(scope,'T22_emp_onde')==='1');
 
   const localCP = getVal(scope,'T20_cp_local');
+  set('T31_cp', showPrincipal && isCP && localCP === '2');
   set('T21_cp', showPrincipal && isCP && (localCP==='1'||localCP==='2'));
   const t21cpNao = getVal(scope,'T21_cp_estab') === '2';
   set('T22_cp', showPrincipal && isCP && (localCP==='3' || t21cpNao));
