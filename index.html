@@ -1002,9 +1002,6 @@
         </div>
       </div>
 
-      <div id="alerta-etapa5" style="display:none;background:var(--vermelho-claro);border:1px solid var(--vermelho);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1.25rem;font-size:0.87rem;color:var(--vermelho)">
-        🔴 <strong id="alerta-etapa5-txt"></strong> — esses domicílios devem ser substituídos no próximo trimestre.
-      </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem">
         <div class="card-tabela">
@@ -2622,12 +2619,6 @@ async function carregarDashboard() {
     document.getElementById('stat-recusas').textContent = recusas;
     document.getElementById('stat-etapa5').textContent = etapa5;
 
-    // Alerta etapa 5
-    if (etapa5 > 0) {
-      document.getElementById('alerta-etapa5').style.display = '';
-      document.getElementById('alerta-etapa5-txt').textContent =
-        etapa5 + ' domicílios estão na 5ª entrevista e sairão da amostra no próximo trimestre';
-    }
 
     // Pendentes por semana
     let htmlSem = '<table><thead><tr><th>Semana</th><th>Total</th><th>Realizadas</th><th>Pendentes</th><th>%</th></tr></thead><tbody>';
