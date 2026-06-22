@@ -1453,6 +1453,19 @@
             </div>
           </div>
           <div id="hist-xlsx-status" style="margin-top:0.85rem;font-size:0.85rem"></div>
+
+          <hr class="divisor-secao" style="margin:1.5rem 0">
+
+          <p style="font-size:0.85rem;color:var(--cinza-escuro);margin-bottom:0.75rem">
+            <strong>Limpar todas as solicitações.</strong> Remove o campo <code>solicitacoes</code>
+            e <code>tipo_solicitacao</code> de <em>todos</em> os domicílios. Domicílios cujo status
+            seja <code>supervisao</code> ou <code>carta_solicitada</code> voltam para
+            <code>nao_visitado</code>. Use para apagar solicitações de teste antes de começar o uso real.
+          </p>
+          <button class="btn-acao" style="background:var(--vermelho)" onclick="limparTodasSolicitacoes()">
+            🧹 Limpar todas as solicitações
+          </button>
+          <div id="solicitacoes-status" style="margin-top:0.85rem;font-size:0.85rem"></div>
         </div>
       </div>
 
@@ -2297,7 +2310,7 @@ import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   collection, doc, getDoc, getDocs, addDoc, setDoc,
-  updateDoc, deleteDoc, writeBatch, query, where, orderBy, limit, onSnapshot, serverTimestamp }
+  updateDoc, deleteDoc, writeBatch, query, where, orderBy, limit, onSnapshot, serverTimestamp, deleteField }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -6286,6 +6299,50 @@ window.limparEntrevistadorHistorico = async () => {
   } catch (e) {
     console.error(e);
     statusDiv.innerHTML = '<div style="color:var(--vermelho);font-weight:600">❌ Erro ao executar a limpeza. Veja o console.</div>';
+  }
+};
+
+// ── MANUTENÇÃO: limpar todas as solicitações ──
+window.limparTodasSolicitacoes = async () => {
+  if (perfilLogado.perfil !== 'administrador') {
+    mostrarToast('Apenas administradores podem executar esta limpeza', 'erro'); return;
+  }
+  const statusDiv = document.getElementById('solicitacoes-status');
+  if (!confirm('Isso vai apagar TODAS as solicitações de TODOS os domicílios do sistema e reverter o status de "supervisao"/"carta_solicitada" para "nao_visitado". Continuar?')) return;
+
+  statusDiv.innerHTML = '<div style="color:var(--cinza)">⏳ Processando...</div>';
+  try {
+    const snap = await getDocs(collection(db, 'domicilios'));
+    const BATCH_SIZE = 400;
+    let lote = writeBatch(db);
+    let ops = 0, total = 0;
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      const temSols = (data.solicitacoes || []).length > 0;
+      const temLegado = !!data.tipo_solicitacao;
+      const statusAfetado = ['supervisao', 'carta_solicitada'].includes(data.status_atual);
+      if (!temSols && !temLegado) continue;
+
+      const upd = { solicitacoes: [], tipo_solicitacao: deleteField() };
+      if (statusAfetado) upd.status_atual = 'nao_visitado';
+      lote.update(d.ref, upd);
+      ops++; total++;
+
+      if (ops === BATCH_SIZE) {
+        await lote.commit();
+        lote = writeBatch(db);
+        ops = 0;
+      }
+    }
+    if (ops > 0) await lote.commit();
+
+    statusDiv.innerHTML = `<div style="color:var(--verde);font-weight:700">✅ ${total} domicílio(s) limpos.</div>`;
+    mostrarToast(`${total} solicitação(ões) removida(s)`, 'sucesso');
+    await carregarDomicilios();
+  } catch(e) {
+    console.error(e);
+    statusDiv.innerHTML = '<div style="color:var(--vermelho);font-weight:600">❌ Erro. Veja o console.</div>';
   }
 };
 
