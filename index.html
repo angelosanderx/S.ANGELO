@@ -3919,13 +3919,15 @@ async function _renderControlePendencias() {
     ? docsPeriodo
     : docsPeriodo.filter(d => String(d.semana) === semana);
 
+  const STATUS_PEND_CONTROLE = new Set(['fechado', 'ausente', 'recusa', 'vago', 'uso_ocasional']);
+
   const porEntr = {};
   for (const d of docsFiltrados) {
     const nome = d.entrevistador_nome?.trim() || '(sem entrevistador)';
     if (!porEntr[nome]) porEntr[nome] = { total: 0, pendentes: 0 };
     const st = d.status_atual || 'nao_visitado';
     porEntr[nome].total++;
-    if (st !== 'realizada') porEntr[nome].pendentes++;
+    if (STATUS_PEND_CONTROLE.has(st)) porEntr[nome].pendentes++;
   }
 
   const entrevistadores = Object.keys(porEntr).sort((a, b) => a.localeCompare(b));
