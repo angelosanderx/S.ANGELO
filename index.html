@@ -3210,8 +3210,6 @@ window.gerarCartoes = async (idsOverride, tableId) => {
     const telefones = (d.historico_telefones || []);
     const telPorEtapa = {};
     telefones.forEach(t => { telPorEtapa[String(t.entrevista)] = t; });
-    const _temTelCart = (d.tentativas_recentes || []).filter(t => t.origem).some(t => /telefone/i.test(t.origem||''));
-    const _isPendenteCart = !['realizada','vago','uso_ocasional'].includes(d.status_atual);
 
     // Situação trimestre anterior = última etapa antes da atual
     const etapaAtual = parseInt(d.visita_etapa || 0);
@@ -3272,7 +3270,7 @@ window.gerarCartoes = async (idsOverride, tableId) => {
         <div class="c-status">${STATUS_LABEL[d.status_atual] || d.status_atual || 'Não visitado'}</div>
       </div>
       <div class="c-end">${endFmt}</div>
-      <div class="c-meta">Sem.<strong>${d.semana||'—'}</strong> · Et.<strong>${d.visita_etapa||'—'}ª</strong>${(_isPendenteCart && !_temTelCart) ? ' <span style="color:var(--vermelho);font-weight:800;font-size:0.68rem;letter-spacing:0.2px">SEM TENTATIVAS POR TELEFONE!</span>' : ''} · Ant: ${situacaoAnterior}${d.entrevistador_nome ? ' · ' + (d.entrevistador_nome||'').split(' ')[0] : ''}</div>
+      <div class="c-meta">Sem.<strong>${d.semana||'—'}</strong> · Et.<strong>${d.visita_etapa||'—'}ª</strong> · Ant: ${situacaoAnterior}${d.entrevistador_nome ? ' · ' + (d.entrevistador_nome||'').split(' ')[0] : ''}</div>
       ${d.morador_cnefe||d.morador ? `<div class="c-cnefe">👤 ${titleCase(d.morador_cnefe||d.morador||'')}</div>` : ''}
       <div class="c-sep"></div>
       <div class="c-sec">Moradores</div>
@@ -3716,6 +3714,7 @@ window.gerarResumoPendencias = async (idsOverride, tableId) => {
     if (compRaw) endFmt += ', ' + tc(compRaw);
     const status = STATUS_LABEL[d.status_atual] || d.status_atual || '—';
     const tents = (d.tentativas_recentes || []).filter(t => t.origem);
+    const temTelefone = tents.some(t => /telefone/i.test(t.origem||''));
     const tentsHtml = tents.length === 0
       ? '<div class="tent-vazio">Nenhuma tentativa registrada</div>'
       : tents.map(t => {
@@ -3734,6 +3733,7 @@ window.gerarResumoPendencias = async (idsOverride, tableId) => {
         <span>Sem. ${d.semana||'—'}</span>
         <span class="dom-sep">·</span>
         <span>Etapa ${d.visita_etapa||'—'}ª</span>
+        ${!temTelefone ? '<span class="dom-sem-tel">SEM TENTATIVAS POR TELEFONE!</span>' : ''}
         <span class="dom-status">${status}</span>
       </div>
       <div class="dom-end">${endFmt}</div>
@@ -3774,6 +3774,7 @@ window.gerarResumoPendencias = async (idsOverride, tableId) => {
   .dom-num { font-size:9.5pt; }
   .dom-setor { font-family:monospace; font-size:7.5pt; color:#444; }
   .dom-sep { color:#bbb; }
+  .dom-sem-tel { font-size:7pt; font-weight:800; color:#dc2626; text-transform:uppercase; letter-spacing:0.2px; }
   .dom-status { margin-left:auto; font-size:7.5pt; font-weight:600; color:#b45309; background:#fef3c7; border:1px solid #fcd34d; border-radius:8px; padding:0 5px; }
   .dom-end { font-size:8.5pt; margin-top:1px; color:#222; }
   .dom-tents { margin-top:2px; display:flex; flex-direction:column; gap:1px; }
@@ -4035,8 +4036,6 @@ function _badgeEntrevistador(nome, nomeManual = null) {
 }
 
 function _montarLinhaDOM(d, ns = '') {
-  const _temTelLinha = (d.tentativas_recentes || []).filter(t => t.origem).some(t => /telefone/i.test(t.origem||''));
-  const _isPendenteLinha = !['realizada','vago','uso_ocasional'].includes(d.status_atual);
   const setor = d.controle ? d.controle.slice(0,-1) : (d.upa || '-');
   const nomeEntr = d.entrevistador_nome
     ? _badgeEntrevistador(d.entrevistador_nome, d.entrevistador_nome_manual || null)
@@ -4064,7 +4063,6 @@ function _montarLinhaDOM(d, ns = '') {
       <td style="text-align:center;font-size:0.82rem;padding:0.5rem 0.3rem">${d.semana || '-'}</td>
       <td style="text-align:center;padding:0.5rem 0.3rem">
         <span class="badge badge-cinza" style="font-size:0.68rem;padding:1px 5px">${d.visita_etapa || '-'}ª</span>
-        ${(_isPendenteLinha && !_temTelLinha) ? '<div style="font-size:0.58rem;font-weight:800;color:var(--vermelho);margin-top:3px;white-space:nowrap;line-height:1.2">SEM TENT.<br>POR TEL.!</div>' : ''}
       </td>
       <td style="font-size:0.75rem;padding:0.5rem 0.5rem;word-break:break-word">${nomeEntr}</td>
       <td style="padding:0.5rem 0.6rem">
