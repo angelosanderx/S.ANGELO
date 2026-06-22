@@ -8593,7 +8593,7 @@ window.renderCnefeSetores = () => {
         <td>
           <span class="badge ${stBadge[st]}" title="${s.concluido ? 'Clique para desmarcar' : 'Clique para marcar como concluído'}"
             style="cursor:pointer;user-select:none"
-            onclick="toggleCnefeConcluidoRapido('${s.setor}','${s.docId||''}','${(s.pesquisa||'PNAD-C').replace(/'/g,''')}',${!s.concluido})">
+            onclick="toggleCnefeConcluidoRapido('${s.setor}','${s.docId||''}',${!s.concluido})">
             ${s.concluido ? '✓ ' : ''}${stLabel[st]}
           </span>
         </td>
@@ -8752,23 +8752,24 @@ window.salvarCnefeSetorEdit = async () => {
   } catch(e) { mostrarToast('Erro: ' + e.message, 'erro'); }
 };
 
-window.toggleCnefeConcluidoRapido = async (setor, docId, pesquisa, novoEstado) => {
+window.toggleCnefeConcluidoRapido = async (setor, docId, novoEstado) => {
+  const item = _cnefeSetoresList.find(s => s.setor === setor);
+  const pesquisa = item?.pesquisa || 'PNAD-C';
   try {
     let newDocId = docId;
     if (docId) {
       await setDoc(doc(db, 'cnefe_setores', docId), { concluido: novoEstado }, { merge: true });
     } else {
       const ref = await addDoc(collection(db, 'cnefe_setores'), {
-        setor, pesquisa: pesquisa || 'PNAD-C', concluido: novoEstado, criadoEm: serverTimestamp()
+        setor, pesquisa, concluido: novoEstado, criadoEm: serverTimestamp()
       });
       newDocId = ref.id;
     }
-    const item = _cnefeSetoresList.find(s => s.setor === setor);
     if (item) { item.concluido = novoEstado; item.docId = newDocId; }
     if (_cnefeSetoresCache) {
       const ci = _cnefeSetoresCache.find(s => s.id === docId || s.setor === setor);
       if (ci) ci.concluido = novoEstado;
-      else _cnefeSetoresCache.push({ id: newDocId, setor, pesquisa: pesquisa || 'PNAD-C', concluido: novoEstado });
+      else _cnefeSetoresCache.push({ id: newDocId, setor, pesquisa, concluido: novoEstado });
     }
     mostrarToast(novoEstado ? 'Setor marcado como concluído!' : 'Setor desmarcado.', novoEstado ? 'sucesso' : 'info');
     renderCnefeSetores();
