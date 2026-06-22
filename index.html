@@ -4136,6 +4136,8 @@ async function _renderControleNR() {
 
   let sTotal = 0, sRealiz = 0, sPend = 0, sVagoOcc = 0, sOutros = 0;
 
+  const pct = (r, t) => t > 0 ? (r / t * 100).toFixed(1).replace('.', ',') + '%' : '—';
+
   const linhas = entrevistadores.map(nome => {
     const { total, realizadas, pendentes, vagoOcc, outros } = porEntr[nome];
     sTotal += total; sRealiz += realizadas; sPend += pendentes;
@@ -4144,6 +4146,7 @@ async function _renderControleNR() {
       <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8">${esc(nome)}</td>
       <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center">${total}</td>
       <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center;color:#2C7A4B;font-weight:500">${realizadas}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center;color:#2C7A4B;font-weight:500">${pct(realizadas,total)}</td>
       <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center;color:${pendentes>0?'#A02020':'#444'};font-weight:500">${pendentes}</td>
       <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center">${vagoOcc}</td>
       <td class="ctrnr-col-outros" style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center">${outros||''}</td>
@@ -4160,6 +4163,7 @@ async function _renderControleNR() {
             <th style="padding:6px 10px;text-align:left;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Entrevistador</th>
             <th style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Total</th>
             <th style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Realizadas</th>
+            <th style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">% Realiz.</th>
             <th style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Pendentes</th>
             <th style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Vago / Uso Ocasional</th>
             <th class="ctrnr-col-outros" style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Outros</th>
@@ -4171,6 +4175,7 @@ async function _renderControleNR() {
             <td style="padding:6px 10px">Total</td>
             <td style="padding:6px 10px;text-align:center">${sTotal}</td>
             <td style="padding:6px 10px;text-align:center;color:#2C7A4B">${sRealiz}</td>
+            <td style="padding:6px 10px;text-align:center;color:#2C7A4B">${pct(sRealiz,sTotal)}</td>
             <td style="padding:6px 10px;text-align:center;color:${sPend>0?'#A02020':'#444'}">${sPend}</td>
             <td style="padding:6px 10px;text-align:center">${sVagoOcc}</td>
             <td class="ctrnr-col-outros" style="padding:6px 10px;text-align:center">${sOutros||''}</td>
