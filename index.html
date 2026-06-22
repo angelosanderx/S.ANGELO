@@ -3919,7 +3919,7 @@ async function _renderControlePendencias() {
     ? docsPeriodo
     : docsPeriodo.filter(d => String(d.semana) === semana);
 
-  const STATUS_PEND_CONTROLE = new Set(['fechado', 'ausente', 'recusa', 'vago', 'uso_ocasional']);
+  const STATUS_PEND_CONTROLE = new Set(['fechado', 'ausente', 'recusa']);
 
   const porEntr = {};
   for (const d of docsFiltrados) {
