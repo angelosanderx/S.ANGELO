@@ -1187,6 +1187,7 @@
             <option value="apoio_supervisao">👤 Apoio da Supervisão</option>
             <option value="apoio_viatura">🚗 Apoio da Viatura</option>
             <option value="corrigir_moradores">👥 Corrigir quadro de moradores</option>
+            <option value="verificar_status">🔍 Verificar Status</option>
           </select>
           <select id="filtro-entrevistador" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:180px">
             <option value="">Todos os entrevistadores</option>
@@ -1876,6 +1877,7 @@
           <button class="solicitar-btn" data-tipo="comunicar_dmc"         data-status="supervisao">📢 Comunicar DMC</button>
           <button class="solicitar-btn" data-tipo="contato_informante"    data-status="supervisao">📞 Contato com Informante</button>
           <button class="solicitar-btn" data-tipo="mais_empenho"          data-status="supervisao">💪 Mais Empenho</button>
+          <button class="solicitar-btn" data-tipo="verificar_status"      data-status="supervisao">🔍 Verificar Status</button>
         </div>
       </div>
 
@@ -3891,7 +3893,7 @@ function _montarLinhaDOM(d, ns = '') {
         ${badgeStatus(d.status_atual || 'nao_visitado')}
         ${(d.solicitacoes?.length ? d.solicitacoes : d.tipo_solicitacao ? [{ tipo: d.tipo_solicitacao }] : [])
           .map(s => `<div style="margin-top:2px;font-size:0.63rem;font-weight:700;color:var(--laranja);background:var(--laranja-claro);padding:1px 5px;border-radius:10px;display:inline-block">${
-            {carta_abertura:'📄 Abertura', carta_retorno:'🔄 Retorno', carta_recusa:'✉️ Recusa', apoio_supervisao:'👤 Apoio', apoio_viatura:'🚗 Viatura', corrigir_moradores:'👥 Moradores', correcao_questionario:'✏️ Correção', comunicar_dmc:'📢 DMC', contato_informante:'📞 Contato', mais_empenho:'💪 Empenho'}[s.tipo] || s.tipo
+            {carta_abertura:'📄 Abertura', carta_retorno:'🔄 Retorno', carta_recusa:'✉️ Recusa', apoio_supervisao:'👤 Apoio', apoio_viatura:'🚗 Viatura', corrigir_moradores:'👥 Moradores', correcao_questionario:'✏️ Correção', comunicar_dmc:'📢 DMC', contato_informante:'📞 Contato', mais_empenho:'💪 Empenho', verificar_status:'🔍 Status'}[s.tipo] || s.tipo
           }</div>`).join('')}
       </td>
       <td style="font-size:0.75rem;padding:0.5rem 0.5rem">
@@ -4743,9 +4745,10 @@ const SOL_LABELS = {
   comunicar_dmc:         '📢 Comunicar DMC',
   contato_informante:    '📞 Contato com Informante',
   mais_empenho:          '💪 Mais Empenho',
+  verificar_status:      '🔍 Verificar Status',
 };
 const SOL_TIPOS_CARTA      = ['carta_abertura', 'carta_retorno', 'carta_recusa'];
-const SOL_TIPOS_SUPERVISOR = ['correcao_questionario', 'comunicar_dmc', 'contato_informante', 'mais_empenho'];
+const SOL_TIPOS_SUPERVISOR = ['correcao_questionario', 'comunicar_dmc', 'contato_informante', 'mais_empenho', 'verificar_status'];
 
 let tipoSolicitacaoSelecionado   = null;
 let statusSolicitacaoSelecionado = null;
