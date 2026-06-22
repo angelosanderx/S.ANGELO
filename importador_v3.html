@@ -568,8 +568,8 @@ function processarDados() {
     if (tentativasList.length > 0) {
       // Já estão filtradas como tentativas reais, pega a mais recente com entrevistador
       for (let ti = tentativasList.length - 1; ti >= 0; ti--) {
-        const nome = tentativasList[ti]['Entrevistador'] || '';
-        if (nome.trim()) { entrevistadorNome = nome.trim(); break; }
+        const nome = (tentativasList[ti]['Entrevistador'] || '').trim().replace(/^\*+/, '');
+        if (nome) { entrevistadorNome = nome; break; }
       }
     }
 
