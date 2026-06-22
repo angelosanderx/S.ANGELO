@@ -8429,6 +8429,28 @@ async function carregarCnefeSetores() {
       }
     }
 
+    // Fonte 4: cnefe_setores PNAD-C importados via Indicadores Gerenciais
+    // (usam codigo_controle como código de setor — não são capturados pelas fontes 1 e 2
+    //  que usam r.upa / d.upa como chave)
+    const setoresJaVistos = new Set(_cnefeSetoresList.map(s => s.setor));
+    _cnefeSetoresCache.filter(s => /pnad/i.test(s.pesquisa) && !setoresJaVistos.has(s.setor)).forEach(s => {
+      const pf = s.prazo_final
+        ? (s.prazo_final.seconds ? new Date(s.prazo_final.seconds * 1000) : new Date(s.prazo_final))
+        : null;
+      _cnefeSetoresList.push({
+        setor: s.setor, pesquisa: 'PNAD-C',
+        agente_id: s.agente_id || '', agente_nome: s.agente_nome || '',
+        mesCnefe: s.mes_cnefe || 0, anoCnefe: s.ano_cnefe || hoje.getFullYear(),
+        prazoFinal: pf, mesPnad: 0, anoPnad: 0,
+        concluido: s.concluido || false,
+        upa_id: s.upa_id || '',
+        status_listagem_ibge:  s.status_listagem_ibge  || '',
+        status_avaliacao_ibge: s.status_avaliacao_ibge || '',
+        origem: 'indicadores', docId: s.id,
+      });
+    });
+
+    // Fonte 5: cnefe_setores de outras pesquisas (POF, etc.)
     _cnefeSetoresCache.filter(s => !/pnad/i.test(s.pesquisa)).forEach(s => {
       const pf = s.prazo_final
         ? (s.prazo_final.seconds ? new Date(s.prazo_final.seconds * 1000) : new Date(s.prazo_final))
@@ -8568,7 +8590,13 @@ window.renderCnefeSetores = () => {
         <td style="font-size:0.82rem">${primeiroNome(agNome)}</td>
         <td style="font-size:0.82rem">${mcLbl}</td>
         <td style="font-size:0.82rem">${pzLbl}</td>
-        <td><span class="badge ${stBadge[st]}">${stLabel[st]}</span></td>
+        <td>
+          <span class="badge ${stBadge[st]}" title="${s.concluido ? 'Clique para desmarcar' : 'Clique para marcar como concluído'}"
+            style="cursor:pointer;user-select:none"
+            onclick="toggleCnefeConcluidoRapido('${s.setor}','${s.docId||''}','${(s.pesquisa||'PNAD-C').replace(/'/g,''')}',${!s.concluido})">
+            ${s.concluido ? '✓ ' : ''}${stLabel[st]}
+          </span>
+        </td>
         <td>
           <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
             <button class="btn-acao secundario" style="font-size:0.75rem;padding:0.25rem 0.6rem"
@@ -8722,6 +8750,29 @@ window.salvarCnefeSetorEdit = async () => {
     mostrarToast('Setor atualizado!', 'sucesso');
     carregarCnefeSetores();
   } catch(e) { mostrarToast('Erro: ' + e.message, 'erro'); }
+};
+
+window.toggleCnefeConcluidoRapido = async (setor, docId, pesquisa, novoEstado) => {
+  try {
+    let newDocId = docId;
+    if (docId) {
+      await setDoc(doc(db, 'cnefe_setores', docId), { concluido: novoEstado }, { merge: true });
+    } else {
+      const ref = await addDoc(collection(db, 'cnefe_setores'), {
+        setor, pesquisa: pesquisa || 'PNAD-C', concluido: novoEstado, criadoEm: serverTimestamp()
+      });
+      newDocId = ref.id;
+    }
+    const item = _cnefeSetoresList.find(s => s.setor === setor);
+    if (item) { item.concluido = novoEstado; item.docId = newDocId; }
+    if (_cnefeSetoresCache) {
+      const ci = _cnefeSetoresCache.find(s => s.id === docId || s.setor === setor);
+      if (ci) ci.concluido = novoEstado;
+      else _cnefeSetoresCache.push({ id: newDocId, setor, pesquisa: pesquisa || 'PNAD-C', concluido: novoEstado });
+    }
+    mostrarToast(novoEstado ? 'Setor marcado como concluído!' : 'Setor desmarcado.', novoEstado ? 'sucesso' : 'info');
+    renderCnefeSetores();
+  } catch(e) { mostrarToast('Erro ao salvar: ' + e.message, 'erro'); }
 };
 
 window.abrirModalCnefeSetorNovo = () => {
