@@ -1769,6 +1769,17 @@
               <button class="btn-acao secundario" style="font-size:0.82rem" onclick="imprimirRoteiro()">🖨️ Imprimir</button>
             </div>
           </div>
+          <div id="roteiro-sel-toolbar" style="display:none;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.5rem">
+            <button id="btn-modo-sel" onclick="toggleModoSelecao()" style="padding:0.28rem 0.75rem;border:1px solid var(--borda);border-radius:6px;background:#fff;cursor:pointer;font-size:0.82rem">📌 Selecionar</button>
+            <div id="roteiro-sel-painel" style="display:none;align-items:center;gap:0.5rem;flex-wrap:wrap">
+              <span id="roteiro-sel-count" style="font-size:0.82rem;font-weight:600;color:var(--azul)"></span>
+              <select id="roteiro-sel-entrev" style="font-size:0.82rem;padding:3px 6px;border:1px solid var(--borda);border-radius:6px;max-width:180px">
+                <option value="">Entrevistador...</option>
+              </select>
+              <button onclick="atribuirMultiplosMapa()" style="padding:0.28rem 0.75rem;border:none;border-radius:6px;background:var(--azul);color:#fff;cursor:pointer;font-size:0.82rem;font-weight:600">Atribuir</button>
+              <button onclick="limparSelecaoMapa()" style="padding:0.28rem 0.55rem;border:1px solid var(--borda);border-radius:6px;background:#fff;cursor:pointer;font-size:0.78rem;color:var(--cinza)">Limpar</button>
+            </div>
+          </div>
           <div id="roteiro-mapa" style="width:100%;height:320px;border-radius:8px;overflow:hidden;background:var(--cinza-claro);margin-bottom:1rem;display:flex;align-items:center;justify-content:center;color:var(--cinza);font-size:0.85rem">
             <div>🗺️ Mapa carregando...</div>
           </div>
@@ -8014,6 +8025,38 @@ function renderizarRoteiro(lista, domAtual, setor) {
 }
 
 let _mapaRoteiroInstance = null;
+let _mapaMarkers = {};
+let _mapaSelecao = new Set();
+let _modoSelecaoAtivo = false;
+
+function _refreshIconeMapa(domId) {
+  const info = _mapaMarkers[domId];
+  if (!info || !window.L) return;
+  const sel = _mapaSelecao.has(domId);
+  const cor = sel ? '#1d4ed8' : info.cor;
+  const ring = sel ? 'outline:3px solid #60a5fa;outline-offset:1px;' : '';
+  const html = info.isAlvo
+    ? `<div style="background:${cor};color:white;border:3px solid white;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;box-shadow:0 3px 6px rgba(0,0,0,0.5);${ring}">🎯</div>`
+    : `<div style="background:${cor};color:white;border:2px solid white;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;box-shadow:0 2px 4px rgba(0,0,0,0.3);${ring}">${info.domLabel}</div>`;
+  const sz = info.isAlvo ? 36 : 26;
+  info.marker.setIcon(window.L.divIcon({ html, className: '', iconSize: [sz, sz], iconAnchor: [sz/2, sz/2] }));
+}
+
+function _atualizarPainelSelecao() {
+  const painel = document.getElementById('roteiro-sel-painel');
+  const count  = document.getElementById('roteiro-sel-count');
+  if (!painel || !count) return;
+  const n = _mapaSelecao.size;
+  painel.style.display = n > 0 ? 'flex' : 'none';
+  count.textContent = `${n} dom. selecionado${n !== 1 ? 's' : ''}`;
+}
+
+function _toggleSelecaoMapa(domId) {
+  if (_mapaSelecao.has(domId)) _mapaSelecao.delete(domId);
+  else _mapaSelecao.add(domId);
+  _refreshIconeMapa(domId);
+  _atualizarPainelSelecao();
+}
 
 // ── Atribuir entrevistador direto pelo popup do mapa (Roteiro de Campo) ──
 window.atribuirEntrevistadorMapa = async (domId) => {
@@ -8042,6 +8085,56 @@ window.atribuirEntrevistadorMapa = async (domId) => {
   }
 };
 
+window.toggleModoSelecao = () => {
+  _modoSelecaoAtivo = !_modoSelecaoAtivo;
+  const btn = document.getElementById('btn-modo-sel');
+  if (_modoSelecaoAtivo) {
+    if (btn) { btn.style.background='#dbeafe'; btn.style.borderColor='#2563a8'; btn.style.color='#1e40af'; btn.textContent='✅ Selecionando…'; }
+  } else {
+    if (btn) { btn.style.background='#fff'; btn.style.borderColor=''; btn.style.color=''; btn.textContent='📌 Selecionar'; }
+    window.limparSelecaoMapa();
+  }
+};
+
+window.limparSelecaoMapa = () => {
+  const prev = [..._mapaSelecao];
+  _mapaSelecao.clear();
+  prev.forEach(id => _refreshIconeMapa(id));
+  _atualizarPainelSelecao();
+};
+
+window.atribuirMultiplosMapa = async () => {
+  const sel = document.getElementById('roteiro-sel-entrev');
+  if (!sel?.value) { mostrarToast('Selecione um entrevistador', 'aviso'); return; }
+  const novoId = sel.value, novoNome = sel.selectedOptions[0].text;
+  const ids = [..._mapaSelecao];
+  if (!ids.length) { mostrarToast('Selecione ao menos um domicílio no mapa', 'aviso'); return; }
+  try {
+    await Promise.all(ids.map(domId =>
+      updateDoc(doc(db, 'domicilios', domId), {
+        entrevistador_id: novoId, entrevistador_nome: novoNome, entrevistador_nome_manual: novoNome
+      })
+    ));
+    ids.forEach(domId => {
+      const dom = todosdomicilios.find(d => d.id === domId);
+      if (dom) { dom.entrevistador_id = novoId; dom.entrevistador_nome = novoNome; dom.entrevistador_nome_manual = novoNome; }
+      const info = _mapaMarkers[domId];
+      if (info) info.cor = corEntrevistador(novoNome);
+      const cel = document.querySelector(`#row-${domId} td:nth-child(5)`);
+      if (cel) cel.innerHTML = _badgeEntrevistador(novoNome, novoNome);
+    });
+    mostrarToast(`${ids.length} domicílio(s) atribuídos a ${novoNome}`, 'sucesso');
+    preencherFiltroEntrevistador();
+    _modoSelecaoAtivo = false;
+    const btn = document.getElementById('btn-modo-sel');
+    if (btn) { btn.style.background='#fff'; btn.style.borderColor=''; btn.style.color=''; btn.textContent='📌 Selecionar'; }
+    window.limparSelecaoMapa();
+  } catch(e) {
+    console.error(e);
+    mostrarToast('Erro ao atribuir entrevistadores', 'erro');
+  }
+};
+
 function renderizarMapaRoteiro(alvo, anteriores, posteriores, setor, corAlvo, domAtual) {
   const mapaDiv = document.getElementById('roteiro-mapa');
   if (!mapaDiv) return;
@@ -8062,6 +8155,8 @@ function renderizarMapaRoteiro(alvo, anteriores, posteriores, setor, corAlvo, do
   const lngAlvo = pinAlvo?.lng || parseFloat(domAtual?.longitude_kml || '0');
 
   if (!latAlvo || !lngAlvo) {
+    const tb = document.getElementById('roteiro-sel-toolbar');
+    if (tb) tb.style.display = 'none';
     mapaDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--cinza);font-size:0.85rem;flex-direction:column;gap:0.5rem"><div style="font-size:1.5rem">🗺️</div><div>Carregue o KML em Setores para ver o mapa</div></div>';
     return;
   }
@@ -8102,6 +8197,16 @@ function renderizarMapaRoteiro(alvo, anteriores, posteriores, setor, corAlvo, do
 
     const encontrarIdPorNome = (nome) => encontrarIdPorNomeGlobal(entrevistadoresMapa, nome);
 
+    // Inicializa toolbar de seleção em lote
+    const selEntrevToolbar = document.getElementById('roteiro-sel-entrev');
+    if (selEntrevToolbar) selEntrevToolbar.innerHTML = `<option value="">Entrevistador...</option>${entrevistadoresMapa.map(e=>`<option value="${e.id}">${e.nome}</option>`).join('')}`;
+    _mapaMarkers = {}; _mapaSelecao.clear(); _modoSelecaoAtivo = false;
+    const btnSel = document.getElementById('btn-modo-sel');
+    if (btnSel) { btnSel.style.background='#fff'; btnSel.style.borderColor=''; btnSel.style.color=''; btnSel.textContent='📌 Selecionar'; }
+    const toolbarEl = document.getElementById('roteiro-sel-toolbar');
+    if (toolbarEl) toolbarEl.style.display = 'flex';
+    _atualizarPainelSelecao();
+
     const montarSeletorAtribuicao = (domId, entrevistadorIdAtual, nomeFallback) => {
       if (!domId) return '';
       const idEfetivo = entrevistadorIdAtual || encontrarIdPorNome(nomeFallback);
@@ -8124,9 +8229,16 @@ function renderizarMapaRoteiro(alvo, anteriores, posteriores, setor, corAlvo, do
       html: '<div style="background:' + corAlvo + ';color:white;border:3px solid white;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;box-shadow:0 3px 6px rgba(0,0,0,0.5)">🎯</div>',
       className: '', iconSize: [36, 36], iconAnchor: [18, 18]
     });
-    window.L.marker([latAlvo, lngAlvo], { icon: iconAlvo }).addTo(_mapaRoteiroInstance)
-      .bindPopup('<strong>🎯 ALVO — Dom. ' + domNum + '</strong><br>' + (domAtual?.endereco || '') +
-        montarSeletorAtribuicao(domAtual?.id, domAtual?.entrevistador_id, domAtual?.entrevistador_nome));
+    const markerAlvo = window.L.marker([latAlvo, lngAlvo], { icon: iconAlvo });
+    markerAlvo.bindPopup('<strong>🎯 ALVO — Dom. ' + domNum + '</strong><br>' + (domAtual?.endereco || '') +
+      montarSeletorAtribuicao(domAtual?.id, domAtual?.entrevistador_id, domAtual?.entrevistador_nome));
+    if (domAtual?.id) {
+      _mapaMarkers[domAtual.id] = { marker: markerAlvo, cor: corAlvo, isAlvo: true, domLabel: '🎯' };
+      markerAlvo.on('popupopen', () => {
+        if (_modoSelecaoAtivo) { markerAlvo.closePopup(); _toggleSelecaoMapa(domAtual.id); }
+      });
+    }
+    markerAlvo.addTo(_mapaRoteiroInstance);
 
     // Pins dos vizinhos com cor por entrevistador + offset espiral
     const pinsVizinhos = todosVizinhos
@@ -8147,10 +8259,17 @@ function renderizarMapaRoteiro(alvo, anteriores, posteriores, setor, corAlvo, do
         html: '<div style="background:' + k.cor + ';color:white;border:2px solid white;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;box-shadow:0 2px 4px rgba(0,0,0,0.3)">' + k.dom + '</div>',
         className: '', iconSize: [26, 26], iconAnchor: [13, 13]
       });
-      window.L.marker([k.lat, k.lng], { icon }).addTo(_mapaRoteiroInstance)
-        .bindPopup('Dom. ' + k.dom + '<br>' + (k.logradouro || '') + ' ' + (k.numero || '') +
-          (k.domViz?.entrevistador_nome ? '<br><small>' + k.domViz.entrevistador_nome + '</small>' : '') +
-          montarSeletorAtribuicao(k.domViz?.id, k.domViz?.entrevistador_id, k.domViz?.entrevistador_nome));
+      const mv = window.L.marker([k.lat, k.lng], { icon });
+      mv.bindPopup('Dom. ' + k.dom + '<br>' + (k.logradouro || '') + ' ' + (k.numero || '') +
+        (k.domViz?.entrevistador_nome ? '<br><small>' + k.domViz.entrevistador_nome + '</small>' : '') +
+        montarSeletorAtribuicao(k.domViz?.id, k.domViz?.entrevistador_id, k.domViz?.entrevistador_nome));
+      if (k.domViz?.id) {
+        _mapaMarkers[k.domViz.id] = { marker: mv, cor: k.cor, isAlvo: false, domLabel: k.dom };
+        mv.on('popupopen', () => {
+          if (_modoSelecaoAtivo) { mv.closePopup(); _toggleSelecaoMapa(k.domViz.id); }
+        });
+      }
+      mv.addTo(_mapaRoteiroInstance);
     });
     setTimeout(() => { if (_mapaRoteiroInstance) _mapaRoteiroInstance.invalidateSize(); }, 200);
   };
