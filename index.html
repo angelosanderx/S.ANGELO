@@ -3922,10 +3922,10 @@ async function _renderControlePendencias() {
   const porEntr = {};
   for (const d of docsFiltrados) {
     const nome = d.entrevistador_nome?.trim() || '(sem entrevistador)';
-    if (!porEntr[nome]) porEntr[nome] = { realizadas: 0, pendentes: 0 };
+    if (!porEntr[nome]) porEntr[nome] = { total: 0, pendentes: 0 };
     const st = d.status_atual || 'nao_visitado';
-    if (st === 'realizada') porEntr[nome].realizadas++;
-    else if (STATUS_PENDENTES.includes(st)) porEntr[nome].pendentes++;
+    porEntr[nome].total++;
+    if (st !== 'realizada') porEntr[nome].pendentes++;
   }
 
   const entrevistadores = Object.keys(porEntr).sort((a, b) => a.localeCompare(b));
@@ -3951,18 +3951,17 @@ async function _renderControlePendencias() {
     return p <= 15 ? '#8A5100' : '#A02020';
   };
 
-  let totalRealiz = 0, totalPend = 0;
+  let somaTotal = 0, somaPend = 0;
   const linhas = entrevistadores.map(nome => {
-    const { realizadas, pendentes } = porEntr[nome];
-    totalRealiz += realizadas;
-    totalPend += pendentes;
-    const tot = realizadas + pendentes;
-    const pct = tot > 0 ? (pendentes / tot * 100).toFixed(2).replace('.', ',') : '0,00';
-    const cor = corPct(pendentes, tot);
+    const { total, pendentes } = porEntr[nome];
+    somaTotal += total;
+    somaPend += pendentes;
+    const pct = total > 0 ? (pendentes / total * 100).toFixed(2).replace('.', ',') : '0,00';
+    const cor = corPct(pendentes, total);
     const docId = `${trimestre}_${semKey}_${nome}`;
     return `<tr>
       <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8">${esc(nome)}</td>
-      <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center">${realizadas}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center">${total}</td>
       <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center">${pendentes}</td>
       <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center;color:${cor};font-weight:500">${pct}%</td>
       <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8">
@@ -3975,8 +3974,7 @@ async function _renderControlePendencias() {
     </tr>`;
   }).join('');
 
-  const totalTot = totalRealiz + totalPend;
-  const totalPct = totalTot > 0 ? (totalPend / totalTot * 100).toFixed(2).replace('.', ',') : '0,00';
+  const totalPct = somaTotal > 0 ? (somaPend / somaTotal * 100).toFixed(2).replace('.', ',') : '0,00';
 
   container.innerHTML = `
     <div style="border:0.5px solid #D3D1C7;border-radius:8px;overflow:hidden">
@@ -3984,7 +3982,7 @@ async function _renderControlePendencias() {
         <thead>
           <tr style="background:#EEEDE8">
             <th style="padding:6px 10px;text-align:left;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Entrevistador</th>
-            <th style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Total entrevistas</th>
+            <th style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Total domicílios</th>
             <th style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Dom. pendentes</th>
             <th style="padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">% Pendências</th>
             <th style="padding:6px 10px;text-align:left;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7">Observações</th>
@@ -3994,9 +3992,9 @@ async function _renderControlePendencias() {
         <tfoot>
           <tr style="background:#EEEDE8;border-top:0.5px solid #D3D1C7;font-weight:600">
             <td style="padding:6px 10px">Total</td>
-            <td style="padding:6px 10px;text-align:center">${totalRealiz}</td>
-            <td style="padding:6px 10px;text-align:center">${totalPend}</td>
-            <td style="padding:6px 10px;text-align:center;color:${corPct(totalPend,totalTot)};font-weight:600">${totalPct}%</td>
+            <td style="padding:6px 10px;text-align:center">${somaTotal}</td>
+            <td style="padding:6px 10px;text-align:center">${somaPend}</td>
+            <td style="padding:6px 10px;text-align:center;color:${corPct(somaPend,somaTotal)};font-weight:600">${totalPct}%</td>
             <td style="padding:6px 10px"></td>
           </tr>
         </tfoot>
