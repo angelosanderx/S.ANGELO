@@ -1179,72 +1179,85 @@
       <div class="titulo-pagina">🏠 Domicílios</div>
       <div id="dom-ultima-atualizacao" style="font-size:11px;color:#888780;font-style:italic;margin-bottom:0.5rem"></div>
       <div class="card-tabela" style="margin-bottom:0.75rem;overflow:visible">
-        <div style="padding:0.85rem 1.25rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
-          <select id="filtro-upa" onchange="filtrarPorUpa()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:200px">
-            <option value="">Todas as UPAs</option>
-          </select>
-          <select id="filtro-setor" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:200px">
-            <option value="">Todos os setores</option>
-          </select>
-          <select id="filtro-semana" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
-            <option value="">Todas as semanas</option>
-            <option value="1">Semana 1</option>
-            <option value="2">Semana 2</option>
-            <option value="3">Semana 3</option>
-            <option value="4">Semana 4</option>
-          </select>
-          <select id="filtro-etapa" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
-            <option value="">Todas as etapas</option>
-            <option value="1">Etapa 1</option>
-            <option value="2">Etapa 2</option>
-            <option value="3">Etapa 3</option>
-            <option value="4">Etapa 4</option>
-            <option value="5">Etapa 5 (última)</option>
-          </select>
-          <select id="filtro-status" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
-            <option value="">Todos os status</option>
-            <option value="nao_visitado">Não visitado</option>
-            <option value="ausente">Ausente</option>
-            <option value="fechado">Fechado</option>
-            <option value="agendado">Agendado</option>
-            <option value="realizada">Realizada</option>
-            <option value="recusa">Recusa</option>
-            <option value="carta_solicitada">Carta solicitada</option>
-            <option value="supervisao">Supervisão necessária</option>
-            <option value="vago">Vago/Inapto</option>
-            <option value="uso_ocasional">Uso Ocasional</option>
-          </select>
-          <select id="filtro-solicitacao" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
-            <option value="">Todas as solicitações</option>
-            <option value="carta_abertura">📄 Carta de Abertura</option>
-            <option value="carta_retorno">🔄 Carta de Retorno</option>
-            <option value="carta_recusa">✉️ Carta de Recusa</option>
-            <option value="apoio_supervisao">👤 Apoio da Supervisão</option>
-            <option value="apoio_viatura">🚗 Apoio da Viatura</option>
-            <option value="corrigir_moradores">👥 Corrigir quadro de moradores</option>
-            <option value="verificar_status">🔍 Verificar Status</option>
-          </select>
-          <select id="filtro-entrevistador" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:180px">
-            <option value="">Todos os entrevistadores</option>
-          </select>
-          <input type="text" id="busca-domicilio" placeholder="Buscar endereço ou morador..." style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);flex:1;min-width:160px" oninput="filtrarDomicilios()">
-          <select id="filtro-ordem" onchange="filtrarDomicilios()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
-            <option value="padrao">Ordem padrão (Semana → UPA → Setor → Dom)</option>
-            <option value="status">Agrupar por status</option>
-            <option value="entrevistador">Agrupar por entrevistador</option>
-          </select>
-          <button class="btn-acao secundario" onclick="limparFiltros()">Limpar</button>
-          <div class="dropdown-listagens">
-            <button class="btn-acao secundario" onclick="toggleListagens(this,event)">📋 Listagens ▾</button>
-            <div class="dropdown-listagens-menu">
-              <button onclick="abrirEditorEnderecos();this.closest('.dropdown-listagens').classList.remove('aberto')">✏️ Editar endereços</button>
-              <button onclick="gerarEtiquetas(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">🏷️ Etiquetas</button>
-              <button onclick="gerarCartoes(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem</button>
-              <button onclick="gerarDiarioCampo(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples</button>
-              <button onclick="gerarRoteiroCarta(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">✉️ Primeira entrevista</button>
+        <div style="padding:0.75rem 1.25rem;display:flex;flex-direction:column;gap:0.5rem">
+          <!-- Linha 1: localização + período + situação -->
+          <div style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center">
+            <span style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap">Local</span>
+            <select id="filtro-upa" onchange="filtrarPorUpa()" style="padding:0.3rem 0.55rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:170px">
+              <option value="">Todas as UPAs</option>
+            </select>
+            <select id="filtro-setor" onchange="filtrarDomicilios()" style="padding:0.3rem 0.55rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:170px">
+              <option value="">Todos os setores</option>
+            </select>
+            <div style="width:1px;height:18px;background:var(--borda);margin:0 2px"></div>
+            <span style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap">Período</span>
+            <select id="filtro-semana" onchange="filtrarDomicilios()" style="padding:0.3rem 0.55rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro)">
+              <option value="">Sem. —</option>
+              <option value="1">Sem. 1</option>
+              <option value="2">Sem. 2</option>
+              <option value="3">Sem. 3</option>
+              <option value="4">Sem. 4</option>
+            </select>
+            <select id="filtro-etapa" onchange="filtrarDomicilios()" style="padding:0.3rem 0.55rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro)">
+              <option value="">Eta. —</option>
+              <option value="1">Eta. 1</option>
+              <option value="2">Eta. 2</option>
+              <option value="3">Eta. 3</option>
+              <option value="4">Eta. 4</option>
+              <option value="5">Eta. 5 (última)</option>
+            </select>
+            <div style="width:1px;height:18px;background:var(--borda);margin:0 2px"></div>
+            <span style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap">Situação</span>
+            <select id="filtro-status" onchange="filtrarDomicilios()" style="padding:0.3rem 0.55rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro)">
+              <option value="">Status —</option>
+              <option value="nao_visitado">Não visitado</option>
+              <option value="ausente">Ausente</option>
+              <option value="fechado">Fechado</option>
+              <option value="agendado">Agendado</option>
+              <option value="realizada">Realizada</option>
+              <option value="recusa">Recusa</option>
+              <option value="carta_solicitada">Carta solicitada</option>
+              <option value="supervisao">Supervisão necessária</option>
+              <option value="vago">Vago/Inapto</option>
+              <option value="uso_ocasional">Uso Ocasional</option>
+            </select>
+            <select id="filtro-solicitacao" onchange="filtrarDomicilios()" style="padding:0.3rem 0.55rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro)">
+              <option value="">Solicitação —</option>
+              <option value="carta_abertura">📄 Carta Abertura</option>
+              <option value="carta_retorno">🔄 Carta Retorno</option>
+              <option value="carta_recusa">✉️ Carta Recusa</option>
+              <option value="apoio_supervisao">👤 Apoio Supervisão</option>
+              <option value="apoio_viatura">🚗 Apoio Viatura</option>
+              <option value="corrigir_moradores">👥 Corrigir Moradores</option>
+              <option value="verificar_status">🔍 Verificar Status</option>
+            </select>
+            <select id="filtro-entrevistador" onchange="filtrarDomicilios()" style="padding:0.3rem 0.55rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:160px">
+              <option value="">Entrevistador —</option>
+            </select>
+          </div>
+          <!-- Linha 2: busca + ordem + ações -->
+          <div style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center">
+            <input type="text" id="busca-domicilio" placeholder="🔍  Buscar endereço ou morador..." style="padding:0.3rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro);flex:1;min-width:200px" oninput="filtrarDomicilios()">
+            <select id="filtro-ordem" onchange="filtrarDomicilios()" style="padding:0.3rem 0.55rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro)">
+              <option value="padrao">↕ Sem. → UPA → Dom.</option>
+              <option value="status">↕ Por status</option>
+              <option value="entrevistador">↕ Por entrevistador</option>
+            </select>
+            <div style="display:flex;gap:0.4rem;margin-left:auto">
+              <button class="btn-acao secundario" onclick="limparFiltros()" style="font-size:0.82rem;padding:0.3rem 0.8rem">Limpar</button>
+              <div class="dropdown-listagens">
+                <button class="btn-acao secundario" onclick="toggleListagens(this,event)" style="font-size:0.82rem;padding:0.3rem 0.8rem">📋 Listagens ▾</button>
+                <div class="dropdown-listagens-menu">
+                  <button onclick="abrirEditorEnderecos();this.closest('.dropdown-listagens').classList.remove('aberto')">✏️ Editar endereços</button>
+                  <button onclick="gerarEtiquetas(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">🏷️ Etiquetas</button>
+                  <button onclick="gerarCartoes(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem</button>
+                  <button onclick="gerarDiarioCampo(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples</button>
+                  <button onclick="gerarRoteiroCarta(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">✉️ Primeira entrevista</button>
+                </div>
+              </div>
+              <button class="btn-acao" onclick="abrirModalDomicilio()" style="font-size:0.82rem;padding:0.3rem 0.8rem">+ Novo</button>
             </div>
           </div>
-          <button class="btn-acao" onclick="abrirModalDomicilio()">+ Novo</button>
         </div>
       </div>
       <div id="card-lista-dom" class="card-tabela">
@@ -4679,47 +4692,46 @@ function _montarLinhaDOM(d, ns = '') {
   };
   const _dataAnt = _ant ? (_ant.mes_ano || _calcTrimEtapa(d.trimestre, _eta, _ant.entrevista)) : '';
   return `<tr id="${ns}row-${d.id}">
-      <td style="padding:0.5rem 0.4rem"><input type="checkbox" class="chk-dom" value="${d.id}" onchange="atualizarSelecao()"></td>
-      <td style="padding:0.5rem 0.6rem">
-        <div style="font-size:0.65rem;color:var(--cinza)">UPA ${d.upa || '-'}</div>
-        <div style="font-size:0.65rem;color:var(--cinza)">Set. ${setor.slice(-5)}</div>
-        <div style="font-weight:800;font-size:0.95rem;color:var(--azul)">Dom. ${d.domicilio_num || d.numero_sequencial || '-'}</div>
-        ${periodoAtual === 'todos' ? `<div style="font-size:0.6rem;font-weight:700;color:var(--azul-medio);margin-top:1px">${PERIODOS[d.periodo || PERIODO_PADRAO]}</div>` : ''}
+      <td style="padding:0.4rem 0.4rem"><input type="checkbox" class="chk-dom" value="${d.id}" onchange="atualizarSelecao()"></td>
+      <td style="padding:0.4rem 0.5rem">
+        <div style="font-size:0.62rem;color:var(--cinza);line-height:1.3">UPA ${d.upa || '-'} · ${setor.slice(-5)}</div>
+        <div style="font-weight:800;font-size:1rem;color:var(--azul);line-height:1.1">Dom. ${d.domicilio_num || d.numero_sequencial || '-'}</div>
+        ${periodoAtual === 'todos' ? `<div style="font-size:0.58rem;font-weight:700;color:var(--azul-medio);margin-top:1px">${PERIODOS[d.periodo || PERIODO_PADRAO]}</div>` : ''}
       </td>
-      <td style="text-align:center;font-size:0.82rem;padding:0.5rem 0.3rem">${d.semana || '-'}</td>
-      <td style="text-align:center;padding:0.5rem 0.3rem">
-        <span class="badge badge-cinza" style="font-size:0.68rem;padding:1px 5px">${d.visita_etapa || '-'}ª</span>
+      <td style="text-align:center;padding:0.4rem 0.3rem">
+        <div style="font-size:0.8rem;font-weight:700;color:var(--cinza-escuro);line-height:1.2">S${d.semana || '-'}</div>
+        <div style="font-size:0.72rem;color:var(--cinza);line-height:1.2">${d.visita_etapa || '-'}ª</div>
       </td>
-      <td style="font-size:0.75rem;padding:0.5rem 0.5rem;word-break:break-word">${nomeEntr}</td>
-      <td style="padding:0.5rem 0.6rem">
-        <div class="campo-editavel-inline" style="font-size:0.8rem;font-weight:600;display:flex;align-items:center;gap:3px">
+      <td style="font-size:0.75rem;padding:0.4rem 0.4rem;word-break:break-word">${nomeEntr}</td>
+      <td style="padding:0.4rem 0.6rem">
+        <div class="campo-editavel-inline" style="font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:3px">
           <span id="${ns}dom-end-${d.id}">${d.endereco_custom || d.endereco || '-'}</span>
           <button class="btn-editar-inline" onclick="editarCampoDomicilio('${d.id}','endereco_custom','${ns}')" title="Editar endereço">✏️</button>
         </div>
-        <div class="campo-editavel-inline" style="font-size:0.7rem;color:var(--cinza);display:flex;align-items:center;gap:3px">
+        <div class="campo-editavel-inline" style="font-size:0.72rem;color:var(--cinza);display:flex;align-items:center;gap:3px;margin-top:1px">
           <span id="${ns}dom-mor-${d.id}">${d.morador_cnefe || d.morador || ''}</span>
           <button class="btn-editar-inline" onclick="editarCampoDomicilio('${d.id}','morador_cnefe','${ns}')" title="Editar morador CNEFE">✏️</button>
-          ${d.telefone ? `<span style="opacity:0.7"> · ${d.telefone}</span>` : ''}
+          ${d.telefone ? `<span style="opacity:0.65"> · ${d.telefone}</span>` : ''}
         </div>
-        <div style="display:flex;align-items:center;gap:0.4rem;margin-top:3px">
-          <button class="btn-acao secundario" style="font-size:0.78rem;padding:0.3rem 0.7rem" onclick="abrirFicha('${d.id}')">📄 Ficha</button>
+        <div style="display:flex;align-items:center;gap:0.35rem;margin-top:4px">
+          <button class="btn-acao secundario" style="font-size:0.75rem;padding:0.2rem 0.6rem" onclick="abrirFicha('${d.id}')">📄 Ficha</button>
           <div id="${ns}ind-morad-${d.id}">${_badgeMoradores(d._tem_moradores)}</div>
         </div>
       </td>
-      <td style="padding:0.5rem 0.5rem">
+      <td style="padding:0.4rem 0.45rem">
         ${badgeStatus(d.status_atual || 'nao_visitado')}
-        ${(d.solicitacoes?.length ? d.solicitacoes : d.tipo_solicitacao ? [{ tipo: d.tipo_solicitacao }] : [])
-          .map(s => `<div style="margin-top:2px;font-size:0.63rem;font-weight:700;color:var(--laranja);background:var(--laranja-claro);padding:1px 5px;border-radius:10px;display:inline-block">${
-            {carta_abertura:'📄 Abertura', carta_retorno:'🔄 Retorno', carta_recusa:'✉️ Recusa', apoio_supervisao:'👤 Apoio', apoio_viatura:'🚗 Viatura', corrigir_moradores:'👥 Moradores', correcao_questionario:'✏️ Correção', comunicar_dmc:'📢 DMC', contato_informante:'📞 Contato', mais_empenho:'💪 Empenho', verificar_status:'🔍 Status'}[s.tipo] || s.tipo
-          }</div>`).join('')}
+        <div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:2px">
+          ${(d.solicitacoes?.length ? d.solicitacoes : d.tipo_solicitacao ? [{ tipo: d.tipo_solicitacao }] : [])
+            .map(s => `<span style="font-size:0.62rem;font-weight:700;color:var(--laranja);background:var(--laranja-claro);padding:1px 5px;border-radius:10px;white-space:nowrap">${
+              {carta_abertura:'📄 Abertura', carta_retorno:'🔄 Retorno', carta_recusa:'✉️ Recusa', apoio_supervisao:'👤 Apoio', apoio_viatura:'🚗 Viatura', corrigir_moradores:'👥 Moradores', correcao_questionario:'✏️ Correção', comunicar_dmc:'📢 DMC', contato_informante:'📞 Contato', mais_empenho:'💪 Empenho', verificar_status:'🔍 Status'}[s.tipo] || s.tipo
+            }</span>`).join('')}
+        </div>
+        <button class="btn-acao secundario" style="font-size:0.72rem;padding:0.18rem 0.5rem;margin-top:4px;background:var(--laranja-claro);color:var(--laranja);border:1px solid var(--laranja)" onclick="abrirSolicitar('${d.id}')">+ Solicitar</button>
       </td>
-      <td style="font-size:0.75rem;padding:0.5rem 0.5rem">
+      <td style="font-size:0.75rem;padding:0.4rem 0.45rem">
         ${_ant
-          ? `<div style="font-weight:600;font-size:0.75rem;line-height:1.2">${_ant.resultado || '—'}</div><div style="font-size:0.65rem;color:var(--cinza);margin-top:1px">${_dataAnt ? _dataAnt + ' · ' : ''}${_ant.entrevista || '?'}ª</div>`
+          ? `<div style="font-weight:600;font-size:0.75rem;line-height:1.3">${_ant.resultado || '—'}</div><div style="font-size:0.64rem;color:var(--cinza);margin-top:1px">${_dataAnt ? _dataAnt + ' · ' : ''}${_ant.entrevista || '?'}ª</div>`
           : '<span style="color:var(--cinza)">—</span>'}
-      </td>
-      <td style="padding:0.5rem 0.5rem">
-        <button class="btn-acao secundario" style="font-size:0.78rem;padding:0.25rem 0.6rem;background:var(--laranja-claro);color:var(--laranja);border:1px solid var(--laranja)" onclick="abrirSolicitar('${d.id}')">Solicitar</button>
       </td>
     </tr>`;
 }
@@ -4758,7 +4770,7 @@ function _montarTentativasSubrow(d) {
     : '';
 
   return `<tr style="background:#f8fafc;border-bottom:2px solid var(--borda)">
-    <td colspan="9" style="padding:0.22rem 0.6rem 0.28rem 2.2rem">
+    <td colspan="7" style="padding:0.22rem 0.6rem 0.28rem 2.2rem">
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.35rem">
         <span style="font-size:0.65rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.3px">Tentativas:</span>
         ${chipsHtml}
@@ -4769,16 +4781,14 @@ function _montarTentativasSubrow(d) {
 }
 
 function _cabecalhoTabela(checkboxId, oncheckAll) {
-  return '<div style="overflow-x:auto"><table style="min-width:780px;table-layout:fixed;width:100%"><thead><tr>' +
-    `<th style="width:36px;padding:0.6rem 0.4rem"><input type="checkbox" id="${checkboxId}" onchange="${oncheckAll}" title="Selecionar todos"></th>` +
-    '<th style="width:110px">UPA / Setor / Dom.</th>' +
-    '<th style="width:40px;text-align:center;padding:0.6rem 0.3rem">Sem.</th>' +
-    '<th style="width:46px;text-align:center;padding:0.6rem 0.3rem">Eta.</th>' +
-    '<th style="width:80px">Entrev.</th>' +
+  return '<div style="overflow-x:auto"><table style="min-width:700px;table-layout:fixed;width:100%"><thead><tr>' +
+    `<th style="width:32px;padding:0.5rem 0.4rem"><input type="checkbox" id="${checkboxId}" onchange="${oncheckAll}" title="Selecionar todos"></th>` +
+    '<th style="width:90px">Dom.</th>' +
+    '<th style="width:52px;text-align:center;padding:0.5rem 0.3rem">S · E</th>' +
+    '<th style="width:78px">Entrev.</th>' +
     '<th>Endereço / Morador</th>' +
-    '<th style="width:108px">Status</th>' +
-    '<th style="width:108px">Trim. Ant.</th>' +
-    '<th style="width:80px">Ação</th>' +
+    '<th style="width:150px">Status</th>' +
+    '<th style="width:100px">Ant.</th>' +
     '</tr></thead><tbody>';
 }
 
