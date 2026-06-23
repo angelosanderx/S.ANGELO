@@ -4729,7 +4729,7 @@ function _montarLinhaDOM(d, ns = '') {
       </td>
       <td style="font-size:0.75rem;padding:0.4rem 0.45rem">
         ${_ant
-          ? `<div style="font-weight:600;font-size:0.75rem;line-height:1.3">${_ant.resultado || '—'}</div><div style="font-size:0.64rem;color:var(--cinza);margin-top:1px">${_dataAnt ? _dataAnt + ' · ' : ''}${_ant.entrevista || '?'}ª</div>`
+          ? `<div style="font-weight:600;font-size:0.75rem;line-height:1.3">${_ant.resultado || '—'}</div><div style="font-size:0.64rem;color:var(--cinza);margin-top:1px;white-space:nowrap">${_ant.entrevista || '?'}ª${_ant.entrevistador && _ant.entrevistador !== 'Não identificado' ? ' · ' + _ant.entrevistador.split(' ')[0] : ''}</div>`
           : '<span style="color:var(--cinza)">—</span>'}
       </td>
     </tr>`;
