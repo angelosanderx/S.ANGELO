@@ -4695,7 +4695,7 @@ function _montarLinhaDOM(d, ns = '') {
       <td style="padding:0.4rem 0.4rem"><input type="checkbox" class="chk-dom" value="${d.id}" onchange="atualizarSelecao()"></td>
       <td style="padding:0.4rem 0.5rem">
         <div style="font-size:0.62rem;color:var(--cinza);line-height:1.3">UPA ${d.upa || '-'} · ${setor.slice(-5)}</div>
-        <div style="font-weight:800;font-size:1rem;color:var(--azul);line-height:1.1">Dom. ${d.domicilio_num || d.numero_sequencial || '-'}</div>
+        <button onclick="abrirFicha('${d.id}')" style="font-weight:800;font-size:1rem;color:var(--azul);line-height:1.1;background:none;border:none;padding:0;cursor:pointer;text-align:left;font-family:var(--fonte)" title="Abrir ficha">Dom. ${d.domicilio_num || d.numero_sequencial || '-'}</button>
         ${periodoAtual === 'todos' ? `<div style="font-size:0.58rem;font-weight:700;color:var(--azul-medio);margin-top:1px">${PERIODOS[d.periodo || PERIODO_PADRAO]}</div>` : ''}
       </td>
       <td style="text-align:center;padding:0.4rem 0.3rem">
@@ -4713,8 +4713,7 @@ function _montarLinhaDOM(d, ns = '') {
           <button class="btn-editar-inline" onclick="editarCampoDomicilio('${d.id}','morador_cnefe','${ns}')" title="Editar morador CNEFE">✏️</button>
           ${d.telefone ? `<span style="opacity:0.65"> · ${d.telefone}</span>` : ''}
         </div>
-        <div style="display:flex;align-items:center;gap:0.35rem;margin-top:4px">
-          <button class="btn-acao secundario" style="font-size:0.75rem;padding:0.2rem 0.6rem" onclick="abrirFicha('${d.id}')">📄 Ficha</button>
+        <div style="margin-top:4px">
           <div id="${ns}ind-morad-${d.id}">${_badgeMoradores(d._tem_moradores)}</div>
         </div>
       </td>
