@@ -10171,7 +10171,7 @@ window.processarCentralSIGC = async () => {
 
 let _cnefeAgentesCache  = null;
 let _cnefeMesesUnicos   = [];
-const _cnefeFiltros     = { setor:'', pesquisa:'', agente:'', mes:'', status:'' };
+const _cnefeFiltros     = { setor:'', pesquisa:'', agente:'', mes:'', status:'', localidade:'' };
 window.setCnefeFiltro   = (c, v) => { _cnefeFiltros[c] = v; renderCnefeSetores(); };
 let _cnefeMapInstance  = null;
 let _cnefeMapLayers    = { contorno: null, faces: null, pontos: null };
@@ -10257,6 +10257,7 @@ async function carregarCnefeSetores() {
           mesCnefe: _mc, anoCnefe: _ac, prazoFinal: _pf, mesPnad, anoPnad,
           concluido: manual?.concluido || false,
           upa_id: manual?.upa_id || '',
+          localidade: manual?.localidade || '',
           status_listagem_ibge:  manual?.status_listagem_ibge  || '',
           status_avaliacao_ibge: manual?.status_avaliacao_ibge || '',
           origem: 'pnad', docId: manual?.id || null,
@@ -10306,6 +10307,7 @@ async function carregarCnefeSetores() {
           mesCnefe: _mc2, anoCnefe: _ac2, prazoFinal: _pf2, mesPnad, anoPnad,
           concluido: manual?.concluido || false,
           upa_id: manual?.upa_id || '',
+          localidade: manual?.localidade || '',
           status_listagem_ibge:  manual?.status_listagem_ibge  || '',
           status_avaliacao_ibge: manual?.status_avaliacao_ibge || '',
           origem: 'pnad', docId: manual?.id || null,
@@ -10330,6 +10332,7 @@ async function carregarCnefeSetores() {
         prazoFinal: pf, mesPnad: 0, anoPnad: 0,
         concluido: s.concluido || false,
         upa_id: s.upa_id || '',
+        localidade: s.localidade || '',
         status_listagem_ibge:  s.status_listagem_ibge  || '',
         status_avaliacao_ibge: s.status_avaliacao_ibge || '',
         origem: 'indicadores', docId: s.id,
@@ -10348,6 +10351,7 @@ async function carregarCnefeSetores() {
         prazoFinal: pf, mesPnad: 0, anoPnad: 0,
         concluido: s.concluido || false,
         upa_id: s.upa_id || '',
+        localidade: s.localidade || '',
         status_listagem_ibge:  s.status_listagem_ibge  || '',
         status_avaliacao_ibge: s.status_avaliacao_ibge || '',
         origem: 'manual', docId: s.id,
@@ -10399,11 +10403,12 @@ window.renderCnefeSetores = () => {
   const agentes   = [...new Set(_cnefeSetoresList.map(s => primeiroNome(s.agente_nome || (_cnefeAgentesCache?.find(a => a.id === s.agente_id)?.nome))).filter(n => n !== '—'))].sort();
 
   // Aplica filtros
-  const fS = (_cnefeFiltros.setor   || '').toLowerCase();
-  const fP = _cnefeFiltros.pesquisa || '';
-  const fA = (_cnefeFiltros.agente  || '').toLowerCase();
-  const fM = _cnefeFiltros.mes      || '';
-  const fSt= _cnefeFiltros.status   || '';
+  const fS = (_cnefeFiltros.setor     || '').toLowerCase();
+  const fP = _cnefeFiltros.pesquisa   || '';
+  const fA = (_cnefeFiltros.agente    || '').toLowerCase();
+  const fM = _cnefeFiltros.mes        || '';
+  const fSt= _cnefeFiltros.status     || '';
+  const fL = (_cnefeFiltros.localidade|| '').toLowerCase();
 
   const lista = _cnefeSetoresList.filter(s => {
     if (fS && !s.setor.toLowerCase().includes(fS)) return false;
@@ -10412,6 +10417,7 @@ window.renderCnefeSetores = () => {
     if (fA && !primeiroNome(agNome).toLowerCase().includes(fA)) return false;
     if (fM && `${s.anoCnefe}_${String(s.mesCnefe).padStart(2,'0')}` !== fM) return false;
     if (fSt && calcStatus(s) !== fSt) return false;
+    if (fL && !(s.localidade||'').toLowerCase().includes(fL)) return false;
     return true;
   });
 
@@ -10453,6 +10459,7 @@ window.renderCnefeSetores = () => {
     <th><input ${fi} placeholder="Buscar setor…" value="${fS}" oninput="setCnefeFiltro('setor',this.value)"></th>
     <th><select ${fi} onchange="setCnefeFiltro('pesquisa',this.value)">${optPesq}</select></th>
     <th><select ${fi} onchange="setCnefeFiltro('agente',this.value)">${optAgentes}</select></th>
+    <th><input ${fi} placeholder="Localidade…" value="${fL}" oninput="setCnefeFiltro('localidade',this.value)"></th>
     <th><select ${fi} onchange="setCnefeFiltro('mes',this.value)">${optMeses}</select></th>
     <th></th>
     <th><select ${fi} onchange="setCnefeFiltro('status',this.value)">${optStatus}</select></th>
@@ -10462,7 +10469,7 @@ window.renderCnefeSetores = () => {
   let tbody = '';
   for (const [mes, grp] of grupos) {
     tbody += `<tr style="background:var(--azul-claro)">
-      <td colspan="7" style="font-size:0.75rem;font-weight:700;color:var(--azul);padding:0.35rem 0.9rem;letter-spacing:0.3px">
+      <td colspan="8" style="font-size:0.75rem;font-weight:700;color:var(--azul);padding:0.35rem 0.9rem;letter-spacing:0.3px">
         📅 ${mes} — ${grp.length} setor${grp.length !== 1 ? 'es' : ''}
       </td></tr>`;
     grp.forEach(s => {
@@ -10470,10 +10477,14 @@ window.renderCnefeSetores = () => {
       const mcLbl = s.mesCnefe ? `${_CNEFE_MESES[s.mesCnefe-1]}/${s.anoCnefe}` : '—';
       const pzLbl = s.prazoFinal instanceof Date ? s.prazoFinal.toLocaleDateString('pt-BR') : '—';
       const agNome = s.agente_nome || (_cnefeAgentesCache?.find(a => a.id === s.agente_id)?.nome) || '—';
+      const locVal = (s.localidade || '').replace(/'/g, '&#39;');
       tbody += `<tr>
         <td><code style="font-size:0.78rem">${s.setor}</code></td>
         <td style="font-size:0.82rem">${s.pesquisa}</td>
         <td style="font-size:0.82rem">${primeiroNome(agNome)}</td>
+        <td style="font-size:0.82rem;min-width:130px;cursor:pointer" onclick="cnefeEditarLocalidade(this,'${s.setor}','${s.docId||''}')">
+          <span class="cnefe-loc-val" title="Clique para editar localidade">${s.localidade || '<span style=\'color:var(--cinza);font-style:italic\'>—</span>'}</span>
+        </td>
         <td style="font-size:0.82rem">${mcLbl}</td>
         <td style="font-size:0.82rem">${pzLbl}</td>
         <td>
@@ -10495,10 +10506,63 @@ window.renderCnefeSetores = () => {
     });
   }
 
-  el.innerHTML = `<div style="overflow-x:auto"><table style="min-width:720px"><thead>
+  el.innerHTML = `<div style="overflow-x:auto"><table style="min-width:860px"><thead>
     <tr>
-      <th>Setor</th><th>Pesquisa</th><th>Agente</th><th>Mês CNEFE</th><th>Prazo Final</th><th>Status</th><th>Ações</th>
+      <th>Setor</th><th>Pesquisa</th><th>Agente</th><th>Localidade</th><th>Mês CNEFE</th><th>Prazo Final</th><th>Status</th><th>Ações</th>
     </tr>${filterRow}</thead><tbody>${tbody}</tbody></table></div>`;
+};
+
+window.cnefeEditarLocalidade = (td, setor, docIdAtual) => {
+  const span = td.querySelector('.cnefe-loc-val');
+  if (!span || td.querySelector('input')) return;
+  const atual = ((_cnefeSetoresList||[]).find(s => s.setor === setor)?.localidade) || '';
+  const input = document.createElement('input');
+  input.type = 'text'; input.value = atual;
+  input.style.cssText = 'width:100%;font-size:0.82rem;padding:2px 5px;border:1.5px solid var(--azul-medio);border-radius:4px;font-family:var(--fonte);box-sizing:border-box';
+  span.replaceWith(input);
+  input.focus(); input.select();
+
+  const novaSpan = txt => {
+    const s = document.createElement('span');
+    s.className = 'cnefe-loc-val'; s.title = 'Clique para editar localidade';
+    s.innerHTML = txt || '<span style="color:var(--cinza);font-style:italic">—</span>';
+    return s;
+  };
+
+  let done = false;
+  const salvar = async () => {
+    if (done) return; done = true;
+    const val = input.value.trim();
+    if (val === atual) { if (input.parentNode) input.replaceWith(novaSpan(val)); return; }
+    input.disabled = true;
+    try {
+      let docId = docIdAtual;
+      if (docId) {
+        await setDoc(doc(db, 'cnefe_setores', docId), { localidade: val }, { merge: true });
+      } else {
+        const ref = await addDoc(collection(db, 'cnefe_setores'), { setor, localidade: val, criadoEm: serverTimestamp() });
+        docId = ref.id;
+        td.onclick = null;
+        td.addEventListener('click', () => window.cnefeEditarLocalidade(td, setor, docId));
+      }
+      if (_cnefeSetoresCache) {
+        const ci = _cnefeSetoresCache.findIndex(x => x.id === docId);
+        if (ci >= 0) _cnefeSetoresCache[ci].localidade = val;
+        else _cnefeSetoresCache.push({ id: docId, setor, localidade: val });
+      }
+      if (_cnefeSetoresList) {
+        const li = _cnefeSetoresList.findIndex(x => x.setor === setor);
+        if (li >= 0) { _cnefeSetoresList[li].localidade = val; _cnefeSetoresList[li].docId = _cnefeSetoresList[li].docId || docId; }
+      }
+      if (input.parentNode) input.replaceWith(novaSpan(val));
+    } catch(e) { mostrarToast('Erro: '+e.message, 'erro'); if (input.parentNode) input.replaceWith(novaSpan(atual)); }
+  };
+
+  input.addEventListener('blur', salvar);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); done = true; if (input.parentNode) input.replaceWith(novaSpan(atual)); }
+  });
 };
 
 window.importarIndicadoresGerenciais = (input) => {
