@@ -10536,7 +10536,7 @@ window.renderCnefeSetores = () => {
           <div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">
             <button class="btn-acao secundario" style="font-size:0.75rem;padding:0.25rem 0.6rem"
               onclick="editarCnefeSetor('${s.setor}','${s.docId||''}','${s.agente_id||''}',${s.concluido},'${s.upa_id||''}')">✏️</button>
-            ${(() => { const tc = s.tem_csv || (_cnefeEnderecoCache[s.setor] instanceof Array && _cnefeEnderecoCache[s.setor].length > 0); return `<button title="${tc ? 'CSV importado — clique para reimportar' : 'Importar CSV da listagem'}" onclick="window._cnefeCSVDiretoSetor='${s.setor}';document.getElementById('cnefe-csv-direto-input').click()" style="font-size:0.7rem;padding:0.18rem 0.38rem;background:none;border:1px solid ${tc ? 'var(--verde)' : 'var(--borda)'};border-radius:4px;color:${tc ? 'var(--verde)' : 'var(--cinza)'};cursor:pointer;line-height:1.3;transition:all 0.15s">csv</button>`; })()}
+            ${(() => { const tc = s.tem_csv || (_cnefeEnderecoCache[s.setor] instanceof Array && _cnefeEnderecoCache[s.setor].length > 0); return `<button title="${tc ? 'CSV importado — clique para reimportar' : 'Importar CSV da listagem'}" onclick="window._cnefeCSVDiretoSetor='${s.setor}';document.getElementById('cnefe-csv-direto-input').click()" style="font-size:0.7rem;padding:0.18rem 0.38rem;background:none;border:1px solid ${tc ? '#1a56db' : 'var(--borda)'};border-radius:4px;color:${tc ? '#1a56db' : 'var(--cinza)'};font-weight:${tc ? '700' : '400'};cursor:pointer;line-height:1.3;transition:all 0.15s">csv</button>`; })()}
           </div>
         </td>
       </tr>`;
