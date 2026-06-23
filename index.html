@@ -4033,8 +4033,18 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
   const upaHeader = [...new Set(lista.map(d => d.upa).filter(Boolean))].join(', ') || '—';
   const semana = lista[0]?.semana || '—';
   const periodo = PERIODOS[lista[0]?.periodo] || (lista[0]?.periodo || '—');
+  const _cacheCarta = entrevistadoresCache || [];
+  const _canonCarta = n => {
+    const s = (n || '').trim();
+    if (!s) return '';
+    const reg = _cacheCarta.find(u => nomesCorrespondem(u.nome, s));
+    return reg ? toTitleCase(reg.nome) : toTitleCase(s);
+  };
   const entrCount = {};
-  lista.forEach(d => { if (d.entrevistador_nome) entrCount[d.entrevistador_nome] = (entrCount[d.entrevistador_nome]||0)+1; });
+  lista.forEach(d => {
+    const k = _canonCarta(d.entrevistador_nome);
+    if (k) entrCount[k] = (entrCount[k]||0)+1;
+  });
   const entrevistadorNome = Object.keys(entrCount).sort((a,b) => entrCount[b]-entrCount[a])[0] || '—';
 
   const STATUS_ABREV = {
@@ -4411,7 +4421,13 @@ async function _renderControlePendencias() {
     : docsPeriodo.filter(d => String(d.semana) === semana);
 
   const STATUS_PEND_CONTROLE = new Set(STATUS_PENDENTES);
-  const _normNomePend = n => (n || '').trim().replace(/^\*+/, '') || '(sem entrevistador)';
+  const _cacheGraf = entrevistadoresCache || [];
+  const _normNomePend = n => {
+    const s = (n || '').trim().replace(/^\*+/, '');
+    if (!s) return '(sem entrevistador)';
+    const reg = _cacheGraf.find(u => nomesCorrespondem(u.nome, s));
+    return reg ? toTitleCase(reg.nome) : toTitleCase(s);
+  };
 
   const porEntr = {};
   for (const d of docsFiltrados) {
@@ -5226,7 +5242,12 @@ window.filtrarPendencias = () => {
 
   if (agrupar) {
     const grupos = {};
-    lista.forEach(d => { const k = d.entrevistador_nome || '(Sem entrevistador)'; (grupos[k]=grupos[k]||[]).push(d); });
+    const _cacheP = entrevistadoresCache || [];
+    lista.forEach(d => {
+      const reg = _cacheP.find(u => nomesCorrespondem(u.nome, d.entrevistador_nome||''));
+      const k = reg ? toTitleCase(reg.nome) : (toTitleCase(d.entrevistador_nome) || '(Sem entrevistador)');
+      (grupos[k]=grupos[k]||[]).push(d);
+    });
     let html = '<div style="overflow-x:auto">';
     for (const [nome, doms] of Object.entries(grupos).sort(([a],[b])=>a.localeCompare(b))) {
       html += `<div style="background:var(--azul-claro);padding:0.45rem 1rem;font-weight:700;font-size:0.85rem;color:var(--azul);border-bottom:2px solid var(--azul-medio)">👤 ${nome} — ${doms.length} pendência${doms.length!==1?'s':''}</div>`;
@@ -8393,7 +8414,9 @@ function nomesCorrespondem(nomeCadastrado, nomeImportado) {
   if (cadastrado === importado) return true;
   const palavrasCadastro = cadastrado.split(' ').filter(p => p.length > 1); // ignora iniciais soltas
   if (palavrasCadastro.length === 0) return false;
-  return palavrasCadastro.every(p => importado.includes(p));
+  const palavrasImportado = importado.split(' ');
+  // Verifica palavra inteira (não substring) para evitar "Ana" matchando "Joana"
+  return palavrasCadastro.every(p => palavrasImportado.includes(p));
 }
 
 // Recebe a lista de entrevistadores ({id, nome}) e o nome importado (SIGC/CSV);
@@ -8403,7 +8426,8 @@ function nomesCorrespondem(nomeCadastrado, nomeImportado) {
 function _entrevistadorCorresponde(domNome, filtroCanonical) {
   if (!filtroCanonical || filtroCanonical === '__sem__') return true;
   if (!domNome) return false;
-  if (domNome.toLowerCase() === filtroCanonical.toLowerCase()) return true;
+  // Normaliza (remove acentos + lowercase) antes de comparar diretamente
+  if (normalizarNomeGlobal(domNome) === normalizarNomeGlobal(filtroCanonical)) return true;
   const registrado = (entrevistadoresCache||[]).find(u => toTitleCase(u.nome) === filtroCanonical);
   return registrado ? nomesCorrespondem(registrado.nome, domNome) : false;
 }
