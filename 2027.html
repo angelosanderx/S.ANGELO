@@ -3563,6 +3563,8 @@ window.adicionarTECAsemana = async (id) => {
 <!-- ════ FIREBASE ════ -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   collection, doc, getDoc, getDocs, addDoc, setDoc,
   updateDoc, deleteDoc, writeBatch, query, where, orderBy, limit, onSnapshot, serverTimestamp }
@@ -3579,13 +3581,25 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 });
 
 window._db = db;
 window._fb = { collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, query, where, orderBy, limit, onSnapshot, serverTimestamp };
-window.dispatchEvent(new Event('firebase-pronto'));
+
+// Fire app after auth settled: reuse existing session or sign in anonymously
+let _authFired = false;
+onAuthStateChanged(auth, async (user) => {
+  if (_authFired) return;
+  if (!user) {
+    try { await signInAnonymously(auth); } catch(_) {}
+    return; // onAuthStateChanged fires again with the new anon user
+  }
+  _authFired = true;
+  window.dispatchEvent(new Event('firebase-pronto'));
+});
 </script>
 </body>
 </html>
