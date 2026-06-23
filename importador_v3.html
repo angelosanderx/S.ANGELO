@@ -873,7 +873,7 @@ async function importarFirestore() {
 
     const baseFieldNames = [
       'upa','controle','municipio','domicilio_num','semana','visita_etapa',
-      'tipo_entrevista','ultima_posicao','observacao_ibge','endereco','localidade',
+      'tipo_entrevista','ultima_posicao','observacao_ibge','data_ibge','endereco','localidade',
       'cep','morador','telefone','latitude','longitude','painel','trimestre',
       'periodo','status_atual',
     ];
@@ -888,6 +888,7 @@ async function importarFirestore() {
       tipo_entrevista:   toStr(d.tipo_entrevista),
       ultima_posicao:    toStr(d.ultima_posicao),
       observacao_ibge:   toStr(d.observacao_ibge),
+      data_ibge:         toStr(d.data_ibge),
       endereco:          toStr(d.endereco + (d.complemento ? ' — ' + d.complemento : '')),
       localidade:        toStr(d.localidade),
       cep:               toStr(d.cep),

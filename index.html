@@ -979,6 +979,9 @@
     <div class="nav-item" onclick="irPara('tentativas')">
       <span class="icone">🔁</span> Tentativas
     </div>
+    <div class="nav-item" onclick="irPara('ultimo-movimento')">
+      <span class="icone">📋</span> Último Movimento
+    </div>
 
     <div class="nav-secao">Comunicação</div>
     <div class="nav-item" onclick="irPara('chat')">
@@ -1718,6 +1721,33 @@
       <div id="card-tent-tabela" class="card-tabela">
         <div class="card-tabela-header"><h3 id="tent-contador">Tentativas</h3></div>
         <div id="tabela-tentativas"><div class="loader">Carregando...</div></div>
+      </div>
+    </div>
+
+    <div class="pagina" id="pag-ultimo-movimento">
+      <div class="titulo-pagina">📋 Último Movimento</div>
+      <div class="card-tabela" style="margin-bottom:0.75rem;overflow:visible">
+        <div style="padding:0.85rem 1.25rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+          <select id="um-upa" onchange="umFiltrarPorUpa()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:200px">
+            <option value="">Todas as UPAs</option>
+          </select>
+          <select id="um-setor" onchange="filtrarUltimoMovimento()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:200px">
+            <option value="">Todos os setores</option>
+          </select>
+          <select id="um-semana" onchange="filtrarUltimoMovimento()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
+            <option value="">Todas as semanas</option>
+            <option value="1">Semana 1</option>
+            <option value="2">Semana 2</option>
+            <option value="3">Semana 3</option>
+            <option value="4">Semana 4</option>
+          </select>
+          <input type="text" id="um-busca" placeholder="Buscar tipo, posição ou observação..." style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);flex:1;min-width:160px" oninput="filtrarUltimoMovimento()">
+          <button class="btn-acao secundario" onclick="limparFiltrosUM()">Limpar</button>
+        </div>
+      </div>
+      <div id="card-um" class="card-tabela">
+        <div class="card-tabela-header"><h3 id="um-contador">Último Movimento</h3></div>
+        <div id="tabela-ultimo-movimento"><div class="loader">Carregando...</div></div>
       </div>
     </div>
 
@@ -2725,6 +2755,7 @@ window.irPara = (pag) => {
     }, 100);
   }
   if (pag === 'cnefe') carregarCnefe();
+  if (pag === 'ultimo-movimento') filtrarUltimoMovimento();
 };
 
 window.toggleSidebar = () => {
@@ -3288,6 +3319,119 @@ window.salvarEditorEnderecos = async () => {
   btn.disabled = false;
   _atualizarContadorEditor();
 };
+
+// ── ÚLTIMO MOVIMENTO ──
+function _atualizarDropdownsUM() {
+  const upaAtual = document.getElementById('um-upa')?.value || '';
+  const setorAtual = document.getElementById('um-setor')?.value || '';
+  const upas = [...new Set(todosdomicilios.map(d => d.upa).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  const selUpa = document.getElementById('um-upa');
+  if (!selUpa) return;
+  selUpa.innerHTML = '<option value="">Todas as UPAs (' + upas.length + ')</option>';
+  upas.forEach(u => { const opt = document.createElement('option'); opt.value = u; opt.textContent = 'UPA ' + u; selUpa.appendChild(opt); });
+  selUpa.value = upas.includes(upaAtual) ? upaAtual : '';
+  const upaEfetiva = selUpa.value;
+  const setores = [...new Set(
+    todosdomicilios.filter(d => !upaEfetiva || d.upa === upaEfetiva)
+      .map(d => d.controle ? d.controle.slice(0,-1) : d.upa).filter(Boolean)
+  )].sort((a,b) => a.localeCompare(b));
+  const selSetor = document.getElementById('um-setor');
+  if (!selSetor) return;
+  selSetor.innerHTML = '<option value="">Todos os setores (' + setores.length + ')</option>';
+  setores.forEach(s => { const opt = document.createElement('option'); opt.value = s; opt.textContent = 'Setor ' + s; selSetor.appendChild(opt); });
+  selSetor.value = setores.includes(setorAtual) ? setorAtual : '';
+}
+
+window.umFiltrarPorUpa = () => {
+  const upa = document.getElementById('um-upa')?.value || '';
+  const setores = [...new Set(
+    todosdomicilios.filter(d => !upa || d.upa === upa)
+      .map(d => d.controle ? d.controle.slice(0,-1) : d.upa).filter(Boolean)
+  )].sort((a,b) => a.localeCompare(b));
+  const sel = document.getElementById('um-setor');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Todos os setores (' + setores.length + ')</option>';
+  setores.forEach(s => { const opt = document.createElement('option'); opt.value = s; opt.textContent = 'Setor ' + s; sel.appendChild(opt); });
+  filtrarUltimoMovimento();
+};
+
+window.filtrarUltimoMovimento = () => {
+  _atualizarDropdownsUM();
+  const upa = document.getElementById('um-upa')?.value || '';
+  const setor = document.getElementById('um-setor')?.value || '';
+  const semana = document.getElementById('um-semana')?.value || '';
+  const q = (document.getElementById('um-busca')?.value || '').toLowerCase();
+  const filtrados = todosdomicilios.filter(d => {
+    const setorDom = d.controle ? d.controle.slice(0,-1) : d.upa;
+    if (upa && d.upa !== upa) return false;
+    if (setor && setorDom !== setor) return false;
+    if (semana && String(d.semana || '') !== semana) return false;
+    if (q) {
+      const hay = [(d.tipo_entrevista||''), (d.ultima_posicao||''), (d.observacao_ibge||''), (d.controle||''), String(d.domicilio_num||'')].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  filtrados.sort((a, b) => {
+    const semDiff = parseInt(a.semana||0) - parseInt(b.semana||0);
+    if (semDiff !== 0) return semDiff;
+    const upaDiff = (a.upa||'').localeCompare(b.upa||'');
+    if (upaDiff !== 0) return upaDiff;
+    const sa = a.controle ? a.controle.slice(0,-1) : (a.upa||'');
+    const sb = b.controle ? b.controle.slice(0,-1) : (b.upa||'');
+    const setDiff = sa.localeCompare(sb);
+    if (setDiff !== 0) return setDiff;
+    return parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0);
+  });
+  renderizarUltimoMovimento(filtrados);
+  const _temFiltro = !!(upa || setor || semana || q);
+  _indicarFiltroAtivo('card-um', _temFiltro);
+  ['um-upa','um-setor','um-semana'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.classList.toggle('filtro-ativo-ctrl', !!el.value);
+  });
+  const _b = document.getElementById('um-busca');
+  if (_b) _b.classList.toggle('filtro-ativo-ctrl', !!_b.value);
+};
+
+window.limparFiltrosUM = () => {
+  ['um-upa','um-setor','um-semana'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const b = document.getElementById('um-busca'); if (b) b.value = '';
+  filtrarUltimoMovimento();
+};
+
+function renderizarUltimoMovimento(lista) {
+  const contador = document.getElementById('um-contador');
+  if (contador) contador.textContent = lista.length + ' registro(s)';
+  const el = document.getElementById('tabela-ultimo-movimento');
+  if (!el) return;
+  if (lista.length === 0) {
+    el.innerHTML = '<div class="vazio"><div class="icone-vazio">📋</div>Nenhum registro encontrado.</div>';
+    return;
+  }
+  el.innerHTML =
+    '<div style="overflow-x:auto"><table style="min-width:700px;table-layout:fixed;width:100%">' +
+    '<thead><tr>' +
+    '<th style="width:100px">UPA</th>' +
+    '<th style="width:115px">CTRL</th>' +
+    '<th style="width:50px;text-align:center">DOM</th>' +
+    '<th style="width:44px;text-align:center">SEM</th>' +
+    '<th style="width:155px">TIPO ENT.</th>' +
+    '<th style="width:155px">ÚLT. POS.</th>' +
+    '<th>OBS.</th>' +
+    '<th style="width:88px">DATA</th>' +
+    '</tr></thead><tbody>' +
+    lista.map(d => `<tr>
+      <td style="font-size:0.82rem;padding:0.5rem 0.6rem">${esc(d.upa||'—')}</td>
+      <td style="font-size:0.8rem;padding:0.5rem 0.6rem;font-family:monospace">${esc(d.controle||'—')}</td>
+      <td style="text-align:center;font-weight:700;font-size:0.9rem;color:var(--azul);padding:0.5rem 0.3rem">${esc(d.domicilio_num||'—')}</td>
+      <td style="text-align:center;font-size:0.82rem;padding:0.5rem 0.3rem">${esc(d.semana||'—')}</td>
+      <td style="font-size:0.8rem;padding:0.5rem 0.5rem">${esc(d.tipo_entrevista||'—')}</td>
+      <td style="font-size:0.8rem;padding:0.5rem 0.5rem">${esc(d.ultima_posicao||'—')}</td>
+      <td style="font-size:0.8rem;padding:0.5rem 0.5rem">${esc(d.observacao_ibge||'—')}</td>
+      <td style="font-size:0.8rem;padding:0.5rem 0.5rem">${esc(d.data_ibge||'—')}</td>
+    </tr>`).join('') +
+    '</tbody></table></div>';
+}
 
 // ── ETIQUETAS DE ENDEREÇO (Pimaco 6181 — 2×7 = 14 por folha A4) ──
 window.gerarEtiquetas = async (idsOverride, tableId) => {
