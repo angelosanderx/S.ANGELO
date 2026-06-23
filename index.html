@@ -1741,7 +1741,7 @@
             <option value="3">Semana 3</option>
             <option value="4">Semana 4</option>
           </select>
-          <input type="text" id="um-busca" placeholder="Buscar tipo, posição ou observação..." style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);flex:1;min-width:160px" oninput="filtrarUltimoMovimento()">
+          <input type="text" id="um-busca" placeholder="Buscar em qualquer campo..." style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);flex:1;min-width:160px" oninput="filtrarUltimoMovimento()">
           <button class="btn-acao secundario" onclick="limparFiltrosUM()">Limpar</button>
         </div>
       </div>
@@ -3321,6 +3321,8 @@ window.salvarEditorEnderecos = async () => {
 };
 
 // ── ÚLTIMO MOVIMENTO ──
+let umSort = { col: '', dir: 1 };
+
 function _atualizarDropdownsUM() {
   const upaAtual = document.getElementById('um-upa')?.value || '';
   const setorAtual = document.getElementById('um-setor')?.value || '';
@@ -3340,6 +3342,18 @@ function _atualizarDropdownsUM() {
   selSetor.innerHTML = '<option value="">Todos os setores (' + setores.length + ')</option>';
   setores.forEach(s => { const opt = document.createElement('option'); opt.value = s; opt.textContent = 'Setor ' + s; selSetor.appendChild(opt); });
   selSetor.value = setores.includes(setorAtual) ? setorAtual : '';
+}
+
+window.umOrdenar = (col) => {
+  if (umSort.col === col) umSort.dir *= -1;
+  else { umSort.col = col; umSort.dir = 1; }
+  filtrarUltimoMovimento();
+};
+
+function _thUM(label, col, extraStyle) {
+  const ativo = umSort.col === col;
+  const arrow = ativo ? (umSort.dir === 1 ? ' ↑' : ' ↓') : '';
+  return `<th onclick="umOrdenar('${col}')" style="cursor:pointer;user-select:none;white-space:nowrap${ativo?';color:var(--azul)':''}${extraStyle?';'+extraStyle:''}">${label}${arrow}</th>`;
 }
 
 window.umFiltrarPorUpa = () => {
@@ -3367,22 +3381,46 @@ window.filtrarUltimoMovimento = () => {
     if (setor && setorDom !== setor) return false;
     if (semana && String(d.semana || '') !== semana) return false;
     if (q) {
-      const hay = [(d.tipo_entrevista||''), (d.ultima_posicao||''), (d.observacao_ibge||''), (d.controle||''), String(d.domicilio_num||'')].join(' ').toLowerCase();
+      const hay = [d.upa, d.controle, String(d.domicilio_num||''), d.tipo_entrevista,
+                   d.ultima_posicao, d.observacao_ibge, d.data_ibge, d.entrevistador_nome]
+        .map(v => (v||'').toLowerCase()).join(' ');
       if (!hay.includes(q)) return false;
     }
     return true;
   });
-  filtrados.sort((a, b) => {
-    const semDiff = parseInt(a.semana||0) - parseInt(b.semana||0);
-    if (semDiff !== 0) return semDiff;
-    const upaDiff = (a.upa||'').localeCompare(b.upa||'');
-    if (upaDiff !== 0) return upaDiff;
-    const sa = a.controle ? a.controle.slice(0,-1) : (a.upa||'');
-    const sb = b.controle ? b.controle.slice(0,-1) : (b.upa||'');
-    const setDiff = sa.localeCompare(sb);
-    if (setDiff !== 0) return setDiff;
-    return parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0);
-  });
+
+  if (umSort.col) {
+    filtrados.sort((a, b) => {
+      let va, vb;
+      switch (umSort.col) {
+        case 'upa':           va = a.upa||'';                   vb = b.upa||'';                   break;
+        case 'controle':      va = a.controle||'';              vb = b.controle||'';              break;
+        case 'dom':           va = parseInt(a.domicilio_num||0); vb = parseInt(b.domicilio_num||0); break;
+        case 'semana':        va = parseInt(a.semana||0);        vb = parseInt(b.semana||0);        break;
+        case 'tipo':          va = a.tipo_entrevista||'';        vb = b.tipo_entrevista||'';        break;
+        case 'posicao':       va = a.ultima_posicao||'';         vb = b.ultima_posicao||'';         break;
+        case 'obs':           va = a.observacao_ibge||'';        vb = b.observacao_ibge||'';        break;
+        case 'data':          va = a.data_ibge||'';              vb = b.data_ibge||'';              break;
+        case 'entrevistador': va = a.entrevistador_nome||'';     vb = b.entrevistador_nome||'';     break;
+        default: return 0;
+      }
+      if (typeof va === 'number') return (va - vb) * umSort.dir;
+      return va.localeCompare(vb) * umSort.dir;
+    });
+  } else {
+    filtrados.sort((a, b) => {
+      const semDiff = parseInt(a.semana||0) - parseInt(b.semana||0);
+      if (semDiff !== 0) return semDiff;
+      const upaDiff = (a.upa||'').localeCompare(b.upa||'');
+      if (upaDiff !== 0) return upaDiff;
+      const sa = a.controle ? a.controle.slice(0,-1) : (a.upa||'');
+      const sb = b.controle ? b.controle.slice(0,-1) : (b.upa||'');
+      const setDiff = sa.localeCompare(sb);
+      if (setDiff !== 0) return setDiff;
+      return parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0);
+    });
+  }
+
   renderizarUltimoMovimento(filtrados);
   const _temFiltro = !!(upa || setor || semana || q);
   _indicarFiltroAtivo('card-um', _temFiltro);
@@ -3408,27 +3446,29 @@ function renderizarUltimoMovimento(lista) {
     el.innerHTML = '<div class="vazio"><div class="icone-vazio">📋</div>Nenhum registro encontrado.</div>';
     return;
   }
+  const S = 'padding:0.32rem 0.45rem;font-size:0.77rem';
   el.innerHTML =
-    '<div style="overflow-x:auto"><table style="min-width:700px;table-layout:fixed;width:100%">' +
-    '<thead><tr>' +
-    '<th style="width:100px">UPA</th>' +
-    '<th style="width:115px">CTRL</th>' +
-    '<th style="width:50px;text-align:center">DOM</th>' +
-    '<th style="width:44px;text-align:center">SEM</th>' +
-    '<th style="width:155px">TIPO ENT.</th>' +
-    '<th style="width:155px">ÚLT. POS.</th>' +
-    '<th>OBS.</th>' +
-    '<th style="width:88px">DATA</th>' +
+    '<div style="overflow-x:auto"><table style="min-width:750px;font-size:0.77rem"><thead><tr>' +
+    _thUM('UPA','upa') +
+    _thUM('CTRL','controle') +
+    _thUM('DOM','dom','text-align:center') +
+    _thUM('SEM','semana','text-align:center') +
+    _thUM('TIPO ENT.','tipo') +
+    _thUM('ÚLT. POS.','posicao') +
+    _thUM('OBS.','obs') +
+    _thUM('DATA','data') +
+    _thUM('ENTR.','entrevistador') +
     '</tr></thead><tbody>' +
     lista.map(d => `<tr>
-      <td style="font-size:0.82rem;padding:0.5rem 0.6rem">${esc(d.upa||'—')}</td>
-      <td style="font-size:0.8rem;padding:0.5rem 0.6rem;font-family:monospace">${esc(d.controle||'—')}</td>
-      <td style="text-align:center;font-weight:700;font-size:0.9rem;color:var(--azul);padding:0.5rem 0.3rem">${esc(d.domicilio_num||'—')}</td>
-      <td style="text-align:center;font-size:0.82rem;padding:0.5rem 0.3rem">${esc(d.semana||'—')}</td>
-      <td style="font-size:0.8rem;padding:0.5rem 0.5rem">${esc(d.tipo_entrevista||'—')}</td>
-      <td style="font-size:0.8rem;padding:0.5rem 0.5rem">${esc(d.ultima_posicao||'—')}</td>
-      <td style="font-size:0.8rem;padding:0.5rem 0.5rem">${esc(d.observacao_ibge||'—')}</td>
-      <td style="font-size:0.8rem;padding:0.5rem 0.5rem">${esc(d.data_ibge||'—')}</td>
+      <td style="${S}">${esc(d.upa||'—')}</td>
+      <td style="${S};font-family:monospace">${esc(d.controle||'—')}</td>
+      <td style="${S};text-align:center;font-weight:700;color:var(--azul)">${esc(d.domicilio_num||'—')}</td>
+      <td style="${S};text-align:center">${esc(d.semana||'—')}</td>
+      <td style="${S}">${esc(d.tipo_entrevista||'—')}</td>
+      <td style="${S}">${esc(d.ultima_posicao||'—')}</td>
+      <td style="${S};color:var(--cinza);max-width:150px">${esc(d.observacao_ibge||'—')}</td>
+      <td style="${S};white-space:nowrap">${esc(d.data_ibge||'—')}</td>
+      <td style="${S}">${esc(d.entrevistador_nome||'—')}</td>
     </tr>`).join('') +
     '</tbody></table></div>';
 }
