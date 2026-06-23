@@ -3594,8 +3594,12 @@ let _authFired = false;
 onAuthStateChanged(auth, async (user) => {
   if (_authFired) return;
   if (!user) {
-    try { await signInAnonymously(auth); } catch(_) {}
-    return; // onAuthStateChanged fires again with the new anon user
+    try {
+      await signInAnonymously(auth);
+      return; // onAuthStateChanged fires again with the new anon user
+    } catch(_) {
+      // Anonymous auth not enabled — proceed unauthenticated
+    }
   }
   _authFired = true;
   window.dispatchEvent(new Event('firebase-pronto'));
