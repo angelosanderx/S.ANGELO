@@ -4509,9 +4509,16 @@ window.gerarRoteiroCarta = async (idsOverride, tableId) => {
     let idx = lista_setor.findIndex(r => r.dom === domNum);
     if (idx < 0) idx = lista_setor.findIndex(r => r.seq_visita === domNum);
     if (idx < 0) idx = lista_setor.findIndex(r => parseInt(r.dom||'') === parseInt(domNum) || parseInt(r.seq_visita||'') === parseInt(domNum));
-    const antes  = idx > 0             ? lista_setor.slice(Math.max(0, idx-3), idx) : [];
-    const depois = idx >= 0            ? lista_setor.slice(idx+1, Math.min(lista_setor.length, idx+4)) : [];
-    const alvo   = idx >= 0            ? lista_setor[idx] : null;
+    let antes = [], depois = [];
+    if (idx >= 0) {
+      const natStart  = Math.max(0, idx - 3);
+      const natEnd    = Math.min(lista_setor.length, idx + 4);
+      const antesLen  = idx - natStart;
+      const depoisLen = natEnd - idx - 1;
+      antes  = lista_setor.slice(Math.max(0, natStart - (3 - depoisLen)), idx);
+      depois = lista_setor.slice(idx + 1, Math.min(lista_setor.length, natEnd + (3 - antesLen)));
+    }
+    const alvo = idx >= 0 ? lista_setor[idx] : null;
 
     const esp = (d.historico_especies||[]).slice().sort((a,b)=>parseInt(a.entrevista)-parseInt(b.entrevista));
     const etaAtual = parseInt(d.visita_etapa||0);
@@ -8616,9 +8623,20 @@ function renderizarRoteiro(lista, domAtual, setor) {
   
   // Encontra o domicílio alvo na listagem pelo SeqVisita ou número
   const idx = lista.findIndex(d => parseInt(d.dom) === domNum || parseInt(d.seq_visita) === domNum);
-  
-  const anteriores = idx > 0 ? lista.slice(Math.max(0, idx - 3), idx) : [];
-  const posteriores = idx >= 0 ? lista.slice(idx + 1, idx + 4) : [];
+
+  let anteriores = [], posteriores = [];
+  if (idx >= 0) {
+    // Janela natural de 3 antes e 3 depois
+    const natStart = Math.max(0, idx - 3);
+    const natEnd   = Math.min(lista.length, idx + 4);
+    const antesLen  = idx - natStart;         // 0-3 disponíveis antes
+    const depoisLen = natEnd - idx - 1;       // 0-3 disponíveis depois
+    // Compensação: quando faltam de um lado, pega mais do outro
+    const expandStart = Math.max(0, natStart - (3 - depoisLen));
+    const expandEnd   = Math.min(lista.length, natEnd   + (3 - antesLen));
+    anteriores = lista.slice(expandStart, idx);
+    posteriores = lista.slice(idx + 1, expandEnd);
+  }
   const alvo = idx >= 0 ? lista[idx] : null;
   
   // Renderiza mapa
