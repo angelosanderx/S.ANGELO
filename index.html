@@ -8006,6 +8006,7 @@ window.salvarAviso = async () => {
 
 // ── TENTATIVAS ──
 let todasTentativas = [];
+let tentSort = { col: '', dir: 1 };
 
 async function carregarTentativas() {
   try {
@@ -8059,6 +8060,18 @@ async function carregarTentativas() {
   }
 }
 
+window.tentOrdenar = (col) => {
+  if (tentSort.col === col) tentSort.dir *= -1;
+  else { tentSort.col = col; tentSort.dir = 1; }
+  filtrarTentativas();
+};
+
+function _thTent(label, col) {
+  const ativo = tentSort.col === col;
+  const arrow = ativo ? (tentSort.dir === 1 ? ' ↑' : ' ↓') : '';
+  return `<th onclick="tentOrdenar('${col}')" style="cursor:pointer;user-select:none;white-space:nowrap${ativo ? ';color:var(--azul)' : ''}">${label}${arrow}</th>`;
+}
+
 window.filtrarTentativas = () => {
   const entr = document.getElementById('tent-filtro-entrevistador')?.value || '';
   const sem = document.getElementById('tent-filtro-semana')?.value || '';
@@ -8071,9 +8084,33 @@ window.filtrarTentativas = () => {
     if (sem && t.semana !== sem) return false;
     if (orig && (t.origem || '') !== orig) return false;
     if (pendentes === 'pendentes' && t.status_atual_domicilio === 'realizada') return false;
-    if (q && !(t.endereco || '').toLowerCase().includes(q) && !(t.morador || '').toLowerCase().includes(q)) return false;
+    if (q) {
+      const hay = [t.endereco, t.morador, t.resultado, t.observacao, t.origem,
+                   t.entrevistador_nome, t.data, t.controle, String(t.domicilio_num||'')]
+        .map(v => (v||'').toLowerCase()).join(' ');
+      if (!hay.includes(q)) return false;
+    }
     return true;
   });
+
+  if (tentSort.col) {
+    filtradas.sort((a, b) => {
+      let va, vb;
+      switch (tentSort.col) {
+        case 'dom':          va = parseInt(a.domicilio_num||0); vb = parseInt(b.domicilio_num||0); break;
+        case 'endereco':     va = a.endereco||'';               vb = b.endereco||'';               break;
+        case 'semana':       va = parseInt(a.semana||0);        vb = parseInt(b.semana||0);        break;
+        case 'entrevistador':va = a.entrevistador_nome||'';     vb = b.entrevistador_nome||'';     break;
+        case 'data':         va = a.data||'';                   vb = b.data||'';                   break;
+        case 'origem':       va = a.origem||'';                 vb = b.origem||'';                 break;
+        case 'resultado':    va = a.resultado||'';              vb = b.resultado||'';              break;
+        case 'obs':          va = a.observacao||'';             vb = b.observacao||'';             break;
+        default: return 0;
+      }
+      if (typeof va === 'number') return (va - vb) * tentSort.dir;
+      return va.localeCompare(vb) * tentSort.dir;
+    });
+  }
 
   _indicarFiltroAtivo('card-tent-tabela', !!(entr || sem || orig || pendentes || q));
   ['tent-filtro-entrevistador','tent-filtro-semana','tent-filtro-origem','tent-filtro-pendentes'].forEach(id => {
@@ -8090,28 +8127,35 @@ window.filtrarTentativas = () => {
     return;
   }
 
-  let html = '<div style="overflow-x:auto"><table style="min-width:700px"><thead><tr>' +
-    '<th>Dom.</th><th>Endereço / Morador</th><th>Sem.</th><th>Entrevistador</th>' +
-    '<th>Data/Hora</th><th>Origem</th><th>Resultado</th><th>Observação</th>' +
+  const S = 'padding:0.32rem 0.45rem;font-size:0.77rem';
+  let html = '<div style="overflow-x:auto"><table style="min-width:680px;font-size:0.77rem"><thead><tr>' +
+    _thTent('Dom.','dom') +
+    _thTent('Endereço / Morador','endereco') +
+    _thTent('Sem.','semana') +
+    _thTent('Entrev.','entrevistador') +
+    _thTent('Data/Hora','data') +
+    _thTent('Origem','origem') +
+    _thTent('Resultado','resultado') +
+    _thTent('Obs.','obs') +
     '</tr></thead><tbody>';
 
   filtradas.forEach(t => {
     const setor = t.controle ? t.controle.slice(0,-1) : t.upa;
     html += `<tr>
-      <td>
-        <div style="font-size:0.7rem;color:var(--cinza)">Setor ${setor}</div>
-        <div style="font-weight:700;color:var(--azul)">Dom. ${t.domicilio_num}</div>
+      <td style="${S}">
+        <div style="font-size:0.68rem;color:var(--cinza)">${setor}</div>
+        <div style="font-weight:700;color:var(--azul);font-size:0.8rem">${t.domicilio_num}</div>
       </td>
-      <td>
-        <div style="font-size:0.83rem;font-weight:600">${t.endereco || '—'}</div>
-        <div style="font-size:0.75rem;color:var(--cinza)">${t.morador || ''}</div>
+      <td style="${S}">
+        <div style="font-weight:600">${esc(t.endereco||'—')}</div>
+        <div style="font-size:0.7rem;color:var(--cinza)">${esc(t.morador||'')}</div>
       </td>
-      <td style="text-align:center">${t.semana || '—'}</td>
-      <td style="font-size:0.82rem">${t.entrevistador_nome || '—'}</td>
-      <td style="font-size:0.78rem;white-space:nowrap">${t.data || '—'}</td>
-      <td><span class="badge ${t.origem === 'Presencial' ? 'badge-azul' : 'badge-verde'}">${t.origem || '—'}</span></td>
-      <td style="font-size:0.78rem">${t.resultado || '—'}</td>
-      <td style="font-size:0.75rem;color:var(--cinza);max-width:180px">${t.observacao || ''}</td>
+      <td style="${S};text-align:center">${t.semana||'—'}</td>
+      <td style="${S}">${esc(t.entrevistador_nome||'—')}</td>
+      <td style="${S};white-space:nowrap">${esc(t.data||'—')}</td>
+      <td style="${S}"><span class="badge ${t.origem==='Presencial'?'badge-azul':'badge-verde'}">${esc(t.origem||'—')}</span></td>
+      <td style="${S}">${esc(t.resultado||'—')}</td>
+      <td style="${S};color:var(--cinza);max-width:160px">${esc(t.observacao||'')}</td>
     </tr>`;
   });
 
