@@ -2505,7 +2505,7 @@ async function carregarTrilhas() {
     const snap = await getDocs(collection(db, 'concurso_trilhas'));
     if (snap.empty) {
       el.innerHTML = '<div class="loader">Criando trilhas pela primeira vez...</div>';
-      await seedTrilhas();
+      try { await seedTrilhas(); } catch (se) { console.warn('Seed trilhas falhou:', se); }
       const snap2 = await getDocs(collection(db, 'concurso_trilhas'));
       snap2.docs.forEach(d => { trilhasCache[d.id] = { id: d.id, ...d.data() }; });
     } else {
@@ -2678,7 +2678,7 @@ async function carregarMapaAulas() {
     const snap = await getDocs(collection(db, 'concurso_mapa_aulas'));
     if (snap.empty) {
       document.getElementById('mapa-aulas-conteudo').innerHTML = '<div class="loader">Criando mapa pela primeira vez...</div>';
-      await seedMapaAulas();
+      try { await seedMapaAulas(); } catch (se) { console.warn('Seed mapa-aulas falhou:', se); }
       const snap2 = await getDocs(collection(db, 'concurso_mapa_aulas'));
       snap2.docs.forEach(d => { mapaAulasCache[d.id] = { id: d.id, ...d.data() }; });
     } else {
@@ -3292,7 +3292,7 @@ async function carregarTrilhaAulas() {
     const snap = await getDocs(collection(db, 'concurso_trilha_aulas'));
     if (snap.empty) {
       el.innerHTML = '<div class="loader">Criando trilha pela primeira vez...</div>';
-      await seedTrilhaAulas();
+      try { await seedTrilhaAulas(); } catch (se) { console.warn('Seed trilha falhou:', se); }
       const snap2 = await getDocs(collection(db, 'concurso_trilha_aulas'));
       snap2.docs.forEach(d => { trilhaAulasCache[d.id] = { id: d.id, ...d.data() }; });
     } else {
@@ -3419,7 +3419,7 @@ async function carregarCadernosTEC() {
     const snap = await getDocs(collection(db, 'concurso_cadernos_tec'));
     if (snap.empty) {
       el.innerHTML = '<div class="loader">Criando cadernos pela primeira vez...</div>';
-      await seedCadernosTEC();
+      try { await seedCadernosTEC(); } catch (se) { console.warn('Seed cadernos falhou:', se); }
       const snap2 = await getDocs(collection(db, 'concurso_cadernos_tec'));
       snap2.docs.forEach(d => { cadernosTECCache[d.id] = { id: d.id, ...d.data() }; });
     } else {
