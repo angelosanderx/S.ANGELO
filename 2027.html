@@ -1121,6 +1121,74 @@
   .banca-FGV { background: #6366f1; }
   .banca-FCC { background: #3b82f6; }
   .banca-CESPE { background: #f97316; }
+
+  /* ── Drawer lateral ── */
+  .drawer-overlay { position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;opacity:0;pointer-events:none;transition:opacity .25s; }
+  .drawer-overlay.visivel { opacity:1;pointer-events:all; }
+  .drawer { position:fixed;top:0;right:0;bottom:0;width:60%;max-width:780px;background:var(--bg-card);border-left:1px solid var(--border);z-index:1001;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow:hidden; }
+  .drawer.aberto { transform:translateX(0); }
+  @media(max-width:700px){ .drawer { width:100%; } }
+  .drawer-topbar { display:flex;align-items:flex-start;gap:.75rem;padding:1rem 1.1rem .75rem;border-bottom:1px solid var(--border);flex-shrink:0; }
+  .drawer-titulo-area { flex:1;min-width:0; }
+  .drawer-tarefa-titulo { font-weight:700;font-size:.95rem;line-height:1.4;color:var(--text); }
+  .drawer-tarefa-meta { display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem; }
+  .drawer-fechar { background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);cursor:pointer;padding:.3rem .6rem;font-size:.9rem;flex-shrink:0;line-height:1; }
+  .drawer-fechar:hover { border-color:var(--vermelho);color:var(--vermelho); }
+  .drawer-abas { display:flex;gap:0;border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0;scrollbar-width:none; }
+  .drawer-abas::-webkit-scrollbar { display:none; }
+  .drawer-aba { padding:.6rem .9rem;font-size:.78rem;font-weight:600;color:var(--text-muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:all .15s; }
+  .drawer-aba:hover { color:var(--text); }
+  .drawer-aba.ativa { color:var(--azul);border-bottom-color:var(--azul); }
+  .drawer-conteudo { flex:1;overflow-y:auto;padding:1rem 1.1rem;scrollbar-width:thin;scrollbar-color:var(--border) transparent; }
+  .drawer-painel { display:none; }
+  .drawer-painel.ativo { display:block; }
+  .drawer-rodape { padding:.75rem 1.1rem;border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:.6rem; }
+  .drawer-btn-concluir { background:var(--verde);color:#fff;border:none;border-radius:8px;padding:.55rem 1rem;font-size:.85rem;font-weight:600;cursor:pointer;transition:opacity .15s; }
+  .drawer-btn-concluir.concluida { background:var(--bg-base);color:var(--verde);border:1px solid var(--verde); }
+  /* Pomodoro */
+  .pomodoro-row { display:flex;align-items:center;gap:.6rem; }
+  .pomodoro-display { font-size:1.1rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text);min-width:52px; }
+  .pomodoro-label { font-size:.72rem;color:var(--text-muted); }
+  .pomodoro-btn { background:none;border:1px solid var(--border);border-radius:7px;color:var(--text-muted);cursor:pointer;padding:.28rem .55rem;font-size:.78rem;transition:all .15s; }
+  .pomodoro-btn:hover { border-color:var(--azul);color:var(--azul); }
+  /* Aba geral */
+  .drawer-apoio-texto { font-size:.85rem;line-height:1.65;color:var(--text);white-space:pre-wrap; }
+  .drawer-sem-apoio { color:var(--text-dim);font-size:.84rem;font-style:italic; }
+  .drawer-link-aula { display:inline-flex;align-items:center;gap:.4rem;background:var(--azul);color:#fff;border:none;border-radius:8px;padding:.45rem .9rem;font-size:.82rem;font-weight:600;cursor:pointer;text-decoration:none;margin-bottom:1rem; }
+  /* Cadernos TEC */
+  .tec-bancas { display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1rem; }
+  .tec-banca-btn { background:none;border:1px solid var(--border);border-radius:7px;color:var(--text-muted);cursor:pointer;padding:.3rem .65rem;font-size:.75rem;font-weight:600;transition:all .15s; }
+  .tec-banca-btn.ativa { background:var(--azul);border-color:var(--azul);color:#fff; }
+  .tec-caderno-card { display:flex;align-items:center;gap:.6rem;background:var(--bg-base);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem;margin-bottom:.45rem; }
+  .tec-caderno-rotulo { font-size:.72rem;color:var(--text-muted);min-width:90px; }
+  .tec-caderno-nome { flex:1;font-size:.83rem;color:var(--text);font-weight:500; }
+  .tec-caderno-abrir { background:var(--azul);color:#fff;border:none;border-radius:6px;padding:.25rem .6rem;font-size:.75rem;cursor:pointer; }
+  .tec-caderno-fav { background:none;border:none;cursor:pointer;font-size:.95rem;color:var(--text-dim);transition:color .15s; }
+  .tec-caderno-fav.favoritado { color:#f59e0b; }
+  /* Links úteis */
+  .link-card { display:flex;align-items:center;gap:.6rem;background:var(--bg-base);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;margin-bottom:.4rem; }
+  .link-card-cat { font-size:.67rem;color:var(--text-dim);min-width:80px; }
+  .link-card-titulo { flex:1;font-size:.83rem;color:var(--azul);cursor:pointer;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .link-card-del { background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.85rem;padding:.1rem .3rem; }
+  .link-card-del:hover { color:var(--vermelho); }
+  .link-form-inline { background:var(--bg-base);border:1px solid var(--border);border-radius:8px;padding:.75rem;margin-bottom:.75rem;display:flex;flex-direction:column;gap:.5rem; }
+  .link-form-inline input, .link-form-inline select { background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:.4rem .6rem;font-size:.82rem; }
+  /* Anotações */
+  .drawer-anotacao-ta { width:100%;min-height:220px;background:var(--bg-base);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;line-height:1.6;padding:.7rem .85rem;resize:vertical;box-sizing:border-box; }
+  .drawer-anotacao-ta:focus { outline:none;border-color:var(--azul); }
+  .drawer-salvo-em { font-size:.72rem;color:var(--text-dim);margin-top:.4rem; }
+  /* Dúvidas */
+  .duvida-item { display:flex;align-items:flex-start;gap:.6rem;background:var(--bg-base);border:1px solid var(--border);border-radius:8px;padding:.6rem .75rem;margin-bottom:.4rem; }
+  .duvida-texto { flex:1;font-size:.83rem;color:var(--text);line-height:1.4; }
+  .duvida-status { font-size:.68rem;font-weight:700;padding:.15rem .4rem;border-radius:4px;cursor:pointer;white-space:nowrap;flex-shrink:0; }
+  .duvida-status.pendente { background:rgba(239,68,68,.15);color:var(--vermelho); }
+  .duvida-status.resolvida { background:rgba(34,197,94,.15);color:var(--verde); }
+  .duvida-data { font-size:.68rem;color:var(--text-dim);white-space:nowrap; }
+  /* Stats */
+  .stat-grid { display:grid;grid-template-columns:1fr 1fr;gap:.75rem; }
+  .stat-card { background:var(--bg-base);border:1px solid var(--border);border-radius:8px;padding:.85rem 1rem; }
+  .stat-valor { font-size:1.4rem;font-weight:700;color:var(--text); }
+  .stat-label { font-size:.72rem;color:var(--text-muted);margin-top:.2rem; }
 </style>
 </head>
 <body>
@@ -3432,6 +3500,7 @@ window.abrirDetalheTrilha = (discId) => {
       <div class="ta-tarefa-acoes">
         <input type="checkbox" ${t.concluida ? 'checked' : ''} onchange="toggleTrilhaAula('${t.id}',this.checked)" title="Marcar como concluída">
         <span style="font-size:.75rem;color:var(--text-muted)">Concluída</span>
+        <button class="btn-add-sem" onclick="abrirDrawer('${_discSlug(t.disciplinaNome)}_${String(t.num_tarefa).padStart(2,'0')}', ${JSON.stringify({descricao:t.descricao,tipo:t.tipo,disciplinaNome:t.disciplinaNome,num_tarefa:t.num_tarefa}).replace(/"/g,'&quot;')})">📖 Detalhes</button>
         <button class="btn-add-sem" onclick="adicionarTAAsemana('${t.id}')" style="margin-left:auto">+ Semana</button>
       </div>
     </div>`;
@@ -3628,6 +3697,463 @@ window.adicionarTECAsemana = async (id) => {
     descricao: `Caderno TEC – Bloco ${c.bloco} (${c.banca})`,
     link: '', estimativa_min: 60, prioridade: 'Média',
   });
+};
+</script>
+
+<!-- ════ DRAWER LATERAL ════ -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="fecharDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-topbar">
+    <div class="drawer-titulo-area">
+      <div class="drawer-tarefa-titulo" id="drawer-tarefa-titulo">—</div>
+      <div class="drawer-tarefa-meta" id="drawer-tarefa-meta"></div>
+    </div>
+    <button class="drawer-fechar" onclick="fecharDrawer()">✕</button>
+  </div>
+  <div class="drawer-abas">
+    <div class="drawer-aba ativa" onclick="mudarAbaDrawer('geral',this)">Visão Geral</div>
+    <div class="drawer-aba" onclick="mudarAbaDrawer('cadernos',this)">Cadernos TEC</div>
+    <div class="drawer-aba" onclick="mudarAbaDrawer('links',this)">Links Úteis</div>
+    <div class="drawer-aba" onclick="mudarAbaDrawer('anotacoes',this)">Anotações</div>
+    <div class="drawer-aba" onclick="mudarAbaDrawer('duvidas',this)">Dúvidas</div>
+    <div class="drawer-aba" onclick="mudarAbaDrawer('stats',this)">Estatísticas</div>
+  </div>
+  <div class="drawer-conteudo">
+    <div class="drawer-painel ativo" id="drawer-painel-geral">
+      <div id="drawer-geral-corpo"><div class="loader">Carregando...</div></div>
+    </div>
+    <div class="drawer-painel" id="drawer-painel-cadernos">
+      <div class="tec-bancas" id="drawer-tec-bancas"></div>
+      <div id="drawer-tec-lista"></div>
+    </div>
+    <div class="drawer-painel" id="drawer-painel-links">
+      <div id="drawer-links-form-area"></div>
+      <div id="drawer-links-lista"></div>
+      <button class="btn btn-ghost" style="font-size:.8rem;margin-top:.5rem" onclick="mostrarFormLink()">+ Adicionar link</button>
+    </div>
+    <div class="drawer-painel" id="drawer-painel-anotacoes">
+      <textarea class="drawer-anotacao-ta" id="drawer-anotacao-ta" placeholder="Suas anotações..." oninput="agendarSalvarAnotacao()"></textarea>
+      <div class="drawer-salvo-em" id="drawer-anotacao-salvo"></div>
+    </div>
+    <div class="drawer-painel" id="drawer-painel-duvidas">
+      <div id="drawer-duvidas-form-area"></div>
+      <div id="drawer-duvidas-lista"></div>
+      <button class="btn btn-ghost" style="font-size:.8rem;margin-top:.5rem" onclick="mostrarFormDuvida()">+ Nova dúvida</button>
+    </div>
+    <div class="drawer-painel" id="drawer-painel-stats">
+      <div id="drawer-stats-corpo"><div class="loader">Carregando...</div></div>
+    </div>
+  </div>
+  <div class="drawer-rodape">
+    <button class="drawer-btn-concluir" id="drawer-btn-concluir" onclick="toggleDrawerConcluida()">Marcar como concluída</button>
+    <div class="pomodoro-row">
+      <span class="pomodoro-display" id="pomo-display">25:00</span>
+      <span class="pomodoro-label" id="pomo-label">Estudo</span>
+      <button class="pomodoro-btn" onclick="pomoIniciar()" id="pomo-btn-iniciar">▶ Iniciar</button>
+      <button class="pomodoro-btn" onclick="pomoPausar()" id="pomo-btn-pausar" style="display:none">⏸ Pausar</button>
+      <button class="pomodoro-btn" onclick="pomoReset()">↺ Reset</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  MÓDULO: DRAWER LATERAL
+// ══════════════════════════════════════════
+
+function _discSlug(nome) {
+  const n = (nome||'').toLowerCase();
+  if (n.includes('constitucional')) return 'd_constitucional';
+  if (n.includes('administrativo')) return 'd_administrativo';
+  if (n.includes('tribut'))         return 'd_tributario';
+  if (n.includes('contabilidade'))  return 'contabilidade_geral';
+  if (n.includes('portugu'))        return 'portugues';
+  if (n.includes('racioc'))         return 'raciocinio_logico';
+  if (n.includes('auditoria'))      return 'auditoria_fiscal';
+  return n.replace(/\s+/g,'_');
+}
+
+let _drawerTarefaId = null;
+let _drawerTarefa = null;
+let _drawerAbaAtiva = 'geral';
+let _drawerUnsubscribes = [];
+let _drawerDebounce = {};
+let _drawerCadBanca = 'FGV';
+let _drawerLinks = [];
+let _drawerDuvidas = [];
+let _drawerFavs = [];
+let _drawerConcluida = false;
+
+// Pomodoro state
+let _pomoSegundos = 25 * 60;
+let _pomoTipo = 'estudo'; // 'estudo' | 'pausa'
+let _pomoTimer = null;
+let _pomoCiclos = 0;
+
+window.abrirDrawer = async (tarefaId, tarefa) => {
+  _drawerTarefaId = tarefaId;
+  _drawerTarefa = tarefa;
+  _drawerAbaAtiva = 'geral';
+  _drawerLinks = [];
+  _drawerDuvidas = [];
+  _drawerFavs = [];
+
+  // Reset abas UI
+  document.querySelectorAll('.drawer-aba').forEach((a,i) => a.classList.toggle('ativa', i===0));
+  document.querySelectorAll('.drawer-painel').forEach((p,i) => p.classList.toggle('ativo', i===0));
+
+  // Header
+  document.getElementById('drawer-tarefa-titulo').textContent = tarefa.descricao || '—';
+  const tc = TIPO_COR[tarefa.tipo] || '#64748b';
+  const tl = TIPO_LABEL[tarefa.tipo] || tarefa.tipo;
+  document.getElementById('drawer-tarefa-meta').innerHTML =
+    `<span class="ta-tipo-badge" style="background:${tc}">${tl}</span>
+     <span style="font-size:.72rem;color:var(--text-muted)">${esc(tarefa.disciplinaNome||'')} · #${tarefa.num_tarefa}</span>`;
+
+  document.getElementById('drawer').classList.add('aberto');
+  document.getElementById('drawer-overlay').classList.add('visivel');
+  document.body.style.overflow = 'hidden';
+
+  // Cleanup previous listeners
+  _drawerUnsubscribes.forEach(u => u());
+  _drawerUnsubscribes = [];
+
+  carregarDrawerGeral();
+  carregarDrawerConcluida();
+};
+
+window.fecharDrawer = () => {
+  document.getElementById('drawer').classList.remove('aberto');
+  document.getElementById('drawer-overlay').classList.remove('visivel');
+  document.body.style.overflow = '';
+  _drawerUnsubscribes.forEach(u => u());
+  _drawerUnsubscribes = [];
+};
+
+window.mudarAbaDrawer = (aba, el) => {
+  _drawerAbaAtiva = aba;
+  document.querySelectorAll('.drawer-aba').forEach(a => a.classList.remove('ativa'));
+  if (el) el.classList.add('ativa');
+  document.querySelectorAll('.drawer-painel').forEach(p => p.classList.remove('ativo'));
+  document.getElementById('drawer-painel-' + aba).classList.add('ativo');
+
+  if (aba === 'geral')     carregarDrawerGeral();
+  if (aba === 'cadernos')  carregarDrawerCadernos();
+  if (aba === 'links')     carregarDrawerLinks();
+  if (aba === 'anotacoes') carregarDrawerAnotacoes();
+  if (aba === 'duvidas')   carregarDrawerDuvidas();
+  if (aba === 'stats')     carregarDrawerStats();
+};
+
+// ── ABA 1: VISÃO GERAL ──────────────────────────────
+async function carregarDrawerGeral() {
+  const el = document.getElementById('drawer-geral-corpo');
+  el.innerHTML = '<div class="loader">Carregando...</div>';
+  try {
+    const snap = await getDoc(doc(db, 'tarefas', _drawerTarefaId));
+    const apoio = snap.exists() ? (snap.data().apoio || null) : null;
+    let html = '';
+    if (apoio && apoio.link) {
+      html += `<a class="drawer-link-aula" href="${esc(apoio.link)}" target="_blank" rel="noopener">↗ Abrir Aula</a>`;
+    }
+    if (apoio && apoio.texto) {
+      html += `<div class="drawer-apoio-texto">${esc(apoio.texto)}</div>`;
+    } else {
+      html += `<div class="drawer-sem-apoio">Texto de apoio não importado ainda. Execute <code>node importar_apoio.js</code>.</div>`;
+    }
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = `<div class="drawer-sem-apoio">Erro ao carregar: ${esc(e.message)}</div>`; }
+}
+
+// ── ABA 2: CADERNOS TEC ──────────────────────────────
+async function carregarDrawerCadernos() {
+  const bancasEl = document.getElementById('drawer-tec-bancas');
+  const listaEl  = document.getElementById('drawer-tec-lista');
+  bancasEl.innerHTML = '<div class="loader" style="font-size:.8rem">Carregando cadernos...</div>';
+  listaEl.innerHTML = '';
+  try {
+    const discSlug = _discSlug(_drawerTarefa.disciplinaNome || '');
+    const [cadSnap, favSnap] = await Promise.all([
+      getDoc(doc(db, 'disciplinas', discSlug)),
+      getDoc(doc(db, 'tarefas', _drawerTarefaId)),
+    ]);
+    const cadernos = cadSnap.exists() ? (cadSnap.data().cadernos_tec || []) : [];
+    _drawerFavs = favSnap.exists() ? (favSnap.data().cadernos_favoritos || []) : [];
+    const bancas = [...new Set(cadernos.map(c => c.banca))];
+    if (!bancas.length) { bancasEl.innerHTML = ''; listaEl.innerHTML = '<div class="drawer-sem-apoio">Nenhum caderno TEC importado. Execute <code>node importar_links_guia.js</code>.</div>'; return; }
+    if (!bancas.includes(_drawerCadBanca)) _drawerCadBanca = bancas[0];
+    bancasEl.innerHTML = bancas.map(b =>
+      `<button class="tec-banca-btn ${b===_drawerCadBanca?'ativa':''}" onclick="selecionarBancaDrawer('${b}',this)">${b}</button>`
+    ).join('');
+    renderizarCadernosDrawer(cadernos);
+  } catch(e) { bancasEl.innerHTML = ''; listaEl.innerHTML = `<div class="drawer-sem-apoio">Erro: ${esc(e.message)}</div>`; }
+}
+
+window.selecionarBancaDrawer = (banca, el) => {
+  _drawerCadBanca = banca;
+  document.querySelectorAll('.tec-banca-btn').forEach(b => b.classList.remove('ativa'));
+  if (el) el.classList.add('ativa');
+  const discSlug = _discSlug(_drawerTarefa.disciplinaNome || '');
+  getDoc(doc(db, 'disciplinas', discSlug)).then(snap => {
+    renderizarCadernosDrawer(snap.exists() ? (snap.data().cadernos_tec||[]) : []);
+  });
+};
+
+function renderizarCadernosDrawer(cadernos) {
+  const listaEl = document.getElementById('drawer-tec-lista');
+  const filtered = cadernos.filter(c => c.banca === _drawerCadBanca);
+  if (!filtered.length) { listaEl.innerHTML = '<div class="drawer-sem-apoio">Nenhum caderno desta banca.</div>'; return; }
+  listaEl.innerHTML = filtered.map(c => {
+    const fav = _drawerFavs.includes(c.nome);
+    return `<div class="tec-caderno-card">
+      <span class="tec-caderno-rotulo">${esc(c.rotulo)}</span>
+      <span class="tec-caderno-nome">${esc(c.nome)}</span>
+      <button class="tec-caderno-fav ${fav?'favoritado':''}" onclick="toggleFavCaderno('${esc(c.nome)}')" title="Favoritar">${fav?'⭐':'☆'}</button>
+      ${c.url ? `<button class="tec-caderno-abrir" onclick="window.open('${esc(c.url)}','_blank')">Abrir</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+window.toggleFavCaderno = async (nome) => {
+  const idx = _drawerFavs.indexOf(nome);
+  if (idx >= 0) _drawerFavs.splice(idx, 1); else _drawerFavs.push(nome);
+  const discSlug = _discSlug(_drawerTarefa.disciplinaNome || '');
+  const snap = await getDoc(doc(db, 'disciplinas', discSlug));
+  const cadernos = snap.exists() ? (snap.data().cadernos_tec || []) : [];
+  renderizarCadernosDrawer(cadernos);
+  try { await setDoc(doc(db, 'tarefas', _drawerTarefaId), { cadernos_favoritos: _drawerFavs }, { merge: true }); }
+  catch(e) { mostrarToast('Erro ao salvar favorito', 'erro'); }
+};
+
+// ── ABA 3: LINKS ÚTEIS ──────────────────────────────
+async function carregarDrawerLinks() {
+  const listaEl = document.getElementById('drawer-links-lista');
+  listaEl.innerHTML = '<div class="loader" style="font-size:.8rem">Carregando...</div>';
+  try {
+    const snap = await getDoc(doc(db, 'tarefas', _drawerTarefaId));
+    _drawerLinks = snap.exists() ? (snap.data().links || []) : [];
+    renderizarLinksDrawer();
+  } catch(e) { listaEl.innerHTML = `<div class="drawer-sem-apoio">Erro: ${esc(e.message)}</div>`; }
+}
+
+function renderizarLinksDrawer() {
+  const listaEl = document.getElementById('drawer-links-lista');
+  if (!_drawerLinks.length) { listaEl.innerHTML = '<div class="drawer-sem-apoio">Nenhum link adicionado.</div>'; return; }
+  listaEl.innerHTML = _drawerLinks.map((l, i) =>
+    `<div class="link-card">
+      <span class="link-card-cat">${esc(l.categoria||'')}</span>
+      <a class="link-card-titulo" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.titulo)}</a>
+      <button class="link-card-del" onclick="removerLinkDrawer(${i})">✕</button>
+    </div>`
+  ).join('');
+}
+
+window.mostrarFormLink = () => {
+  const fa = document.getElementById('drawer-links-form-area');
+  if (fa.innerHTML) { fa.innerHTML = ''; return; }
+  fa.innerHTML = `<div class="link-form-inline">
+    <input id="lf-titulo" placeholder="Título" type="text">
+    <input id="lf-url" placeholder="URL (https://...)" type="url">
+    <select id="lf-cat">
+      <option>Vídeo da Aula</option><option>PDF da Aula</option>
+      <option>Jurisprudência</option><option>Resumo</option>
+      <option>Mapa Mental</option><option>Outros</option>
+    </select>
+    <div style="display:flex;gap:.5rem">
+      <button class="btn btn-primary" style="font-size:.8rem" onclick="salvarLinkDrawer()">Salvar</button>
+      <button class="btn btn-ghost" style="font-size:.8rem" onclick="document.getElementById('drawer-links-form-area').innerHTML=''">Cancelar</button>
+    </div>
+  </div>`;
+};
+
+window.salvarLinkDrawer = async () => {
+  const titulo = document.getElementById('lf-titulo').value.trim();
+  const url    = document.getElementById('lf-url').value.trim();
+  const cat    = document.getElementById('lf-cat').value;
+  if (!titulo || !url) { mostrarToast('Preencha título e URL', 'aviso'); return; }
+  _drawerLinks.push({ titulo, url, categoria: cat });
+  document.getElementById('drawer-links-form-area').innerHTML = '';
+  renderizarLinksDrawer();
+  try { await setDoc(doc(db, 'tarefas', _drawerTarefaId), { links: _drawerLinks }, { merge: true }); mostrarToast('Link salvo', 'sucesso'); }
+  catch(e) { mostrarToast('Erro ao salvar', 'erro'); }
+};
+
+window.removerLinkDrawer = async (idx) => {
+  _drawerLinks.splice(idx, 1);
+  renderizarLinksDrawer();
+  try { await setDoc(doc(db, 'tarefas', _drawerTarefaId), { links: _drawerLinks }, { merge: true }); }
+  catch(e) { mostrarToast('Erro ao remover', 'erro'); }
+};
+
+// ── ABA 4: ANOTAÇÕES ──────────────────────────────
+function carregarDrawerAnotacoes() {
+  const ta   = document.getElementById('drawer-anotacao-ta');
+  const info = document.getElementById('drawer-anotacao-salvo');
+  ta.value = '';
+  info.textContent = '';
+  const unsub = onSnapshot(doc(db, 'tarefas', _drawerTarefaId), snap => {
+    if (!document.getElementById('drawer').classList.contains('aberto')) return;
+    const texto = snap.exists() ? (snap.data().anotacoes || '') : '';
+    if (document.activeElement !== ta) ta.value = texto;
+  });
+  _drawerUnsubscribes.push(unsub);
+}
+
+window.agendarSalvarAnotacao = () => {
+  clearTimeout(_drawerDebounce.anotacao);
+  _drawerDebounce.anotacao = setTimeout(async () => {
+    const ta  = document.getElementById('drawer-anotacao-ta');
+    const info = document.getElementById('drawer-anotacao-salvo');
+    try {
+      await setDoc(doc(db, 'tarefas', _drawerTarefaId), { anotacoes: ta.value }, { merge: true });
+      info.textContent = 'Salvo em ' + new Date().toLocaleTimeString('pt-BR');
+    } catch(e) { info.textContent = 'Erro ao salvar'; }
+  }, 2000);
+};
+
+// ── ABA 5: DÚVIDAS ──────────────────────────────
+function carregarDrawerDuvidas() {
+  const unsub = onSnapshot(doc(db, 'tarefas', _drawerTarefaId), snap => {
+    _drawerDuvidas = snap.exists() ? (snap.data().duvidas || []) : [];
+    renderizarDuvidasDrawer();
+  });
+  _drawerUnsubscribes.push(unsub);
+}
+
+function renderizarDuvidasDrawer() {
+  const el = document.getElementById('drawer-duvidas-lista');
+  if (!_drawerDuvidas.length) { el.innerHTML = '<div class="drawer-sem-apoio">Nenhuma dúvida registrada.</div>'; return; }
+  el.innerHTML = _drawerDuvidas.map((d, i) =>
+    `<div class="duvida-item">
+      <div class="duvida-texto">${esc(d.texto)}</div>
+      <div>
+        <div class="duvida-status ${d.status}" onclick="toggleDuvidaStatus(${i})">${d.status === 'resolvida' ? 'Resolvida' : 'Pendente'}</div>
+        <div class="duvida-data">${d.data||''}</div>
+      </div>
+    </div>`
+  ).join('');
+}
+
+window.mostrarFormDuvida = () => {
+  const fa = document.getElementById('drawer-duvidas-form-area');
+  if (fa.innerHTML) { fa.innerHTML = ''; return; }
+  fa.innerHTML = `<div class="link-form-inline">
+    <input id="df-texto" placeholder="Descreva a dúvida..." type="text">
+    <div style="display:flex;gap:.5rem">
+      <button class="btn btn-primary" style="font-size:.8rem" onclick="salvarDuvidaDrawer()">Salvar</button>
+      <button class="btn btn-ghost" style="font-size:.8rem" onclick="document.getElementById('drawer-duvidas-form-area').innerHTML=''">Cancelar</button>
+    </div>
+  </div>`;
+};
+
+window.salvarDuvidaDrawer = async () => {
+  const texto = document.getElementById('df-texto').value.trim();
+  if (!texto) return;
+  _drawerDuvidas.push({ texto, status: 'pendente', data: new Date().toLocaleDateString('pt-BR') });
+  document.getElementById('drawer-duvidas-form-area').innerHTML = '';
+  try { await setDoc(doc(db, 'tarefas', _drawerTarefaId), { duvidas: _drawerDuvidas }, { merge: true }); }
+  catch(e) { mostrarToast('Erro ao salvar', 'erro'); }
+};
+
+window.toggleDuvidaStatus = async (idx) => {
+  _drawerDuvidas[idx].status = _drawerDuvidas[idx].status === 'resolvida' ? 'pendente' : 'resolvida';
+  renderizarDuvidasDrawer();
+  try { await setDoc(doc(db, 'tarefas', _drawerTarefaId), { duvidas: _drawerDuvidas }, { merge: true }); }
+  catch(e) { mostrarToast('Erro ao salvar', 'erro'); }
+};
+
+// ── ABA 6: ESTATÍSTICAS ──────────────────────────────
+async function carregarDrawerStats() {
+  const el = document.getElementById('drawer-stats-corpo');
+  el.innerHTML = '<div class="loader">Carregando...</div>';
+  try {
+    const snap = await getDoc(doc(db, 'tarefas', _drawerTarefaId));
+    const sessoes = snap.exists() ? (snap.data().sessoes || []) : [];
+    const totalMin = sessoes.reduce((s, x) => s + (x.duracao||0), 0);
+    const h = Math.floor(totalMin/60), m = totalMin%60;
+    const datas = sessoes.map(s => s.inicio?.toDate ? s.inicio.toDate() : new Date(s.inicio)).filter(Boolean).sort((a,b)=>a-b);
+    el.innerHTML = `<div class="stat-grid">
+      <div class="stat-card"><div class="stat-valor">${sessoes.length}</div><div class="stat-label">Sessões Pomodoro</div></div>
+      <div class="stat-card"><div class="stat-valor">${h}h${String(m).padStart(2,'0')}m</div><div class="stat-label">Tempo total</div></div>
+      <div class="stat-card"><div class="stat-valor">${datas.length ? datas[0].toLocaleDateString('pt-BR') : '—'}</div><div class="stat-label">Primeira sessão</div></div>
+      <div class="stat-card"><div class="stat-valor">${datas.length ? datas[datas.length-1].toLocaleDateString('pt-BR') : '—'}</div><div class="stat-label">Última sessão</div></div>
+    </div>`;
+  } catch(e) { el.innerHTML = `<div class="drawer-sem-apoio">Erro: ${esc(e.message)}</div>`; }
+}
+
+// ── CONCLUÍDA ──────────────────────────────
+async function carregarDrawerConcluida() {
+  try {
+    const snap = await getDoc(doc(db, 'tarefas', _drawerTarefaId));
+    _drawerConcluida = snap.exists() ? !!snap.data().concluida : false;
+    atualizarBtnConcluida();
+  } catch(_) {}
+}
+
+function atualizarBtnConcluida() {
+  const btn = document.getElementById('drawer-btn-concluir');
+  btn.textContent = _drawerConcluida ? '✓ Concluída' : 'Marcar como concluída';
+  btn.classList.toggle('concluida', _drawerConcluida);
+}
+
+window.toggleDrawerConcluida = async () => {
+  _drawerConcluida = !_drawerConcluida;
+  atualizarBtnConcluida();
+  try { await setDoc(doc(db, 'tarefas', _drawerTarefaId), { concluida: _drawerConcluida }, { merge: true }); }
+  catch(e) { mostrarToast('Erro ao salvar', 'erro'); }
+};
+
+// ── POMODORO ──────────────────────────────
+function _pomoFmt(s) { return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
+function _pomoAtualizar() {
+  document.getElementById('pomo-display').textContent = _pomoFmt(_pomoSegundos);
+  document.getElementById('pomo-label').textContent = _pomoTipo === 'estudo' ? 'Estudo' : 'Pausa';
+}
+
+window.pomoIniciar = () => {
+  if (_pomoTimer) return;
+  document.getElementById('pomo-btn-iniciar').style.display = 'none';
+  document.getElementById('pomo-btn-pausar').style.display = '';
+  _pomoTimer = setInterval(async () => {
+    _pomoSegundos--;
+    _pomoAtualizar();
+    if (_pomoSegundos <= 0) {
+      clearInterval(_pomoTimer); _pomoTimer = null;
+      if (_pomoTipo === 'estudo') {
+        _pomoCiclos++;
+        mostrarToast('Pomodoro concluído! Pausa de 5 min.', 'sucesso');
+        // registrar sessão
+        const sessaoData = { inicio: serverTimestamp(), duracao: 25, tipo: 'pomodoro' };
+        try {
+          const snap = await getDoc(doc(db, 'tarefas', _drawerTarefaId));
+          const sess = snap.exists() ? (snap.data().sessoes || []) : [];
+          sess.push(sessaoData);
+          await setDoc(doc(db, 'tarefas', _drawerTarefaId), { sessoes: sess }, { merge: true });
+        } catch(_) {}
+        _pomoTipo = 'pausa'; _pomoSegundos = 5 * 60;
+      } else {
+        mostrarToast('Pausa encerrada! Hora de estudar.', 'sucesso');
+        _pomoTipo = 'estudo'; _pomoSegundos = 25 * 60;
+      }
+      _pomoAtualizar();
+      document.getElementById('pomo-btn-iniciar').style.display = '';
+      document.getElementById('pomo-btn-pausar').style.display = 'none';
+    }
+  }, 1000);
+};
+
+window.pomoPausar = () => {
+  clearInterval(_pomoTimer); _pomoTimer = null;
+  document.getElementById('pomo-btn-iniciar').style.display = '';
+  document.getElementById('pomo-btn-pausar').style.display = 'none';
+};
+
+window.pomoReset = () => {
+  clearInterval(_pomoTimer); _pomoTimer = null;
+  _pomoSegundos = 25 * 60; _pomoTipo = 'estudo';
+  _pomoAtualizar();
+  document.getElementById('pomo-btn-iniciar').style.display = '';
+  document.getElementById('pomo-btn-pausar').style.display = 'none';
 };
 </script>
 

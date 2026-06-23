@@ -1,0 +1,14 @@
+{
+  "name": "ibge-concurso-2027",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "importar-apoio": "node importar_apoio.js",
+    "importar-links": "node importar_links_guia.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "mammoth": "^1.7.0",
+    "pdf2json": "^3.0.0"
+  }
+}
