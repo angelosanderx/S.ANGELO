@@ -2588,6 +2588,7 @@ const db = initializeFirestore(app, {
 let usuarioLogado = null;
 let perfilLogado = null;
 let todosdomicilios = [];
+let _todosdomiciliosGlobal = []; // todos os períodos — usado na qualidade CNEFE
 let entrevistadoresCache = null; // cache da lista de entrevistadores p/ não consultar o banco toda vez que o mapa abre
 let unsubs = [];
 
@@ -3016,11 +3017,12 @@ async function _carregarIndicadoresMoradores() {
 async function carregarDomicilios() {
   try {
     const snap = await getDocs(collection(db, 'domicilios'));
-    todosdomicilios = snap.docs.map(d => {
+    _todosdomiciliosGlobal = snap.docs.map(d => {
       const data = { id: d.id, ...d.data() };
       if (data.qtd_moradores_pnad > 0) data._tem_moradores = true;
       return data;
-    }).filter(d => d.endereco && pertencePeriodo(d));
+    }).filter(d => d.endereco);
+    todosdomicilios = _todosdomiciliosGlobal.filter(pertencePeriodo);
     preencherFiltroEntrevistador();
     filtrarDomicilios();
     renderizarMapaSetores();
@@ -11653,8 +11655,8 @@ async function carregarCnefeQualidade() {
             </td></tr>`;
         }
 
-        // Todos os domicílios da UPA — erros CNEFE só contam na visita_etapa 1
-        const domsUpa = todosdomicilios.filter(d => d.upa === upaId);
+        // Todos os domicílios da UPA (todos os períodos) — erros CNEFE só contam na visita_etapa 1
+        const domsUpa = _todosdomiciliosGlobal.filter(d => d.upa === upaId);
 
         // Setores (codigo_controle) desta UPA segundo a amostra_mestra
         const todosSetoresAm = amUpa2Ctrl.has(upaId) ? [...amUpa2Ctrl.get(upaId)].sort() : [];
