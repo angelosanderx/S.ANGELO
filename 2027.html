@@ -1297,16 +1297,16 @@ const DISCIPLINAS_PADRAO = [
 
 async function carregarDisciplinas() {
   try {
-    const snap = await getDocs(query(collection(db, 'concurso_disciplinas'), orderBy('criadoEm')));
+    const snap = await getDocs(collection(db, 'concurso_disciplinas'));
     disciplinasCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (disciplinasCache.length === 0) {
-      const batch = writeBatch(db);
-      DISCIPLINAS_PADRAO.forEach(nome => {
-        batch.set(doc(collection(db, 'concurso_disciplinas')), { nome, criadoEm: serverTimestamp() });
-      });
-      await batch.commit();
-      const snap2 = await getDocs(query(collection(db, 'concurso_disciplinas'), orderBy('criadoEm')));
-      disciplinasCache = snap2.docs.map(d => ({ id: d.id, ...d.data() }));
+      let ordem = 0;
+      for (const nome of DISCIPLINAS_PADRAO) {
+        await addDoc(collection(db, 'concurso_disciplinas'), { nome, ordem: ordem++, criadoEm: serverTimestamp() });
+      }
+      const snap2 = await getDocs(collection(db, 'concurso_disciplinas'));
+      disciplinasCache = snap2.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.ordem ?? 99) - (b.ordem ?? 99));
     }
     renderizarListaDisciplinas();
     popularSelectsDisciplina();
