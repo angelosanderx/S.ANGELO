@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="theme-color" content="#1a1d23">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pontos Candidatos">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pontos Candidatos</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#1a1d23;--surface:#23272f;--surface2:#2c3140;--border:#3a3f4e;
+  --text:#e8eaf0;--text2:#9da3b4;
+  --accent:#4c8ef7;--accent2:#2d6bdf;
+  --green:#34c97a;--red:#e85555;--amber:#f5a623;--gray:#6b7280;
+  --font:'Segoe UI',system-ui,sans-serif;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+
+#header{display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;z-index:1000}
+#header h1{font-size:14px;font-weight:600;flex:1;white-space:nowrap}
+.hbtn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);padding:7px 10px;border-radius:7px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.hbtn:active{opacity:.7}
+.hbtn.on{background:var(--accent);color:#fff;border-color:var(--accent2)}
+.hbtn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+#pbar{height:3px;background:var(--surface2);flex-shrink:0}
+#pfill{height:100%;background:var(--accent);transition:width .4s;width:0}
+
+#main{flex:1;position:relative;overflow:hidden}
+#map{width:100%;height:100%}
+
+/* ── POPUP ── */
+#popup{
+  position:absolute;z-index:900;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:14px;padding:12px;width:270px;
+  box-shadow:0 8px 32px rgba(0,0,0,.6);
+  display:none;
+  transform:translate(-50%, calc(-100% - 18px));
+}
+#popup.show{display:block}
+#popup-arrow{position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);width:14px;height:7px;overflow:hidden}
+#popup-arrow::after{content:'';display:block;width:10px;height:10px;background:var(--border);transform:rotate(45deg);margin:-5px auto 0}
+
+#pbtn-close{position:absolute;top:7px;right:9px;background:none;border:none;color:var(--text2);font-size:20px;line-height:1;cursor:pointer;padding:2px 6px;-webkit-tap-highlight-color:transparent}
+
+#popup-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px;padding-right:24px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#popup-coord{font-size:10px;color:var(--text2);margin-bottom:4px;font-family:monospace}
+#popup-dist{font-size:11px;color:var(--accent);margin-bottom:8px;display:none;font-weight:600}
+
+/* info KML direto */
+#popup-info-body{display:none;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:6px 8px;margin-bottom:7px;max-height:110px;overflow-y:auto}
+#popup-info-body.has-data{display:block}
+#popup-info-body::-webkit-scrollbar{width:3px}
+#popup-info-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.kml-row{display:flex;gap:4px;margin-bottom:3px;font-size:10px;line-height:1.3}
+.kml-key{color:var(--text2);flex-shrink:0;min-width:50px;font-weight:500}
+.kml-val{color:var(--text);word-break:break-word}
+
+/* ── BOTÕES TIPO ── */
+.tipo-btns{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:7px}
+.tipo-btn{
+  padding:6px 3px;border-radius:8px;border:2px solid var(--border);
+  background:var(--surface2);color:var(--text2);
+  font-size:10px;font-weight:600;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  -webkit-tap-highlight-color:transparent;user-select:none;
+  transition:border-color .1s,background .1s,color .1s;
+}
+.tipo-btn .ico{font-size:15px;line-height:1}
+.tipo-btn:active{transform:scale(.93)}
+.tipo-btn.full{grid-column:1/-1}
+.tipo-btn.sel-estab   {border-color:var(--green); background:rgba(52,201,122,.13);color:var(--green)}
+.tipo-btn.sel-naestab {border-color:var(--red);   background:rgba(232,85,85,.13); color:var(--red)}
+.tipo-btn.sel-outros  {border-color:var(--accent); background:rgba(76,142,247,.13);color:var(--accent)}
+.tipo-btn.sel-nvisit  {border-color:var(--gray);   background:rgba(107,114,128,.13);color:#9ca3af}
+
+#popup-obs{
+  width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);padding:8px 10px;font-size:13px;
+  font-family:var(--font);outline:none;resize:none;
+  display:none;margin-bottom:8px;min-height:58px;
+}
+#popup-obs:focus{border-color:var(--accent)}
+
+.popup-actions{display:flex;gap:7px}
+.pbtn{flex:1;padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;-webkit-tap-highlight-color:transparent}
+.pbtn-save{background:var(--accent);color:#fff}
+.pbtn-save:active{opacity:.8}
+.pbtn-clear{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+.pbtn-clear:active{opacity:.7}
+
+/* ── BOTTOM ── */
+#bottom{
+  position:absolute;bottom:0;left:0;right:0;z-index:800;
+  background:rgba(26,29,35,.93);border-top:1px solid var(--border);
+  padding:7px 12px;display:flex;align-items:center;gap:8px;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+}
+#stats-txt{font-size:11px;color:var(--text2);flex:1}
+#stats-txt b{color:var(--text)}
+.legend{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2)}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+#toast{position:fixed;bottom:50px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:8px 16px;font-size:13px;color:var(--text);z-index:9999;transition:transform .25s ease;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.5);pointer-events:none}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+@keyframes gpspulse{0%{transform:scale(1);opacity:.6}70%{transform:scale(2.8);opacity:0}100%{transform:scale(1);opacity:0}}
+#kml-input{display:none}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>📍 Campo KML</h1>
+  <button class="hbtn" onclick="document.getElementById('kml-input').click()">
+    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    KML
+  </button>
+  <button class="hbtn" id="btn-gps" onclick="toggleGPS()">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+    GPS
+  </button>
+  <button class="hbtn" onclick="exportKML()">
+    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Exportar
+  </button>
+</div>
+
+<div id="pbar"><div id="pfill"></div></div>
+
+<div id="main">
+  <div id="map"></div>
+
+  <div id="popup">
+    <button id="pbtn-close" onclick="closePopup()">×</button>
+    <div id="popup-name">—</div>
+    <div id="popup-coord">—</div>
+    <div id="popup-dist"></div>
+
+    <div id="popup-info-body"></div>
+
+    <div class="tipo-btns">
+      <button class="tipo-btn" id="tbtn-estab"   onclick="selectTipo('estabelecimento')">
+        <span class="ico">🏢</span>Estabelec.
+      </button>
+      <button class="tipo-btn" id="tbtn-naestab" onclick="selectTipo('nao_estabelecimento')">
+        <span class="ico">🏠</span>Não estab.
+      </button>
+      <button class="tipo-btn" id="tbtn-outros"  onclick="selectTipo('outros')">
+        <span class="ico">❓</span>Outros
+      </button>
+      <button class="tipo-btn" id="tbtn-nvisit"  onclick="selectTipo('nao_visitado')">
+        <span class="ico">🚫</span>Não visitado
+      </button>
+    </div>
+
+    <textarea id="popup-obs" placeholder="Observação..."></textarea>
+
+    <div class="popup-actions">
+      <button class="pbtn pbtn-clear" onclick="clearPopup()">Limpar</button>
+      <button class="pbtn pbtn-save"  onclick="savePoint()">Salvar ✓</button>
+    </div>
+    <div id="popup-arrow"></div>
+  </div>
+
+  <div id="bottom">
+    <div id="stats-txt"><b id="s-done">0</b> classif. · <b id="s-pend">0</b> pend.</div>
+    <div class="legend">
+      <div class="leg"><div class="leg-dot" style="background:var(--green)"></div>Estab.</div>
+      <div class="leg"><div class="leg-dot" style="background:var(--red)"></div>N.Estab.</div>
+      <div class="leg"><div class="leg-dot" style="background:var(--accent)"></div>Outros</div>
+      <div class="leg"><div class="leg-dot" style="background:var(--gray)"></div>N.Visit.</div>
+      <div class="leg"><div class="leg-dot" style="background:var(--amber)"></div>Pend.</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<input type="file" id="kml-input" accept=".kml" onchange="loadKML(this)">
+
+<script>
+const SKEY = 'campo_kml_v3';
+let points = [], currentIdx = null, markers = {};
+
+// ── MAP ───────────────────────────────────────────────────────────────
+const map = L.map('map',{zoomControl:false}).setView([-21.76,-41.33],13);
+L.control.zoom({position:'topright'}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+  attribution:'© OpenStreetMap © CARTO',maxZoom:19
+}).addTo(map);
+map.on('click', ()=>closePopup());
+
+// ── ÍCONES ────────────────────────────────────────────────────────────
+function makeIcon(p,num){
+  const C={estabelecimento:'#34c97a',nao_estabelecimento:'#e85555',outros:'#4c8ef7',nao_visitado:'#6b7280'};
+  const B={estabelecimento:'#1fa05a',nao_estabelecimento:'#a32d2d',outros:'#2d6bdf',nao_visitado:'#4b5563'};
+  const c=C[p.tipo]||'#f5a623', b=B[p.tipo]||'#c07010';
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:30px;height:30px;border-radius:50%;background:${c};border:2.5px solid ${b};display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.45);cursor:pointer">${num}</div>`,
+    iconSize:[30,30],iconAnchor:[15,15]
+  });
+}
+
+// ── KML LOAD ──────────────────────────────────────────────────────────
+function loadKML(input){
+  const file=input.files[0]; if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const xml=new DOMParser().parseFromString(e.target.result,'text/xml');
+    const saved=(JSON.parse(localStorage.getItem(SKEY)||'{}').points)||[];
+    points=[];
+    xml.querySelectorAll('Placemark').forEach((pm,i)=>{
+      const name=pm.querySelector('name')?.textContent.trim()||`Ponto ${i+1}`;
+      const coordEl=pm.querySelector('Point coordinates')||pm.querySelector('coordinates');
+      if(!coordEl)return;
+      const [lng,lat]=coordEl.textContent.trim().split(',').map(Number);
+      if(isNaN(lat)||isNaN(lng))return;
+
+      // extrair description e ExtendedData
+      const desc=(pm.querySelector('description')?.textContent.trim()||'').replace(/<[^>]+>/g,'').trim();
+      const kmlData={};
+      if(desc) kmlData['Descrição']=desc;
+      pm.querySelectorAll('ExtendedData Data').forEach(d=>{
+        const k=d.getAttribute('name')||'';
+        const v=d.querySelector('value')?.textContent.trim()||'';
+        if(k&&v) kmlData[k]=v;
+      });
+      // SimpleData também
+      pm.querySelectorAll('ExtendedData SimpleData').forEach(d=>{
+        const k=d.getAttribute('name')||'';
+        const v=d.textContent.trim();
+        if(k&&v) kmlData[k]=v;
+      });
+
+      const prev=saved.find(p=>p.name===name)||{};
+      points.push({idx:points.length,name,lat,lng,tipo:prev.tipo||'',obs:prev.obs||'',kmlData});
+    });
+    if(!points.length){showToast('Nenhum ponto encontrado');return;}
+    rebuildMarkers();
+    save();
+    map.fitBounds(points.map(p=>[p.lat,p.lng]),{padding:[40,40]});
+    showToast(`${points.length} pontos carregados`);
+  };
+  r.readAsText(file);
+  input.value='';
+}
+
+// ── MARKERS ───────────────────────────────────────────────────────────
+function rebuildMarkers(){
+  Object.values(markers).forEach(m=>map.removeLayer(m));
+  markers={};
+  points.forEach((p,i)=>{
+    const m=L.marker([p.lat,p.lng],{icon:makeIcon(p,i+1)});
+    m.on('click',e=>{L.DomEvent.stopPropagation(e);openPopup(i);});
+    m.addTo(map);
+    markers[i]=m;
+  });
+  updateStats();
+}
+function refreshMarker(idx){if(markers[idx])markers[idx].setIcon(makeIcon(points[idx],idx+1));}
+
+// ── POPUP ─────────────────────────────────────────────────────────────
+function openPopup(idx){
+  currentIdx=idx;
+  const p=points[idx];
+  const el=document.getElementById('popup');
+
+  // posição
+  const pp=map.latLngToContainerPoint([p.lat,p.lng]);
+  el.style.left=pp.x+'px';
+  el.style.top=pp.y+'px';
+
+  // nome e coord
+  document.getElementById('popup-name').textContent=`#${idx+1} — ${p.name}`;
+  document.getElementById('popup-coord').textContent=`${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
+
+  // distância GPS
+  const distEl=document.getElementById('popup-dist');
+  if(gpsLat!==null){
+    const d=haversine(gpsLat,gpsLng,p.lat,p.lng);
+    distEl.textContent='📍 '+(d<1000?Math.round(d)+' m':(d/1000).toFixed(2)+' km');
+    distEl.style.display='block';
+  } else distEl.style.display='none';
+
+  // dados KML originais
+  const body=document.getElementById('popup-info-body');
+  const keys=Object.keys(p.kmlData||{});
+  if(keys.length){
+    body.innerHTML=keys.map(k=>`<div class="kml-row"><span class="kml-key">${k}</span><span class="kml-val">${p.kmlData[k]}</span></div>`).join('');
+    body.className='has-data';
+  } else {
+    body.innerHTML='';
+    body.className='';
+  }
+
+  // obs e tipo
+  document.getElementById('popup-obs').value=p.obs||'';
+  renderTipoBtns(p.tipo||'');
+  el.dataset.tipo=p.tipo||'';
+
+  el.classList.add('show');
+  map.on('move',repositionPopup);
+}
+
+function repositionPopup(){
+  if(currentIdx===null)return;
+  const pp=map.latLngToContainerPoint([points[currentIdx].lat,points[currentIdx].lng]);
+  const el=document.getElementById('popup');
+  el.style.left=pp.x+'px';
+  el.style.top=pp.y+'px';
+}
+
+function closePopup(){
+  document.getElementById('popup').classList.remove('show');
+  map.off('move',repositionPopup);
+  currentIdx=null;
+}
+
+function renderTipoBtns(val){
+  const map2={estabelecimento:'estab',nao_estabelecimento:'naestab',outros:'outros',nao_visitado:'nvisit'};
+  ['estab','naestab','outros','nvisit'].forEach(k=>{
+    const btn=document.getElementById('tbtn-'+k);
+    btn.className='tipo-btn'+(k==='outros'||k==='nvisit'?'':' ');
+    // remove todas as sel-*
+    btn.classList.remove('sel-estab','sel-naestab','sel-outros','sel-nvisit');
+  });
+  if(val&&map2[val]) document.getElementById('tbtn-'+map2[val]).classList.add('sel-'+map2[val]);
+  // obs só para "outros"
+  document.getElementById('popup-obs').style.display=val==='outros'?'block':'none';
+}
+
+function selectTipo(val){
+  renderTipoBtns(val);
+  document.getElementById('popup').dataset.tipo=val;
+  if(currentIdx===null)return;
+  points[currentIdx].tipo=val;
+  points[currentIdx].obs=document.getElementById('popup-obs').value;
+  refreshMarker(currentIdx);
+  updateStats();
+  save();
+  if(val!=='outros'){
+    showToast('Salvo ✓');
+    setTimeout(closePopup,500);
+  }
+}
+
+function savePoint(){
+  if(currentIdx===null)return;
+  const tipo=document.getElementById('popup').dataset.tipo||points[currentIdx].tipo||'';
+  if(!tipo){showToast('Selecione uma classificação');return;}
+  points[currentIdx].tipo=tipo;
+  points[currentIdx].obs=document.getElementById('popup-obs').value;
+  refreshMarker(currentIdx);
+  updateStats();
+  save();
+  showToast('Salvo ✓');
+  closePopup();
+}
+
+function clearPopup(){
+  if(currentIdx===null)return;
+  points[currentIdx].tipo='';points[currentIdx].obs='';
+  renderTipoBtns('');
+  document.getElementById('popup-obs').value='';
+  document.getElementById('popup').dataset.tipo='';
+  refreshMarker(currentIdx);
+  updateStats();
+  save();
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────
+function updateStats(){
+  const done=points.filter(p=>p.tipo).length;
+  document.getElementById('s-done').textContent=done;
+  document.getElementById('s-pend').textContent=points.length-done;
+  document.getElementById('pfill').style.width=points.length?(done/points.length*100)+'%':'0';
+}
+
+// ── STORAGE ───────────────────────────────────────────────────────────
+function save(){localStorage.setItem(SKEY,JSON.stringify({points}));}
+
+// ── EXPORT KML ────────────────────────────────────────────────────────
+function exportKML(){
+  if(!points.length){showToast('Nenhum ponto');return;}
+  const L2={estabelecimento:'Estabelecimento',nao_estabelecimento:'Não estabelecimento',outros:'Outros',nao_visitado:'Não visitado'};
+  const body=points.map((p,i)=>{
+    const extraData=Object.entries(p.kmlData||{}).map(([k,v])=>`      <Data name="${x(k)}"><value>${x(v)}</value></Data>`).join('\n');
+    return `  <Placemark>
+    <name>${x(p.name)}</name>
+    <description>${x(p.obs||'')}</description>
+    <Point><coordinates>${p.lng},${p.lat},0</coordinates></Point>
+    <ExtendedData>
+      <Data name="classificacao"><value>${L2[p.tipo]||'Pendente'}</value></Data>
+      <Data name="observacao"><value>${x(p.obs||'')}</value></Data>
+${extraData}
+    </ExtendedData>
+  </Placemark>`;
+  }).join('\n');
+  dl('campo.kml',`<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Campo ${new Date().toLocaleDateString('pt-BR')}</name>\n${body}\n</Document></kml>`,'application/vnd.google-earth.kml+xml');
+  showToast('KML exportado');
+}
+
+function x(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function dl(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
+
+// ── GPS ───────────────────────────────────────────────────────────────
+let gpsActive=false,gpsWid=null,gpsMark=null,gpsCirc=null,gpsLat=null,gpsLng=null;
+function toggleGPS(){gpsActive?stopGPS():startGPS();}
+function startGPS(){
+  if(!navigator.geolocation){showToast('GPS indisponível');return;}
+  gpsActive=true;
+  document.getElementById('btn-gps').classList.add('on');
+  showToast('Aguardando GPS…');
+  gpsWid=navigator.geolocation.watchPosition(onGPS,err=>{showToast('Erro GPS: '+err.message);stopGPS();},{enableHighAccuracy:true,maximumAge:2000,timeout:15000});
+}
+function stopGPS(){
+  if(gpsWid)navigator.geolocation.clearWatch(gpsWid);
+  gpsWid=null;gpsActive=false;gpsLat=null;gpsLng=null;
+  document.getElementById('btn-gps').classList.remove('on');
+  if(gpsMark){map.removeLayer(gpsMark);gpsMark=null;}
+  if(gpsCirc){map.removeLayer(gpsCirc);gpsCirc=null;}
+}
+function onGPS(pos){
+  gpsLat=pos.coords.latitude;gpsLng=pos.coords.longitude;
+  const acc=pos.coords.accuracy;
+  if(gpsCirc)map.removeLayer(gpsCirc);
+  gpsCirc=L.circle([gpsLat,gpsLng],{radius:acc,color:'#4c8ef7',fillColor:'#4c8ef7',fillOpacity:.07,weight:1,dashArray:'4 3'}).addTo(map);
+  if(gpsMark)map.removeLayer(gpsMark);
+  gpsMark=L.marker([gpsLat,gpsLng],{
+    icon:L.divIcon({className:'',html:`<div style="position:relative;width:20px;height:20px"><div style="position:absolute;inset:0;border-radius:50%;background:#4c8ef7;opacity:.3;animation:gpspulse 1.8s infinite"></div><div style="position:absolute;top:4px;left:4px;width:12px;height:12px;border-radius:50%;background:#4c8ef7;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div></div>`,iconSize:[20,20],iconAnchor:[10,10]}),
+    zIndexOffset:2000
+  }).addTo(map);
+  if(currentIdx!==null){
+    const p=points[currentIdx];
+    const d=haversine(gpsLat,gpsLng,p.lat,p.lng);
+    const distEl=document.getElementById('popup-dist');
+    distEl.textContent='📍 '+(d<1000?Math.round(d)+' m':(d/1000).toFixed(2)+' km');
+    distEl.style.display='block';
+  }
+}
+function haversine(a,b,c,d){
+  const R=6371000,p1=a*Math.PI/180,p2=c*Math.PI/180,
+        dp=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180,
+        hh=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+  return R*2*Math.atan2(Math.sqrt(hh),Math.sqrt(1-hh));
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────
+let tt;
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2200);}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+(()=>{
+  const saved=JSON.parse(localStorage.getItem(SKEY)||'{}');
+  if(saved.points?.length){
+    points=saved.points.map((p,i)=>({tipo:'',obs:'',kmlData:{},...p,idx:i}));
+    rebuildMarkers();
+    map.fitBounds(points.map(p=>[p.lat,p.lng]),{padding:[40,40]});
+    showToast(`${points.length} pontos restaurados`);
+  }
+})();
+</script>
+
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js')
+    .then(()=>console.log('SW registrado'))
+    .catch(e=>console.log('SW erro:',e));
+}
+</script>
+</body>
+</html>
