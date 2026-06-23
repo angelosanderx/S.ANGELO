@@ -10246,10 +10246,16 @@ async function carregarCnefeSetores() {
         const anoCnefe = mesPnad > 3 ? anoPnad : anoPnad - 1;
         const prazoFinal = new Date(anoPnad, mesPnad - 1, 0);
         const manual = _cnefeSetoresCache.find(s => s.setor === k);
+        // Prefere mês importado dos Indicadores Gerenciais quando disponível
+        const _mc = (manual?.mes_cnefe > 0) ? manual.mes_cnefe : mesCnefe;
+        const _ac = (manual?.mes_cnefe > 0) ? (manual.ano_cnefe || anoCnefe) : anoCnefe;
+        const _pf = (manual?.mes_cnefe > 0 && manual.prazo_final)
+          ? (manual.prazo_final.seconds ? new Date(manual.prazo_final.seconds*1000) : new Date(manual.prazo_final))
+          : prazoFinal;
         _cnefeSetoresList.push({
           setor: k, pesquisa: 'PNAD-C',
           agente_id: manual?.agente_id || '', agente_nome: manual?.agente_nome || '',
-          mesCnefe, anoCnefe, prazoFinal, mesPnad, anoPnad,
+          mesCnefe: _mc, anoCnefe: _ac, prazoFinal: _pf, mesPnad, anoPnad,
           concluido: manual?.concluido || false,
           upa_id: manual?.upa_id || '',
           status_listagem_ibge:  manual?.status_listagem_ibge  || '',
@@ -10290,10 +10296,16 @@ async function carregarCnefeSetores() {
         const anoCnefe = mesPnad > 3 ? anoPnad : anoPnad - 1;
         const prazoFinal = new Date(anoPnad, mesPnad - 1, 0);
         const manual = _cnefeSetoresCache.find(s => s.setor === upa);
+        // Prefere mês importado dos Indicadores Gerenciais quando disponível
+        const _mc2 = (manual?.mes_cnefe > 0) ? manual.mes_cnefe : mesCnefe;
+        const _ac2 = (manual?.mes_cnefe > 0) ? (manual.ano_cnefe || anoCnefe) : anoCnefe;
+        const _pf2 = (manual?.mes_cnefe > 0 && manual.prazo_final)
+          ? (manual.prazo_final.seconds ? new Date(manual.prazo_final.seconds*1000) : new Date(manual.prazo_final))
+          : prazoFinal;
         _cnefeSetoresList.push({
           setor: upa, pesquisa: 'PNAD-C',
           agente_id: manual?.agente_id || '', agente_nome: manual?.agente_nome || '',
-          mesCnefe, anoCnefe, prazoFinal, mesPnad, anoPnad,
+          mesCnefe: _mc2, anoCnefe: _ac2, prazoFinal: _pf2, mesPnad, anoPnad,
           concluido: manual?.concluido || false,
           upa_id: manual?.upa_id || '',
           status_listagem_ibge:  manual?.status_listagem_ibge  || '',
@@ -10550,15 +10562,16 @@ window.importarIndicadoresGerenciais = (input) => {
       let criados = 0, atualizados = 0;
       for (const d of dados) {
         if (!d.setor) continue;
-        const isPnad = /pnad.?contin/i.test(d.pesquisa);
+        const isPnad = /pnad/i.test(d.pesquisa);
         let mesCnefe = 0, anoCnefe = 0, prazoFinal = null, mesPnad = 0, anoPnad = 0;
 
-        if (isPnad && d.periodo) {
+        if (d.periodo) {
           const partes = d.periodo.trim().split(/\s+/);
-          mesCnefe = MESES_PT[normStr(partes[0])] || 0; // PERIODO já é o mês do CNEFE
-          anoCnefe = parseInt(partes[1]) || new Date().getFullYear();
-          if (mesCnefe) {
-            prazoFinal = new Date(anoCnefe, mesCnefe, 0); // último dia do mês CNEFE
+          const _m = MESES_PT[normStr(partes[0])] || 0;
+          const _y = parseInt(partes[1]) || 0;
+          if (_m && _y) {
+            mesCnefe = _m; anoCnefe = _y;
+            prazoFinal = new Date(_y, _m, 0); // último dia do mês CNEFE
           }
         }
 
@@ -10573,8 +10586,11 @@ window.importarIndicadoresGerenciais = (input) => {
 
         const docId = setorMap.get(d.setor);
         if (docId) {
-          // Atualiza só campos do IBGE — preserva agente, observações, concluido
-          await setDoc(doc(db, 'cnefe_setores', docId), ibgeFields, { merge: true });
+          // Atualiza campos do IBGE e também mês/prazo se disponíveis no CSV
+          const updateFields = { ...ibgeFields };
+          if (mesCnefe) { updateFields.mes_cnefe = mesCnefe; updateFields.ano_cnefe = anoCnefe; updateFields.prazo_final = prazoFinal; }
+          if (isPnad) updateFields.pesquisa = 'PNAD-C';
+          await setDoc(doc(db, 'cnefe_setores', docId), updateFields, { merge: true });
           atualizados++;
         } else {
           const novo = {
