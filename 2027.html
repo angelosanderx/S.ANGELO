@@ -1284,10 +1284,30 @@ function abrirModal(id) { document.getElementById(id).style.display = 'flex'; do
 
 <!-- ════ MÓDULO: DISCIPLINAS E TAREFAS ════ -->
 <script>
+const DISCIPLINAS_PADRAO = [
+  'Português',
+  'Direito Constitucional',
+  'Direito Administrativo',
+  'Contabilidade Geral e Avançada',
+  'Revisão Geral',
+  'Direito Tributário',
+  'Inglês',
+  'Discursiva',
+];
+
 async function carregarDisciplinas() {
   try {
-    const snap = await getDocs(query(collection(db, 'concurso_disciplinas'), orderBy('nome')));
+    const snap = await getDocs(query(collection(db, 'concurso_disciplinas'), orderBy('criadoEm')));
     disciplinasCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (disciplinasCache.length === 0) {
+      const batch = writeBatch(db);
+      DISCIPLINAS_PADRAO.forEach(nome => {
+        batch.set(doc(collection(db, 'concurso_disciplinas')), { nome, criadoEm: serverTimestamp() });
+      });
+      await batch.commit();
+      const snap2 = await getDocs(query(collection(db, 'concurso_disciplinas'), orderBy('criadoEm')));
+      disciplinasCache = snap2.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
     renderizarListaDisciplinas();
     popularSelectsDisciplina();
   } catch (e) {
