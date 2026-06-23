@@ -11584,16 +11584,13 @@ async function carregarCnefeQualidade() {
       }
     });
 
-    // Qualidade baseada no historico_especies na entrevista 1
-    // Erro CNEFE = o endereço estava vago/inapto/inexistente/fechado/demolido na 1ª visita
-    const getEsp1   = d => (d.historico_especies || []).find(h => String(h.entrevista) === '1');
-    // Erro CNEFE: espécie ruim na entrevista 1, OU status_atual indica vago/uso_ocasional sem histórico
-    const isErroCnefe = (esp, d = null) => {
-      if (esp && /vago|inapt|fechad|demol|inexist|uso.?ocasional/i.test(esp.resultado || '')) return true;
-      if (!esp && d && /^(vago|uso_ocasional)$/.test(d.status_atual || '')) return true;
-      return false;
-    };
-    const resumoEsp = r => (r || '').split(/\s*[-–]\s*/)[0].trim() || r || '?';
+    // Qualidade CNEFE: domicílios em etapa 1 agora = CNEFE feito no trimestre anterior.
+    // Usamos status_atual diretamente — sem depender de historico_especies.
+    const STATUS_ERRO_CNEFE = new Set(['vago', 'uso_ocasional', 'inapto', 'fechado', 'demolido', 'inexistente']);
+    const STATUS_SEM_DADO   = new Set(['nao_visitado', 'agendado']);
+    const LABEL_STATUS = { vago:'Vago', uso_ocasional:'Uso ocasional', inapto:'Inapto',
+      fechado:'Fechado', demolido:'Demolido', inexistente:'Inexistente' };
+    const resumoStatus = s => LABEL_STATUS[s] || s || '?';
 
     const comUpa = pnadSetores.filter(s => s._upaEfetiva);
     const semUpa = pnadSetores.filter(s => !s._upaEfetiva);
@@ -11713,16 +11710,15 @@ async function carregarCnefeQualidade() {
           const domsSetor = (domsPorSetor.get(ctrl) || [])
             .sort((a, b) => parseInt(a.domicilio_num || 0) - parseInt(b.domicilio_num || 0));
 
-          // Erros CNEFE: apenas domicílios em visita_etapa === 1 com espécie ruim na entrevista 1
-          const domsEtapa1  = domsSetor.filter(d => parseInt(d.visita_etapa) === 1);
-          const errosSetor  = domsEtapa1.filter(d => isErroCnefe(getEsp1(d), d));
-          const totalSetor  = domsSetor.length;
-          const totalEtapa1 = domsEtapa1.length;
+          // Erros CNEFE: domicílios em etapa 1 com status de endereço inválido
+          const domsEtapa1     = domsSetor.filter(d => parseInt(d.visita_etapa) === 1);
+          const errosSetor     = domsEtapa1.filter(d => STATUS_ERRO_CNEFE.has(d.status_atual || ''));
+          const domsVisitados  = domsEtapa1.filter(d => !STATUS_SEM_DADO.has(d.status_atual || ''));
+          const totalSetor     = domsSetor.length;
 
-          // % acerto calculado sobre domicílios em etapa 1 com dados de espécie (ou status de erro)
-          const etapa1ComEsp = domsEtapa1.filter(d => getEsp1(d) || isErroCnefe(null, d));
-          const pctAcerto = etapa1ComEsp.length > 0
-            ? Math.round((etapa1ComEsp.length - errosSetor.length) / etapa1ComEsp.length * 100)
+          // % acerto sobre os visitados em etapa 1 (excluindo ainda não visitados)
+          const pctAcerto = domsVisitados.length > 0
+            ? Math.round((domsVisitados.length - errosSetor.length) / domsVisitados.length * 100)
             : null;
           const corPct = pctAcerto === null ? 'var(--texto-secundario)'
             : pctAcerto >= 90 ? 'var(--verde)' : pctAcerto >= 70 ? 'var(--amarelo)' : 'var(--vermelho)';
@@ -11731,30 +11727,29 @@ async function carregarCnefeQualidade() {
           const ag = setores[0]?.agente_nome || '—';
           if (!qualAgente[ag]) qualAgente[ag] = { erros: 0, total: 0, upas: new Set() };
           qualAgente[ag].upas.add(upaId);
-          qualAgente[ag].total += etapa1ComEsp.length;
+          qualAgente[ag].total += domsVisitados.length;
           qualAgente[ag].erros += errosSetor.length;
 
           // Lista todos os domicílios, não apenas os errados
           const domsList = domsSetor.map(d => {
             const etapa   = parseInt(d.visita_etapa) || 1;
-            const esp1    = getEsp1(d);
-            const erro    = etapa === 1 && isErroCnefe(esp1, d);
-            const semDado = etapa === 1 && !esp1 && !erro;
+            const status  = d.status_atual || '';
+            const erro    = etapa === 1 && STATUS_ERRO_CNEFE.has(status);
+            const semDado = etapa === 1 && STATUS_SEM_DADO.has(status);
             const bg   = erro    ? 'background:var(--vermelho-claro);border-color:var(--vermelho);color:var(--vermelho)'
                        : semDado ? 'background:#fffbeb;border-color:#fcd34d;color:#92400e'
                        : etapa === 1 ? 'background:var(--verde-claro,#f0fdf4);border-color:var(--verde);color:var(--verde)'
                        : 'background:var(--fundo);border-color:var(--borda);color:var(--texto-secundario)';
-            const erroDesc = esp1?.resultado || d.status_atual || '?';
-            const label = erro    ? `Dom ${d.domicilio_num||'?'} — ${resumoEsp(erroDesc)}`
+            const label = erro    ? `Dom ${d.domicilio_num||'?'} — ${resumoStatus(status)}`
                         : semDado ? `Dom ${d.domicilio_num||'?'} (sem dados)`
                         : etapa === 1 ? `Dom ${d.domicilio_num||'?'} ✓`
                         : `Dom ${d.domicilio_num||'?'} (E${etapa})`;
-            const title = erroDesc !== '?' ? erroDesc : (etapa > 1 ? `Etapa ${etapa} — não conta para CNEFE` : '');
+            const title = etapa > 1 ? `Etapa ${etapa} — não conta para CNEFE` : (status || '');
             return `<span style="display:inline-block;margin:1px 2px;font-size:0.7rem;border:1px solid;border-radius:4px;padding:1px 5px;${bg}"
               title="${title}">${label}</span>`;
           }).join('');
 
-          const colErros = totalEtapa1
+          const colErros = domsEtapa1.length
             ? `<span style="font-weight:700;color:${errosSetor.length>0?'var(--vermelho)':'var(--verde)'}">${errosSetor.length}</span>`
             : '<span style="color:var(--texto-secundario)">—</span>';
 
