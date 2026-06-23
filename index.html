@@ -1682,7 +1682,15 @@
       <!-- ABA QUALIDADE -->
       <div class="cnefe-tab-panel" id="cnefe-panel-qualidade">
         <div class="card-tabela">
-          <div class="card-tabela-header"><h3>Cruzamento CNEFE × PNAD</h3></div>
+          <div class="card-tabela-header">
+            <h3>Cruzamento CNEFE × PNAD</h3>
+            <div style="position:relative" id="qual-mes-wrap">
+              <button onclick="toggleDropdownQualMes(event)" style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.75rem;border:1.5px solid var(--borda);border-radius:6px;background:var(--fundo);font-size:0.82rem;cursor:pointer;font-family:var(--fonte)">
+                <span id="qual-mes-label">Todos os meses</span><span style="font-size:0.7rem">▾</span>
+              </button>
+              <div id="qual-mes-dd" style="display:none;position:fixed;z-index:600;background:var(--fundo);border:1.5px solid var(--borda);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.13);min-width:180px;max-height:260px;overflow-y:auto;padding:0.3rem 0"></div>
+            </div>
+          </div>
           <div id="cnefe-qualidade-tabela"><div class="loader">Carregando...</div></div>
         </div>
       </div>
@@ -6762,8 +6770,12 @@ function _buildCronSetores(mes, semana) {
 }
 
 // Fecha todos os dropdowns de entrevistador ao clicar fora
-document.addEventListener('click', () => {
+document.addEventListener('click', (e) => {
   document.querySelectorAll('.cron-msel-list').forEach(el => { el.style.display = 'none'; });
+  if (!e.target.closest('#qual-mes-wrap')) {
+    const dd = document.getElementById('qual-mes-dd');
+    if (dd) dd.style.display = 'none';
+  }
 });
 
 const _primeiroNome = n => (n||'').split(' ')[0];
@@ -10418,6 +10430,7 @@ let _cnefeAgentesCache  = null;
 let _cnefeMesesUnicos   = [];
 const _cnefeFiltros     = { setor:'', pesquisa:'', agente:'', mes: new Set(), status:'', localidade:'' };
 window.setCnefeFiltro   = (c, v) => { _cnefeFiltros[c] = v; renderCnefeSetores(); };
+let _qualFiltroMeses   = new Set(); // filtro de meses na aba qualidade
 let _cnefeMapInstance  = null;
 let _cnefeMapLayers    = { contorno: null, faces: null, pontos: null };
 const _cnefeKmlCache   = {};
@@ -11547,6 +11560,30 @@ window.imprimirCnefeListagem = () => {
 
 // ── ABA QUALIDADE ─────────────────────────────────────────────────────────────
 
+window.toggleDropdownQualMes = (e) => {
+  e.stopPropagation();
+  const dd = document.getElementById('qual-mes-dd');
+  if (!dd) return;
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+  if (dd.style.display === 'block') {
+    const btn = document.getElementById('qual-mes-wrap').querySelector('button');
+    const r = btn.getBoundingClientRect();
+    dd.style.top  = (r.bottom + 4) + 'px';
+    dd.style.left = r.left + 'px';
+  }
+};
+
+window.aplicarFiltroQualMes = () => {
+  const dd = document.getElementById('qual-mes-dd');
+  if (!dd) return;
+  _qualFiltroMeses.clear();
+  dd.querySelectorAll('input[type=checkbox]:checked').forEach(cb => _qualFiltroMeses.add(cb.value));
+  const n = _qualFiltroMeses.size;
+  const lbl = document.getElementById('qual-mes-label');
+  if (lbl) lbl.textContent = n === 0 ? 'Todos os meses' : `${n} mês${n > 1 ? 'es' : ''} selecionado${n > 1 ? 's' : ''}`;
+  carregarCnefeQualidade();
+};
+
 async function carregarCnefeQualidade() {
   const el = document.getElementById('cnefe-qualidade-tabela');
   if (!el) return;
@@ -11645,6 +11682,30 @@ async function carregarCnefeQualidade() {
         return aK.localeCompare(bK);
       });
 
+      // Popula dropdown de meses com os valores disponíveis nos dados
+      const mesesDisp = [...new Map(
+        upasOrdenadas.filter(([, d]) => d.mesCnefe)
+          .map(([, d]) => [`${d.anoCnefe}_${String(d.mesCnefe).padStart(2,'0')}`, d])
+      ).values()].sort((a, b) => a.anoCnefe - b.anoCnefe || a.mesCnefe - b.mesCnefe);
+      const ddMes = document.getElementById('qual-mes-dd');
+      if (ddMes) {
+        ddMes.innerHTML = mesesDisp.map(d => {
+          const key = `${d.anoCnefe}_${String(d.mesCnefe).padStart(2,'0')}`;
+          return `<label style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.75rem;cursor:pointer;white-space:nowrap;font-size:0.83rem">
+            <input type="checkbox" value="${key}" ${_qualFiltroMeses.has(key) ? 'checked' : ''} onchange="aplicarFiltroQualMes()">
+            ${_CNEFE_MESES[d.mesCnefe - 1]} ${d.anoCnefe}
+          </label>`;
+        }).join('');
+      }
+
+      // Aplica filtro de mês
+      const upasFiltradas = _qualFiltroMeses.size > 0
+        ? upasOrdenadas.filter(([, d]) => {
+            const key = `${d.anoCnefe}_${String(d.mesCnefe).padStart(2,'0')}`;
+            return _qualFiltroMeses.has(key);
+          })
+        : upasOrdenadas;
+
       html += `<div style="overflow-x:auto"><table style="min-width:820px">
         <thead><tr>
           <th>UPA / Setores</th><th>Agente</th>
@@ -11657,14 +11718,14 @@ async function carregarCnefeQualidade() {
         </tr></thead><tbody>`;
 
       let mesAtual = '';
-      for (const [upaId, { setores, mesCnefe, anoCnefe }] of upasOrdenadas) {
+      for (const [upaId, { setores, mesCnefe, anoCnefe }] of upasFiltradas) {
         const mesLabel = mesCnefe ? `${_CNEFE_MESES[mesCnefe-1]} ${anoCnefe}` : 'Sem mês';
         const mesKey   = mesCnefe ? `${anoCnefe}_${String(mesCnefe).padStart(2,'0')}` : 'sem';
 
         // Cabeçalho de mês quando muda
         if (mesKey !== mesAtual) {
           mesAtual = mesKey;
-          const upasDoMes = upasOrdenadas.filter(([, d]) =>
+          const upasDoMes = upasFiltradas.filter(([, d]) =>
             (d.mesCnefe ? `${d.anoCnefe}_${String(d.mesCnefe).padStart(2,'0')}` : 'sem') === mesKey
           ).length;
           html += `<tr style="background:var(--azul-medio);color:#fff">
