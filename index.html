@@ -8621,8 +8621,9 @@ function renderizarRoteiroKML(doms, domAtual, setor) {
 function renderizarRoteiro(lista, domAtual, setor) {
   const domNum = parseInt(domAtual.domicilio_num || domAtual.numero_sequencial);
   
-  // Encontra o domicílio alvo na listagem pelo SeqVisita ou número
-  const idx = lista.findIndex(d => parseInt(d.dom) === domNum || parseInt(d.seq_visita) === domNum);
+  // Encontra o alvo: prioridade pelo Dom., depois SeqVisita (evita falso match quando SeqVisita coincide com domNum de outro dom.)
+  let idx = lista.findIndex(d => d.dom !== '' && parseInt(d.dom) === domNum);
+  if (idx < 0) idx = lista.findIndex(d => parseInt(d.seq_visita) === domNum);
 
   let anteriores = [], posteriores = [];
   if (idx >= 0) {
