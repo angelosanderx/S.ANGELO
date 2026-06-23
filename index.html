@@ -449,6 +449,16 @@
     #chip-perfil { display: none; }
     #periodo-atual-config { font-size: 0.7rem; padding: 0.3rem 0.35rem; max-width: 92px; }
   }
+  @media (max-width: 600px) {
+    #pag-ficha-domicilio .card-tabela { padding: 1rem 0.75rem; }
+    #pag-ficha-domicilio .secao-titulo { flex-wrap: wrap; gap: 0.5rem; }
+    #secao-observacoes .btn-acao,
+    #secao-links .btn-acao { width: 100%; }
+  }
+  @media (hover: none) {
+    .btn-editar-campo { opacity: 0.6; }
+    .hint-desktop { display: none; }
+  }
 
   .form-grupo { display: flex; flex-direction: column; gap: 4px; }
   .form-grupo.full { grid-column: 1 / -1; }
@@ -1895,7 +1905,7 @@
 
         <hr class="divisor-secao">
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1.5rem;">
           <div id="secao-observacoes">
             <div class="secao-titulo" style="font-size: 1rem;"><span>Observações da Equipe</span></div>
             <div id="obs-feed" style="max-height:220px;overflow-y:auto;margin-bottom:0.6rem"></div>
@@ -1905,7 +1915,7 @@
                 onkeydown="if(event.ctrlKey&&event.key==='Enter')salvarObservacaoFicha()"></textarea>
               <button class="btn-acao" style="font-size:0.8rem;padding:0.4rem 0.8rem;align-self:stretch" onclick="salvarObservacaoFicha()">Enviar</button>
             </div>
-            <div style="font-size:0.68rem;color:var(--cinza);margin-top:0.3rem">Ctrl+Enter para enviar</div>
+            <div style="font-size:0.68rem;color:var(--cinza);margin-top:0.3rem" class="hint-desktop">Ctrl+Enter para enviar</div>
           </div>
 
           <div id="secao-links">
