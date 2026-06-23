@@ -10855,12 +10855,42 @@ function _renderCnefeTabela(docs) {
   if (selQ) { const v = selQ.value; selQ.innerHTML = '<option value="">Todas as quadras</option>' + quadras.map(q => `<option value="${q}"${q===v?' selected':''}>${q}</option>`).join(''); }
   if (selF) { const v = selF.value; selF.innerHTML = '<option value="">Todas as faces</option>'   + faces.map(f => `<option value="${f}"${f===v?' selected':''}>${f}</option>`).join(''); }
 
+  // ── Ficha de espécies ────────────────────────────────────────────────────
+  const contEsp = {};
+  for (const d of docs) {
+    const k = (d.especie || '').trim().toUpperCase() || '(sem espécie)';
+    contEsp[k] = (contEsp[k] || 0) + 1;
+  }
+  const totalDocs = docs.length;
+  const dppo = contEsp['DPPO'] || 0;
+  const outrosEntradas = Object.entries(contEsp)
+    .filter(([k]) => k !== 'DPPO')
+    .sort((a, b) => b[1] - a[1]);
+  const fichaHtml = totalDocs ? `
+    <div style="background:var(--fundo-card);border:1px solid var(--borda);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.9rem;display:flex;flex-wrap:wrap;gap:0.6rem 1.4rem;align-items:center">
+      <div style="font-size:0.72rem;font-weight:700;color:var(--texto-leve);text-transform:uppercase;letter-spacing:.04em;min-width:100%;margin-bottom:0.1rem">Composição do setor</div>
+      <div style="display:flex;align-items:baseline;gap:0.35rem">
+        <span style="font-size:1.5rem;font-weight:800;color:#1a56db;line-height:1">${dppo}</span>
+        <span style="font-size:0.72rem;font-weight:600;color:#1a56db">DPPO</span>
+        <span style="font-size:0.68rem;color:var(--cinza);margin-left:0.1rem">Dom. Particular Permanente Ocupado</span>
+      </div>
+      ${outrosEntradas.map(([k,n]) => `
+      <div style="display:flex;align-items:baseline;gap:0.3rem">
+        <span style="font-size:1.1rem;font-weight:700;color:var(--texto);line-height:1">${n}</span>
+        <span style="font-size:0.72rem;color:var(--cinza-escuro)">${k}</span>
+      </div>`).join('')}
+      <div style="margin-left:auto;display:flex;align-items:baseline;gap:0.35rem;border-left:1px solid var(--borda);padding-left:1rem">
+        <span style="font-size:1.4rem;font-weight:800;color:var(--texto);line-height:1">${totalDocs}</span>
+        <span style="font-size:0.72rem;color:var(--cinza)">total</span>
+      </div>
+    </div>` : '';
+
   if (!lista.length) {
-    el.innerHTML = '<div class="vazio"><div class="icone-vazio">🏠</div>Nenhum endereço encontrado.</div>';
+    el.innerHTML = fichaHtml + '<div class="vazio"><div class="icone-vazio">🏠</div>Nenhum endereço encontrado.</div>';
     return;
   }
 
-  let html = '<div style="overflow-x:auto"><table style="min-width:960px"><thead><tr>' +
+  let html = fichaHtml + '<div style="overflow-x:auto"><table style="min-width:960px"><thead><tr>' +
     '<th>Q</th><th>F</th><th>UV</th><th>CE</th><th>Logradouro / Número</th>' +
     '<th>Ponto Ref.</th><th style="font-size:0.7rem">Espécie</th>' +
     '<th style="font-size:0.7rem">Estabelecimento</th><th style="font-size:0.7rem">Responsável</th>' +
