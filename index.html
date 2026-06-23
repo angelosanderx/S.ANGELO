@@ -889,6 +889,20 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.18);
   }
   #roteiro-mapa-close:hover { background: #fff; }
+  #roteiro-gps-float {
+    position: fixed;
+    top: 12px; right: 140px;
+    z-index: 9001;
+    background: rgba(255,255,255,0.93);
+    border: 1px solid #D3D1C7;
+    border-radius: 6px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  }
+  #roteiro-gps-float.ativo { background: #2563a8; color: #fff; border-color: #2563a8; }
   @keyframes gps-pulse {
     0%   { transform: scale(1);   opacity: 0.7; }
     100% { transform: scale(3.5); opacity: 0; }
@@ -1021,6 +1035,8 @@
         </div>
       </div>
 
+      <div id="dash-ultima-atualizacao" style="font-size:11px;color:#888780;font-style:italic;margin-bottom:0.5rem"></div>
+
       <div id="aviso-todos-periodos" style="display:none;background:var(--azul-claro);border:1px solid var(--azul-medio);border-radius:8px;padding:0.6rem 1rem;margin-bottom:1rem;font-size:0.83rem;color:var(--azul)">
         🔎 Exibindo números somados de <strong>todos os períodos</strong> juntos. Para ver os números de um trimestre específico, troque o período no topo da tela.
       </div>
@@ -1082,6 +1098,7 @@
               <button onclick="gerarDiarioCampo(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples</button>
               <button onclick="gerarRoteiroCarta(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">✉️ Primeira entrevista</button>
               <button onclick="gerarResumoPendencias(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">📱 Resumo pendências</button>
+              <button onclick="copiarPendenciasWhatsApp('pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">📲 Copiar para WhatsApp</button>
               <button onclick="abrirControlePendencias();this.closest('.dropdown-listagens').classList.remove('aberto')">📊 Controle de pendências</button>
               <button onclick="abrirControleNaoRealizadas();this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Controle de não realizadas</button>
             </div>
@@ -1667,13 +1684,9 @@
                 style="font-size:0.82rem;padding:0.3rem 0.65rem;border:1px solid var(--borda);border-radius:6px;background:var(--fundo);color:var(--texto);min-width:180px">
                 <option value="">— Selecione o setor —</option>
               </select>
-              <label class="btn-acao secundario" style="cursor:pointer;margin:0" id="cnefe-mapa-kml-label">
-                📂 Carregar KML
-                <input type="file" accept=".kml" style="display:none" id="cnefe-mapa-kml-input" onchange="carregarKmlCnefe(this)">
-              </label>
-              <label class="btn-acao secundario" style="cursor:pointer;margin:0;display:none" id="cnefe-mapa-kml-atualizar">
-                🔄 Atualizar KML
-                <input type="file" accept=".kml" style="display:none" onchange="carregarKmlCnefe(this)">
+              <label class="btn-acao secundario" style="cursor:pointer;margin:0">
+                📂 Importar KMLs
+                <input type="file" accept=".kml" multiple style="display:none" id="cnefe-mapa-kml-input" onchange="carregarKmlCnefe(this)">
               </label>
             </div>
             <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;font-size:0.83rem">
@@ -3587,17 +3600,18 @@ window.gerarEtiquetas = async (idsOverride, tableId) => {
   const parsearEndereco = (endRaw, compRaw) => {
     const end = (endRaw||'').trim();
     const comp = (compRaw||'').trim();
-    // Tenta número no final; senão, número antes de separador (ex: "Rua X 3 - Sobrado")
+    // Tenta número no final; senão, número antes de separador (hífen, vírgula ou travessão)
     let m = end.match(/^(.*?)\s+(\d+)\s*$/);
     let embedComp = '';
     if (!m) {
-      const m2 = end.match(/^(.*?)\s+(\d+)\s*[-,–]\s*(.+)$/);
+      const m2 = end.match(/^(.*?)\s+(\d+)\s*[-,–—]\s*(.+)$/);
       if (m2) { m = m2; embedComp = m2[3].trim(); }
     }
     let logradouro, numero;
     if (m) { logradouro = m[1].trim(); numero = m[2]==='0' ? 's/n' : m[2]; }
-    else { logradouro = end; numero = 's/n'; }
-    const partes = [titleCase(logradouro), numero];
+    else { logradouro = end; numero = ''; }
+    const partes = [titleCase(logradouro)];
+    if (numero) partes.push(numero);
     const fullComp = comp || embedComp;
     if (fullComp) partes.push(titleCase(fullComp));
     return partes.join(', ');
@@ -3615,7 +3629,7 @@ window.gerarEtiquetas = async (idsOverride, tableId) => {
     const domNum = String(d.domicilio_num || d.numero_sequencial || '');
     const base = (ultimos4 && domNum) ? ultimos4 + '/' + domNum : '';
     const inicial = (d.entrevistador_nome || '').trim().charAt(0).toUpperCase();
-    return (base && inicial) ? base + '-' + inicial : base;
+    return (base && inicial) ? inicial + base : base;
   };
   const montarEtiqueta = (d) => {
     const cidade = cidadePorCodigo(d);
@@ -4409,6 +4423,127 @@ window.gerarResumoPendencias = async (idsOverride, tableId) => {
   win.document.close();
 };
 
+// ── COPIAR PENDÊNCIAS PARA WHATSAPP ─────────────────────────────────────────
+window.copiarPendenciasWhatsApp = (tableId) => {
+  let lista = [];
+  const scope = tableId ? (document.getElementById(tableId) || document) : document;
+  const selecionados = [...scope.querySelectorAll('.chk-dom:checked')].map(c => c.value);
+  if (selecionados.length > 0) {
+    lista = selecionados.map(id => todosdomicilios.find(d => d.id === id)).filter(Boolean);
+  } else {
+    scope.querySelectorAll('.chk-dom').forEach(c => {
+      const d = todosdomicilios.find(x => x.id === c.value); if (d) lista.push(d);
+    });
+  }
+  if (!lista.length) { mostrarToast('Nenhum domicílio para copiar', 'erro'); return; }
+
+  const MINUSC = new Set(['de','da','do','das','dos','e','em','a','o','ao','à','na','no','nas','nos','por','pelo','pela']);
+  const tc = s => s ? s.trim().toLowerCase().split(/\s+/).map((w,i)=>(i===0||!MINUSC.has(w))?w[0].toUpperCase()+w.slice(1):w).join(' ') : '';
+
+  const STATUS_LABEL = {
+    nao_visitado:'Não visitado', ausente:'Ausente', fechado:'Fechado', agendado:'Agendado',
+    realizada:'Realizada', recusa:'Recusa', carta_solicitada:'Carta solicitada',
+    supervisao:'Supervisão', vago:'Vago/inapto', uso_ocasional:'Uso ocasional',
+  };
+
+  const _cache = entrevistadoresCache || [];
+  lista.forEach(d => {
+    const reg = _cache.find(u => nomesCorrespondem(u.nome, d.entrevistador_nome||''));
+    d._nomeCanonical = reg ? tc(reg.nome) : tc(d.entrevistador_nome||'Sem entrevistador');
+  });
+
+  lista.sort((a, b) => {
+    const e = (a._nomeCanonical||'').localeCompare(b._nomeCanonical||'');
+    if (e !== 0) return e;
+    return parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0);
+  });
+
+  const MESES_WPP = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const _agora = new Date();
+  const mesAno = `${MESES_WPP[_agora.getMonth()]}/${_agora.getFullYear()}`;
+  const semanas = [...new Set(lista.map(d => d.semana).filter(Boolean))].sort();
+  const semanaStr = semanas.length === 1 ? `Semana ${semanas[0]}` : `Semanas ${semanas.join(', ')}`;
+
+  // Total de domicílios por entrevistador (todos, não só pendentes)
+  const totalPorNome = {};
+  todosdomicilios.forEach(d => {
+    const reg = _cache.find(u => nomesCorrespondem(u.nome, d.entrevistador_nome||''));
+    const nome = reg ? tc(reg.nome) : tc(d.entrevistador_nome||'');
+    if (!nome) return;
+    totalPorNome[nome] = (totalPorNome[nome] || 0) + 1;
+  });
+
+  const grupos = [];
+  let grp = null;
+  lista.forEach(d => {
+    const nome = d._nomeCanonical;
+    if (!grp || grp.nome !== nome) { grp = {nome, doms:[]}; grupos.push(grp); }
+    grp.doms.push(d);
+  });
+  grupos.sort((a, b) => b.doms.length - a.doms.length);
+
+  // Tabela comparativa em monospace (``` no WhatsApp)
+  const _ctr = (str, w) => { str = String(str); const p = Math.max(0, w - str.length); return ' '.repeat(Math.floor(p/2)) + str + ' '.repeat(Math.ceil(p/2)); };
+  const colNome = Math.max(13, ...grupos.map(g => g.nome.length));
+  const H_PCT = '% Porc. Pendentes';
+  const cTot = 7, cPend = 7, cPct = H_PCT.length;
+  const sepW = colNome + 2 + cTot + 2 + cPend + 2 + cPct;
+  const tabelaLinhas = ['```'];
+  tabelaLinhas.push('Entrevistador'.padEnd(colNome) + '  ' + _ctr('Total',cTot) + '  ' + _ctr('Pend.',cPend) + '  ' + H_PCT);
+  tabelaLinhas.push('-'.repeat(sepW));
+  let somaTotal = 0;
+  grupos.forEach(g => {
+    const tot = totalPorNome[g.nome] || 0;
+    somaTotal += tot;
+    const pct = tot > 0 ? Math.round(g.doms.length / tot * 100) : 0;
+    tabelaLinhas.push(
+      g.nome.padEnd(colNome) + '  ' +
+      _ctr(tot, cTot) + '  ' +
+      _ctr(g.doms.length, cPend) + '  ' +
+      _ctr(pct + '%', cPct)
+    );
+  });
+  tabelaLinhas.push('-'.repeat(sepW));
+  const pctTotal = somaTotal > 0 ? Math.round(lista.length / somaTotal * 100) : 0;
+  tabelaLinhas.push(
+    'TOTAL'.padEnd(colNome) + '  ' +
+    _ctr(somaTotal, cTot) + '  ' +
+    _ctr(lista.length, cPend) + '  ' +
+    _ctr(pctTotal + '%', cPct)
+  );
+  tabelaLinhas.push('```');
+
+  const linhas = [];
+  linhas.push(`*PNAD-C Campos · Pendências · ${mesAno}*`);
+  linhas.push(`${semanaStr} · *${lista.length} domicílio${lista.length !== 1 ? 's' : ''} com pendência*`);
+  linhas.push('');
+  tabelaLinhas.forEach(l => linhas.push(l));
+
+  grupos.forEach(g => {
+    const tot = totalPorNome[g.nome] || 0;
+    const pct = tot > 0 ? Math.round(g.doms.length / tot * 100) : 0;
+    linhas.push('');
+    linhas.push(`*${g.nome} — ${g.doms.length} pendência${g.doms.length !== 1 ? 's' : ''}*`);
+    g.doms.forEach(d => {
+      const setor  = d.controle ? d.controle.slice(0,-1) : (d.upa||'');
+      const num    = d.domicilio_num || d.numero_sequencial || '?';
+      const cod    = setor ? `${setor}/${num}` : num;
+      const etapa  = d.visita_etapa || '?';
+      const status = STATUS_LABEL[d.status_atual] || d.status_atual || '?';
+      const tents  = (d.tentativas_recentes || []).filter(t => t.origem);
+      const nTel   = tents.filter(t => /telefone/i.test(t.origem||'')).length;
+      const nPres  = tents.length - nTel;
+      const telStr = nTel === 0 ? `*0 tel.*` : `${nTel} tel.`;
+      const obs    = ` · (Tentativas: ${nPres} pres. - ${telStr})`;
+      linhas.push(`${cod} · Etapa ${etapa}ª · ${status}${obs}`);
+    });
+  });
+
+  navigator.clipboard.writeText(linhas.join('\n'))
+    .then(() => mostrarToast('Copiado!', 'sucesso'))
+    .catch(() => mostrarToast('Erro ao copiar para área de transferência', 'erro'));
+};
+
 // ── CONTROLE DE PENDÊNCIAS ──────────────────────────────────────────────────
 
 let _ctrPendSemana = 'todas';
@@ -4727,7 +4862,7 @@ ${clone.innerHTML}
 async function carregarUltimaAtualizacao() {
   try {
     const snap = await getDoc(doc(db, 'meta_importacao', 'ultima_atualizacao'));
-    const ids = ['pend-ultima-atualizacao', 'dom-ultima-atualizacao'];
+    const ids = ['dash-ultima-atualizacao', 'pend-ultima-atualizacao', 'dom-ultima-atualizacao'];
     if (snap.exists()) {
       const ts = snap.data().timestamp?.toDate?.();
       if (ts) {
@@ -9194,14 +9329,25 @@ function _haversineM(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function _sincBtnsGps(ativo) {
+  const btn  = document.getElementById('btn-gps-mapa');
+  const btnF = document.getElementById('roteiro-gps-float');
+  if (ativo) {
+    if (btn)  { btn.textContent  = '📡 GPS ativo'; btn.style.background  = '#2563a8'; btn.style.color  = '#fff'; btn.style.borderColor  = '#2563a8'; }
+    if (btnF) { btnF.textContent = '📡 GPS ativo'; btnF.classList.add('ativo'); }
+  } else {
+    if (btn)  { btn.textContent  = '📡 GPS'; btn.style.background  = ''; btn.style.color  = ''; btn.style.borderColor  = ''; }
+    if (btnF) { btnF.textContent = '📡 GPS'; btnF.classList.remove('ativo'); }
+  }
+}
+
 function _pararGps() {
   if (_gpsWatchId !== null) { navigator.geolocation.clearWatch(_gpsWatchId); _gpsWatchId = null; }
   if (_gpsMarker) { try { _gpsMarker.remove(); } catch(e) {} _gpsMarker = null; }
   if (_gpsCircle) { try { _gpsCircle.remove(); } catch(e) {} _gpsCircle = null; }
   if (_gpsLinha)  { try { _gpsLinha.remove();  } catch(e) {} _gpsLinha  = null; }
   _gpsModoAtivo = false;
-  const btn = document.getElementById('btn-gps-mapa');
-  if (btn) { btn.textContent = '📡 GPS'; btn.style.background = ''; btn.style.color = ''; btn.style.borderColor = ''; }
+  _sincBtnsGps(false);
 }
 
 window.toggleGpsMapa = () => {
@@ -9245,8 +9391,7 @@ window.toggleGpsMapa = () => {
         if (!_gpsModoAtivo) {
           _gpsModoAtivo = true;
           _mapaRoteiroInstance.panTo([lat, lng]);
-          const btn = document.getElementById('btn-gps-mapa');
-          if (btn) { btn.textContent = '📡 GPS ativo'; btn.style.background = '#2563a8'; btn.style.color = '#fff'; btn.style.borderColor = '#2563a8'; }
+          _sincBtnsGps(true);
           mostrarToast('GPS ativo', 'sucesso');
         }
       }
@@ -9471,6 +9616,22 @@ window.toggleMapaFullscreen = () => {
     closeBtn.style.display = 'block';
   } else {
     if (closeBtn) closeBtn.style.display = 'none';
+  }
+
+  // Botão GPS flutuante (ao lado do botão fechar)
+  let gpsFloat = document.getElementById('roteiro-gps-float');
+  if (isFullscreen) {
+    if (!gpsFloat) {
+      gpsFloat = document.createElement('button');
+      gpsFloat.id = 'roteiro-gps-float';
+      gpsFloat.onclick = window.toggleGpsMapa;
+      document.body.appendChild(gpsFloat);
+    }
+    gpsFloat.textContent = _gpsModoAtivo ? '📡 GPS ativo' : '📡 GPS';
+    if (_gpsModoAtivo) gpsFloat.classList.add('ativo'); else gpsFloat.classList.remove('ativo');
+    gpsFloat.style.display = 'block';
+  } else {
+    if (gpsFloat) gpsFloat.style.display = 'none';
   }
 
   // Redimensiona o Leaflet após a transição de layout
@@ -10858,7 +11019,7 @@ function _renderCnefeTabela(docs) {
   // ── Ficha de espécies ────────────────────────────────────────────────────
   const contEsp = {};
   for (const d of docs) {
-    const k = (d.especie || '').trim().toUpperCase() || '(sem espécie)';
+    const k = ((d.especie || '').split(/\s[-–]\s/)[0].trim().toUpperCase()) || '(sem espécie)';
     contEsp[k] = (contEsp[k] || 0) + 1;
   }
   const totalDocs = docs.length;
@@ -11127,6 +11288,17 @@ window.imprimirCnefeListagem = () => {
     return parseInt(a.uv||0)-parseInt(b.uv||0);
   });
 
+  // Composição do setor para o cabeçalho de impressão
+  const _contEspImp = {};
+  docs.forEach(d => {
+    const k = ((d.especie || '').split(/\s[-–]\s/)[0].trim().toUpperCase()) || '(sem espécie)';
+    _contEspImp[k] = (_contEspImp[k] || 0) + 1;
+  });
+  const _dppoPrint = _contEspImp['DPPO'] || 0;
+  const _outrosPrint = Object.entries(_contEspImp).filter(([k]) => k !== 'DPPO').sort((a,b) => b[1]-a[1]);
+  const _compPartes = [`<strong>${_dppoPrint} DPPO</strong>`, ..._outrosPrint.map(([k,n]) => `${n} ${k}`), `${docs.length} total`];
+  const _compHtml = _compPartes.join(' · ');
+
   let lastQF='', rows='';
   docs.forEach((d, i) => {
     const qf = `${d.quadra}|${d.face}`;
@@ -11155,7 +11327,8 @@ window.imprimirCnefeListagem = () => {
     @page { size:A4 landscape; margin:0; }
     body { font-family:'Segoe UI',Arial,sans-serif; font-size:6.5pt; color:#1e293b; padding:0.7cm 0.8cm; }
     h3  { font-size:8pt; margin-bottom:1px; }
-    .sub{ font-size:5.5pt; color:#64748b; margin-bottom:4px; }
+    .sub{ font-size:5.5pt; color:#64748b; margin-bottom:2px; }
+    .comp{ font-size:6pt; color:#1e293b; margin-bottom:4px; border-left:2px solid #93c5fd; padding-left:4px; }
     table { width:100%; border-collapse:collapse; table-layout:auto; }
     thead { display:table-header-group; }
     th { background:#dbeafe; padding:2px 3px; text-align:left; font-size:5.5pt;
@@ -11168,7 +11341,8 @@ window.imprimirCnefeListagem = () => {
     .bt td { border-top:2px solid #94a3b8; }
   </style></head><body>
   <h3>Listagem CNEFE — Setor ${setor}</h3>
-  <div class="sub">${new Date().toLocaleDateString('pt-BR')} · ${docs.length} endereços</div>
+  <div class="sub">${new Date().toLocaleDateString('pt-BR')}</div>
+  <div class="comp">Composição: ${_compHtml}</div>
   <table>
     <thead><tr>
       <th>Q/F</th><th>UV</th><th>C.E</th>
@@ -11570,30 +11744,34 @@ function _parseCoords(text) {
 }
 
 function _parsearKML(xmlText) {
-  const xml  = new DOMParser().parseFromString(xmlText, 'text/xml');
-  const pms  = [...xml.querySelectorAll('Placemark')];
+  const xml = new DOMParser().parseFromString(xmlText, 'text/xml');
+  // getElementsByTagName funciona independente de namespace (querySelectorAll falha com xmlns)
+  const getTag = (parent, tag) => [...parent.getElementsByTagName(tag)];
+  const getOne = (parent, tag) => parent.getElementsByTagName(tag)[0];
+
+  const pms = getTag(xml, 'Placemark');
   let contorno = null;
   const faces  = [];
 
   pms.forEach(pm => {
     const id   = pm.getAttribute('id') || '';
-    const name = pm.querySelector('name')?.textContent?.trim() || '';
-    const desc = pm.querySelector('description')?.textContent || '';
+    const name = getOne(pm, 'name')?.textContent?.trim() || '';
+    const desc = getOne(pm, 'description')?.textContent || '';
 
     if (id.toUpperCase().startsWith('CONTORNO') || name.toUpperCase() === 'CONTORNO') {
-      const coords = _parseCoords(pm.querySelector('coordinates')?.textContent);
+      const coords = _parseCoords(getOne(pm, 'coordinates')?.textContent);
       if (coords.length) contorno = coords;
       return;
     }
-    const ls = pm.querySelector('LineString');
+    const ls = getOne(pm, 'LineString');
     if (ls) {
-      const coords = _parseCoords(ls.querySelector('coordinates')?.textContent);
+      const coords = _parseCoords(getOne(ls, 'coordinates')?.textContent);
       if (!coords.length) return;
       let quadra = '', face = '', logradouro = '', cep = '';
       const m = name.match(/QUADRA[:\s]+(\S+)\s*[-–]\s*FACE[:\s]+(\S+)/i);
       if (m) {
         quadra = m[1]; face = m[2];
-        const lg  = desc.match(/LOGRADOURO[:\s]+([^\n<]+)/i);
+        const lg   = desc.match(/LOGRADOURO[:\s]+([^\n<]+)/i);
         const cep_ = desc.match(/CEP[:\s]+(\d+)/i);
         logradouro = lg?.[1]?.trim()  || '';
         cep        = cep_?.[1]?.trim() || '';
@@ -11627,9 +11805,7 @@ async function carregarCnefeMapas() {
 }
 
 window.selecionarCnefeMapaSetor = async (setor) => {
-  const info  = document.getElementById('cnefe-mapa-info');
-  const label = document.getElementById('cnefe-mapa-kml-label');
-  const atl   = document.getElementById('cnefe-mapa-kml-atualizar');
+  const info = document.getElementById('cnefe-mapa-info');
   if (!setor) {
     document.getElementById('cnefe-mapa-container').innerHTML =
       '<div class="vazio" style="height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column"><div class="icone-vazio">🗺️</div>Selecione um setor para ver o mapa</div>';
@@ -11640,7 +11816,6 @@ window.selecionarCnefeMapaSetor = async (setor) => {
   // Verifica cache local
   if (_cnefeKmlCache[setor]) {
     _renderCnefeMapaLayers(setor, _cnefeKmlCache[setor]);
-    label.style.display = 'none'; atl.style.display = '';
     return;
   }
 
@@ -11653,15 +11828,14 @@ window.selecionarCnefeMapaSetor = async (setor) => {
       const data = snap.docs[0].data();
       _cnefeKmlCache[setor] = data;
       _renderCnefeMapaLayers(setor, data);
-      label.style.display = 'none'; atl.style.display = '';
       if (info) {
         info.textContent = `KML: ${data.faces?.length || 0} faces · salvo em ${data.atualizadoEm?.toDate?.()?.toLocaleDateString('pt-BR') || '—'}`;
         info.style.display = '';
+        info.style.color = '';
       }
     } else {
       document.getElementById('cnefe-mapa-container').innerHTML =
-        '<div class="vazio" style="height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column"><div class="icone-vazio">📂</div>Nenhum KML encontrado para este setor.<br>Carregue o arquivo .kml</div>';
-      label.style.display = ''; atl.style.display = 'none';
+        '<div class="vazio" style="height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column"><div class="icone-vazio">📂</div>Nenhum KML encontrado para este setor.<br>Use o botão Importar KMLs para carregar.</div>';
     }
   } catch(e) {
     console.error(e);
@@ -11671,39 +11845,58 @@ window.selecionarCnefeMapaSetor = async (setor) => {
 };
 
 window.carregarKmlCnefe = async (input) => {
-  const file   = input.files[0]; if (!file) return;
-  const setor  = document.getElementById('cnefe-mapa-setor-sel')?.value;
-  if (!setor) { mostrarToast('Selecione um setor antes de carregar o KML', 'aviso'); input.value = ''; return; }
+  const files = [...input.files];
   input.value = '';
-  mostrarToast('Processando KML…', '');
+  if (!files.length) return;
 
-  const reader = new FileReader();
-  reader.onload = async (e) => {
+  const info = document.getElementById('cnefe-mapa-info');
+  if (info) { info.textContent = `⏳ Importando 0 / ${files.length}…`; info.style.display = ''; }
+
+  let ok = 0, erros = 0;
+  const erroNomes = [];
+
+  const lerArquivo = (file) => new Promise(res => {
+    const r = new FileReader();
+    r.onload  = e => res(e.target.result);
+    r.onerror = () => res(null);
+    r.readAsText(file, 'UTF-8');
+  });
+
+  for (const file of files) {
+    // Extrai setor do nome: último segmento após "_", sem extensão
+    const nomeSemExt = file.name.replace(/\.[^.]+$/, '');
+    const setor = nomeSemExt.split('_').pop();
+    if (!setor) { erros++; erroNomes.push(file.name); continue; }
+
+    const texto = await lerArquivo(file);
+    if (!texto) { erros++; erroNomes.push(file.name); continue; }
+
     try {
-      const { contorno, faces } = _parsearKML(e.target.result);
-      const total = (contorno ? 1 : 0) + faces.length;
-      if (!total) { mostrarToast('Nenhum elemento encontrado no KML', 'aviso'); return; }
+      const { contorno, faces } = _parsearKML(texto);
+      if (!contorno && !faces.length) { erros++; erroNomes.push(file.name); continue; }
 
-      // Salva no Firestore (documento por setor)
       const q    = await getDocs(query(collection(db, 'cnefe_kml'), where('setor', '==', setor)));
       const data = { setor, contorno: contorno || null, faces, atualizadoEm: serverTimestamp() };
       if (!q.empty) await setDoc(q.docs[0].ref, data);
       else          await addDoc(collection(db, 'cnefe_kml'), data);
 
       _cnefeKmlCache[setor] = data;
-      _renderCnefeMapaLayers(setor, data);
+      ok++;
+    } catch(e) { erros++; erroNomes.push(file.name); }
 
-      const label = document.getElementById('cnefe-mapa-kml-label');
-      const atl   = document.getElementById('cnefe-mapa-kml-atualizar');
-      label.style.display = 'none'; atl.style.display = '';
+    if (info) info.textContent = `⏳ Importando ${ok} / ${files.length}…`;
+  }
 
-      const info = document.getElementById('cnefe-mapa-info');
-      if (info) { info.textContent = `KML: ${faces.length} faces · ${contorno ? 'contorno OK' : 'sem contorno'}`; info.style.display = ''; }
+  // Atualiza o mapa se o setor selecionado foi importado
+  const setorSel = document.getElementById('cnefe-mapa-setor-sel')?.value;
+  if (setorSel && _cnefeKmlCache[setorSel]) _renderCnefeMapaLayers(setorSel, _cnefeKmlCache[setorSel]);
 
-      mostrarToast(`KML salvo: ${contorno?1:0} contorno, ${faces.length} faces`, 'sucesso');
-    } catch(err) { console.error(err); mostrarToast('Erro: ' + err.message, 'erro'); }
-  };
-  reader.readAsText(file, 'UTF-8');
+  const resumo = `${ok} KML(s) importado(s)${erros ? ` · ${erros} erro(s)` : ''}`;
+  if (info) {
+    info.textContent = resumo + (erroNomes.length ? ` — falhou: ${erroNomes.join(', ')}` : '');
+    info.style.color = erros ? 'var(--laranja)' : 'var(--verde)';
+  }
+  mostrarToast(resumo, erros && !ok ? 'erro' : ok ? 'sucesso' : 'aviso');
 };
 
 async function _renderCnefeMapaLayers(setor, kmlData) {
