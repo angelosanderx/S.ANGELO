@@ -819,6 +819,165 @@
     display: flex; align-items: center; justify-content: space-between;
     flex-wrap: wrap; gap: .5rem;
   }
+
+  /* ══════════════════════════════════
+     TRILHAS
+  ══════════════════════════════════ */
+  .trilha-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: .75rem;
+    overflow: hidden;
+  }
+  .trilha-header {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .875rem 1rem;
+    cursor: pointer;
+    user-select: none;
+    transition: background .15s;
+  }
+  .trilha-header:hover { background: rgba(255,255,255,.03); }
+  .trilha-num-badge {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--azul);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .78rem; font-weight: 800;
+    flex-shrink: 0;
+  }
+  .trilha-info { flex: 1; min-width: 0; }
+  .trilha-titulo { font-weight: 600; font-size: .9rem; color: var(--text); }
+  .trilha-stats { font-size: .75rem; color: var(--text-muted); margin-top: .1rem; }
+  .trilha-toggle { color: var(--text-dim); font-size: .75rem; transition: transform .2s; flex-shrink: 0; }
+  .trilha-toggle.aberto { transform: rotate(90deg); }
+  .trilha-progress-bar {
+    height: 3px;
+    background: var(--border);
+    margin: 0 1rem .5rem;
+    border-radius: 2px;
+  }
+  .trilha-progress-fill {
+    height: 100%;
+    background: var(--azul);
+    border-radius: 2px;
+    transition: width .3s;
+  }
+  .trilha-corpo { display: none; border-top: 1px solid var(--border); overflow-x: auto; }
+  .trilha-corpo.aberto { display: block; }
+  .trilha-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .8rem;
+    min-width: 680px;
+  }
+  .trilha-table th {
+    background: var(--bg-sidebar);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: .68rem;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: .5rem .6rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .trilha-table td {
+    padding: .35rem .6rem;
+    border-bottom: 1px solid rgba(59,130,246,.06);
+    vertical-align: middle;
+  }
+  .trilha-table tr:last-child td { border-bottom: none; }
+  .trilha-table tr.concluida td { opacity: .5; }
+  .t-input {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text);
+    font-size: .8rem;
+    padding: .2rem .3rem;
+    transition: border-color .15s, background .15s;
+    width: 100%;
+    font-family: var(--fonte);
+  }
+  .t-input:focus { outline: none; border-color: var(--azul); background: var(--bg-sidebar); }
+  select.t-input { cursor: pointer; }
+
+  /* ══════════════════════════════════
+     MAPA DE AULAS
+  ══════════════════════════════════ */
+  .mapa-disc-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin-bottom: 1.25rem;
+  }
+  .mapa-disc-tab {
+    padding: .38rem .9rem;
+    border-radius: 20px;
+    font-size: .78rem;
+    font-weight: 500;
+    cursor: pointer;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .mapa-disc-tab:hover { border-color: var(--azul); color: var(--azul); }
+  .mapa-disc-tab.ativo { background: var(--azul); border-color: var(--azul); color: #fff; }
+  .mapa-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .82rem;
+  }
+  .mapa-table th {
+    background: var(--bg-sidebar);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: .55rem .75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .mapa-table td {
+    padding: .42rem .75rem;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    vertical-align: middle;
+  }
+  .mapa-table tr:last-child td { border-bottom: none; }
+  .mapa-num-input {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text);
+    font-size: .82rem;
+    padding: .2rem .35rem;
+    width: 68px;
+    transition: border-color .15s, background .15s;
+    font-family: var(--fonte);
+    text-align: center;
+  }
+  .mapa-num-input:focus { outline: none; border-color: var(--azul); background: var(--bg-sidebar); }
+  .pct-bom { color: var(--verde); font-weight: 700; }
+  .pct-medio { color: var(--amarelo); font-weight: 700; }
+  .pct-ruim { color: var(--vermelho); font-weight: 700; }
+  .pct-vazio { color: var(--text-dim); }
+  .mini-barra-wrap {
+    display: inline-block;
+    width: 60px; height: 5px;
+    background: var(--border);
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-left: .4rem;
+  }
+  .mini-barra-fill { height: 100%; border-radius: 3px; }
 </style>
 </head>
 <body>
@@ -842,6 +1001,14 @@
     <div class="nav-section">Estudo</div>
     <div class="nav-item" onclick="irPara('cronometro', this)">
       <span class="nav-icon">⏱️</span> Cronômetro
+    </div>
+
+    <div class="nav-section">Planejamento</div>
+    <div class="nav-item" onclick="irPara('trilhas', this)">
+      <span class="nav-icon">🗺️</span> Trilhas
+    </div>
+    <div class="nav-item" onclick="irPara('mapa-aulas', this)">
+      <span class="nav-icon">📋</span> Mapa de Aulas
     </div>
   </nav>
 
@@ -1053,6 +1220,29 @@
     </div>
   </div>
 
+  <!-- ════════════════════════════
+       TRILHAS
+  ════════════════════════════ -->
+  <div class="pagina" id="pag-trilhas">
+    <div class="hero">
+      <h1>🗺️ Trilhas de Estudo</h1>
+      <p>Acompanhe e registre o progresso de cada tarefa nas trilhas 0–11</p>
+    </div>
+    <div id="trilhas-lista"><div class="loader">Carregando trilhas...</div></div>
+  </div>
+
+  <!-- ════════════════════════════
+       MAPA DE AULAS
+  ════════════════════════════ -->
+  <div class="pagina" id="pag-mapa-aulas">
+    <div class="hero">
+      <h1>📋 Mapa de Aulas</h1>
+      <p>Registre questões e acertos por aula em cada disciplina</p>
+    </div>
+    <div id="mapa-aulas-tabs" class="mapa-disc-tabs"></div>
+    <div id="mapa-aulas-conteudo"></div>
+  </div>
+
 </div>
 </main>
 
@@ -1252,7 +1442,7 @@ function erroCarregamento(ids) {
 }
 
 // ── navegação ──
-const TITULOS = { dashboard: 'Dashboard', disciplinas: 'Disciplinas e Tarefas', cronometro: 'Cronômetro' };
+const TITULOS = { dashboard: 'Dashboard', disciplinas: 'Disciplinas e Tarefas', cronometro: 'Cronômetro', trilhas: 'Trilhas de Estudo', 'mapa-aulas': 'Mapa de Aulas' };
 window.irPara = (pag, navEl) => {
   document.querySelectorAll('.pagina').forEach(p => p.classList.remove('ativa'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('ativo'));
@@ -1267,6 +1457,8 @@ window.irPara = (pag, navEl) => {
   fecharSidebar();
   if (pag === 'dashboard') carregarDashboard();
   if (pag === 'cronometro') { popularSelectsDisciplina(); cronCarregarSessoesHoje(); }
+  if (pag === 'trilhas') carregarTrilhas();
+  if (pag === 'mapa-aulas') carregarMapaAulas();
 };
 window.toggleSidebar = () => {
   document.getElementById('sidebar').classList.toggle('aberta');
@@ -2056,6 +2248,353 @@ function preencherSelectTarefas(tarefas, selTarefa) {
   if (!tarefas.length) { selTarefa.innerHTML = '<option value="">Nenhuma tarefa cadastrada</option>'; return; }
   selTarefa.innerHTML = '<option value="">— Selecione —</option>' +
     tarefas.map(t => `<option value="${t.id}">${esc(t.descricao || '(sem descrição)')}</option>`).join('');
+}
+</script>
+
+<!-- ════ MÓDULO: TRILHAS + MAPA DE AULAS ════ -->
+<script>
+// ── Config ──
+const MAPA_AULAS_CONFIG = {
+  'Contabilidade Geral e Avançada': 41,
+  'Direito Constitucional': 22,
+  'Direito Administrativo': 17,
+  'Direito Tributário': 22,
+  'Português': 16,
+};
+
+// ── State ──
+let trilhasCache = {};
+let mapaAulasCache = {};
+let mapaTabAtiva = null;
+const _trilhaSaveDebounce = {};
+const _mapaSaveDebounce = {};
+
+// ══════════════════════════════════════════
+//  TRILHAS
+// ══════════════════════════════════════════
+async function carregarTrilhas() {
+  if (Object.keys(trilhasCache).length > 0) { renderizarTrilhas(); return; }
+  const el = document.getElementById('trilhas-lista');
+  el.innerHTML = '<div class="loader">Carregando trilhas...</div>';
+  try {
+    const snap = await getDocs(collection(db, 'concurso_trilhas'));
+    if (snap.empty) {
+      el.innerHTML = '<div class="loader">Criando trilhas pela primeira vez...</div>';
+      await seedTrilhas();
+      const snap2 = await getDocs(collection(db, 'concurso_trilhas'));
+      snap2.docs.forEach(d => { trilhasCache[d.id] = { id: d.id, ...d.data() }; });
+    } else {
+      snap.docs.forEach(d => { trilhasCache[d.id] = { id: d.id, ...d.data() }; });
+    }
+    renderizarTrilhas();
+  } catch (e) {
+    console.error(e);
+    erroCarregamento('trilhas-lista');
+  }
+}
+
+async function seedTrilhas() {
+  const batch = writeBatch(db);
+  for (let t = 0; t <= 11; t++) {
+    for (let n = 1; n <= 20; n++) {
+      const num = t * 20 + n;
+      batch.set(doc(db, 'concurso_trilhas', `tarefa_${num}`), {
+        numero: num,
+        trilha: t,
+        disciplina: '',
+        ch: 0,
+        descricao: '',
+        data: '',
+        ch_efetiva: 0,
+        questoes_feitas: 0,
+        acertos: 0,
+        concluida: false,
+      });
+    }
+  }
+  await batch.commit();
+}
+
+function renderizarTrilhas() {
+  const el = document.getElementById('trilhas-lista');
+  const tarefas = Object.values(trilhasCache);
+  if (!tarefas.length) { el.innerHTML = '<div class="vazio">Sem tarefas cadastradas.</div>'; return; }
+
+  let html = '';
+  for (let t = 0; t <= 11; t++) {
+    const lista = tarefas.filter(x => x.trilha === t).sort((a, b) => a.numero - b.numero);
+    if (!lista.length) continue;
+    const total = lista.length;
+    const conc = lista.filter(x => x.concluida).length;
+    const pct = total ? Math.round(conc / total * 100) : 0;
+    const tQ = lista.reduce((s, x) => s + (x.questoes_feitas || 0), 0);
+    const tA = lista.reduce((s, x) => s + (x.acertos || 0), 0);
+    const dp = tQ ? Math.round(tA / tQ * 100) : 0;
+
+    html += `<div class="trilha-card">
+      <div class="trilha-header" onclick="toggleTrilha(${t})">
+        <div class="trilha-num-badge">${t}</div>
+        <div class="trilha-info">
+          <div class="trilha-titulo">Trilha ${t}</div>
+          <div class="trilha-stats" id="trilha-stats-${t}">${conc}/${total} concluídas · ${tQ ? dp + '% desempenho' : 'sem questões'}</div>
+        </div>
+        <span class="trilha-toggle" id="trilha-toggle-${t}">▶</span>
+      </div>
+      <div class="trilha-progress-bar"><div class="trilha-progress-fill" id="trilha-pbar-${t}" style="width:${pct}%"></div></div>
+      <div class="trilha-corpo" id="trilha-corpo-${t}">
+        <table class="trilha-table"><thead><tr>
+          <th style="width:36px">N°</th>
+          <th>Descrição</th>
+          <th style="width:135px">Disciplina</th>
+          <th style="width:50px">CH</th>
+          <th style="width:105px">Data</th>
+          <th style="width:52px">CH Ef.</th>
+          <th style="width:42px">Q</th>
+          <th style="width:42px">A</th>
+          <th style="width:46px">%</th>
+          <th style="width:28px">✓</th>
+        </tr></thead><tbody>`;
+
+    for (const item of lista) {
+      const q = item.questoes_feitas || 0;
+      const a = item.acertos || 0;
+      const idp = q ? Math.round(a / q * 100) : 0;
+      const dpCls = q ? (idp >= 70 ? 'pct-bom' : idp >= 50 ? 'pct-medio' : 'pct-ruim') : 'pct-vazio';
+      const discOpts = disciplinasCache.map(d =>
+        `<option value="${esc(d.nome)}" ${item.disciplina === d.nome ? 'selected' : ''}>${esc(d.nome)}</option>`
+      ).join('');
+      html += `<tr class="${item.concluida ? 'concluida' : ''}" id="trilha-row-${item.id}">
+        <td style="color:var(--text-dim);font-size:.72rem;text-align:center">${item.numero}</td>
+        <td><input class="t-input" type="text" placeholder="Descrição..." value="${esc(item.descricao || '')}"
+          oninput="agendarTarefa('${item.id}','descricao',this.value)"
+          onchange="salvarTarefa('${item.id}','descricao',this.value)"></td>
+        <td><select class="t-input" onchange="salvarTarefa('${item.id}','disciplina',this.value)">
+          <option value="">—</option>${discOpts}
+        </select></td>
+        <td><input class="t-input" type="number" min="0" step="0.5" value="${item.ch || ''}" placeholder="0" style="text-align:center"
+          oninput="agendarTarefa('${item.id}','ch',parseFloat(this.value)||0)"
+          onchange="salvarTarefa('${item.id}','ch',parseFloat(this.value)||0)"></td>
+        <td><input class="t-input" type="date" value="${item.data || ''}"
+          onchange="salvarTarefa('${item.id}','data',this.value)"></td>
+        <td><input class="t-input" type="number" min="0" step="0.5" value="${item.ch_efetiva || ''}" placeholder="0" style="text-align:center"
+          oninput="agendarTarefa('${item.id}','ch_efetiva',parseFloat(this.value)||0)"
+          onchange="salvarTarefa('${item.id}','ch_efetiva',parseFloat(this.value)||0)"></td>
+        <td><input class="t-input" type="number" min="0" value="${q || ''}" placeholder="0" style="text-align:center"
+          onchange="salvarTarefa('${item.id}','questoes_feitas',parseInt(this.value)||0)"></td>
+        <td><input class="t-input" type="number" min="0" value="${a || ''}" placeholder="0" style="text-align:center"
+          onchange="salvarTarefa('${item.id}','acertos',parseInt(this.value)||0)"></td>
+        <td class="${dpCls}" id="trilha-dp-${item.id}">${q ? idp + '%' : '—'}</td>
+        <td><input type="checkbox" ${item.concluida ? 'checked' : ''}
+          onchange="salvarTarefa('${item.id}','concluida',this.checked)"></td>
+      </tr>`;
+    }
+    html += '</tbody></table></div></div>';
+  }
+  el.innerHTML = html;
+}
+
+window.toggleTrilha = (t) => {
+  document.getElementById('trilha-corpo-' + t).classList.toggle('aberto');
+  document.getElementById('trilha-toggle-' + t).classList.toggle('aberto');
+};
+
+window.agendarTarefa = (id, campo, valor) => {
+  clearTimeout(_trilhaSaveDebounce[id + campo]);
+  _trilhaSaveDebounce[id + campo] = setTimeout(() => salvarTarefa(id, campo, valor), 1000);
+};
+window.salvarTarefa = async (id, campo, valor) => {
+  clearTimeout(_trilhaSaveDebounce[id + campo]);
+  if (!trilhasCache[id]) return;
+  trilhasCache[id][campo] = valor;
+  try {
+    await updateDoc(doc(db, 'concurso_trilhas', id), { [campo]: valor });
+    _atualizarUITarefa(id, campo);
+  } catch (e) {
+    console.error(e);
+    mostrarToast('Erro ao salvar tarefa', 'erro');
+  }
+};
+function _atualizarUITarefa(id, campo) {
+  const item = trilhasCache[id];
+  if (!item) return;
+  const t = item.trilha;
+  const row = document.getElementById('trilha-row-' + id);
+  if (row) row.classList.toggle('concluida', !!item.concluida);
+  if (campo === 'questoes_feitas' || campo === 'acertos') {
+    const q = item.questoes_feitas || 0;
+    const a = item.acertos || 0;
+    const dp = q ? Math.round(a / q * 100) : 0;
+    const dpEl = document.getElementById('trilha-dp-' + id);
+    if (dpEl) {
+      dpEl.textContent = q ? dp + '%' : '—';
+      dpEl.className = q ? (dp >= 70 ? 'pct-bom' : dp >= 50 ? 'pct-medio' : 'pct-ruim') : 'pct-vazio';
+    }
+  }
+  const lista = Object.values(trilhasCache).filter(x => x.trilha === t);
+  const conc = lista.filter(x => x.concluida).length;
+  const total = lista.length;
+  const pct = total ? Math.round(conc / total * 100) : 0;
+  const tQ = lista.reduce((s, x) => s + (x.questoes_feitas || 0), 0);
+  const tA = lista.reduce((s, x) => s + (x.acertos || 0), 0);
+  const dp2 = tQ ? Math.round(tA / tQ * 100) : 0;
+  const statsEl = document.getElementById('trilha-stats-' + t);
+  if (statsEl) statsEl.textContent = `${conc}/${total} concluídas · ${tQ ? dp2 + '% desempenho' : 'sem questões'}`;
+  const pbarEl = document.getElementById('trilha-pbar-' + t);
+  if (pbarEl) pbarEl.style.width = pct + '%';
+}
+
+// ══════════════════════════════════════════
+//  MAPA DE AULAS
+// ══════════════════════════════════════════
+async function carregarMapaAulas() {
+  if (Object.keys(mapaAulasCache).length > 0) { renderizarMapaTabs(); return; }
+  document.getElementById('mapa-aulas-conteudo').innerHTML = '<div class="loader">Carregando mapa de aulas...</div>';
+  try {
+    const snap = await getDocs(collection(db, 'concurso_mapa_aulas'));
+    if (snap.empty) {
+      document.getElementById('mapa-aulas-conteudo').innerHTML = '<div class="loader">Criando mapa pela primeira vez...</div>';
+      await seedMapaAulas();
+      const snap2 = await getDocs(collection(db, 'concurso_mapa_aulas'));
+      snap2.docs.forEach(d => { mapaAulasCache[d.id] = { id: d.id, ...d.data() }; });
+    } else {
+      snap.docs.forEach(d => { mapaAulasCache[d.id] = { id: d.id, ...d.data() }; });
+    }
+    renderizarMapaTabs();
+  } catch (e) {
+    console.error(e);
+    erroCarregamento('mapa-aulas-conteudo');
+  }
+}
+
+async function seedMapaAulas() {
+  const discs = disciplinasCache.length
+    ? disciplinasCache
+    : await getDocs(collection(db, 'concurso_disciplinas')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() })));
+  const batch = writeBatch(db);
+  for (const disc of discs) {
+    const numAulas = MAPA_AULAS_CONFIG[disc.nome];
+    if (!numAulas) continue;
+    for (let a = 1; a <= numAulas; a++) {
+      batch.set(doc(db, 'concurso_mapa_aulas', `${disc.id}_aula_${a}`), {
+        disciplina_id: disc.id,
+        disciplina_nome: disc.nome,
+        aula: a,
+        teoria_revisao: false,
+        questoes: 0,
+        acertos: 0,
+      });
+    }
+  }
+  await batch.commit();
+}
+
+function renderizarMapaTabs() {
+  const tabsEl = document.getElementById('mapa-aulas-tabs');
+  const nomes = [...new Set(Object.values(mapaAulasCache).map(x => x.disciplina_nome))].sort();
+  if (!mapaTabAtiva || !nomes.includes(mapaTabAtiva)) mapaTabAtiva = nomes[0] || null;
+  tabsEl.innerHTML = nomes.map(n =>
+    `<div class="mapa-disc-tab ${n === mapaTabAtiva ? 'ativo' : ''}" onclick="selecionarMapaTab(this,'${esc(n)}')">${esc(n)}</div>`
+  ).join('');
+  renderizarMapaConteudo();
+}
+
+window.selecionarMapaTab = (el, nome) => {
+  mapaTabAtiva = nome;
+  document.querySelectorAll('.mapa-disc-tab').forEach(t => t.classList.remove('ativo'));
+  el.classList.add('ativo');
+  renderizarMapaConteudo();
+};
+
+function renderizarMapaConteudo() {
+  const el = document.getElementById('mapa-aulas-conteudo');
+  if (!mapaTabAtiva) { el.innerHTML = ''; return; }
+  const aulas = Object.values(mapaAulasCache)
+    .filter(x => x.disciplina_nome === mapaTabAtiva)
+    .sort((a, b) => a.aula - b.aula);
+  if (!aulas.length) { el.innerHTML = '<div class="vazio">Sem aulas cadastradas.</div>'; return; }
+  const tQ = aulas.reduce((s, x) => s + (x.questoes || 0), 0);
+  const tA = aulas.reduce((s, x) => s + (x.acertos || 0), 0);
+  const tDp = tQ ? Math.round(tA / tQ * 100) : 0;
+  const tTR = aulas.filter(x => x.teoria_revisao).length;
+
+  let html = `<div class="card">
+    <div class="card-header">
+      <h3>${esc(mapaTabAtiva)}</h3>
+      <span id="mapa-resumo" style="font-size:.8rem;color:var(--text-muted)">${aulas.length} aulas · T+R: ${tTR}/${aulas.length} · ${tQ} questões · ${tQ ? tDp + '% geral' : '—'}</span>
+    </div>
+    <div style="overflow-x:auto"><table class="mapa-table">
+      <thead><tr>
+        <th style="width:80px">Nº Aula</th>
+        <th style="width:55px;text-align:center">T+R</th>
+        <th style="width:95px">Questões</th>
+        <th style="width:95px">Acertos</th>
+        <th>Desempenho</th>
+      </tr></thead><tbody>`;
+
+  for (const a of aulas) {
+    const q = a.questoes || 0;
+    const ac = a.acertos || 0;
+    const dp = q ? Math.round(ac / q * 100) : 0;
+    const dpCls = q ? (dp >= 70 ? 'pct-bom' : dp >= 50 ? 'pct-medio' : 'pct-ruim') : 'pct-vazio';
+    const barColor = dp >= 70 ? 'var(--verde)' : dp >= 50 ? 'var(--amarelo)' : 'var(--vermelho)';
+    html += `<tr id="mapa-row-${a.id}">
+      <td style="font-weight:600;color:var(--text-muted)">Aula ${a.aula}</td>
+      <td style="text-align:center"><input type="checkbox" ${a.teoria_revisao ? 'checked' : ''}
+        onchange="salvarMapa('${a.id}','teoria_revisao',this.checked)"></td>
+      <td><input class="mapa-num-input" type="number" min="0" value="${q || ''}" placeholder="0"
+        oninput="agendarMapa('${a.id}','questoes',this.value)"
+        onchange="salvarMapa('${a.id}','questoes',parseInt(this.value)||0)"></td>
+      <td><input class="mapa-num-input" type="number" min="0" value="${ac || ''}" placeholder="0"
+        oninput="agendarMapa('${a.id}','acertos',this.value)"
+        onchange="salvarMapa('${a.id}','acertos',parseInt(this.value)||0)"></td>
+      <td id="mapa-dp-${a.id}">
+        ${q ? `<span class="${dpCls}">${dp}%</span><span class="mini-barra-wrap"><span class="mini-barra-fill" style="width:${dp}%;background:${barColor}"></span></span>` : '<span class="pct-vazio">—</span>'}
+      </td>
+    </tr>`;
+  }
+  html += '</tbody></table></div></div>';
+  el.innerHTML = html;
+}
+
+window.agendarMapa = (id, campo, valor) => {
+  clearTimeout(_mapaSaveDebounce[id + campo]);
+  _mapaSaveDebounce[id + campo] = setTimeout(() =>
+    salvarMapa(id, campo, parseInt(valor) || 0), 1000);
+};
+window.salvarMapa = async (id, campo, valor) => {
+  clearTimeout(_mapaSaveDebounce[id + campo]);
+  if (!mapaAulasCache[id]) return;
+  mapaAulasCache[id][campo] = valor;
+  try {
+    await updateDoc(doc(db, 'concurso_mapa_aulas', id), { [campo]: valor });
+    if (campo !== 'teoria_revisao') _atualizarUIAula(id);
+    else _atualizarResumoMapa();
+  } catch (e) {
+    console.error(e);
+    mostrarToast('Erro ao salvar aula', 'erro');
+  }
+};
+function _atualizarUIAula(id) {
+  const a = mapaAulasCache[id];
+  const q = a.questoes || 0;
+  const ac = a.acertos || 0;
+  const dp = q ? Math.round(ac / q * 100) : 0;
+  const dpCls = q ? (dp >= 70 ? 'pct-bom' : dp >= 50 ? 'pct-medio' : 'pct-ruim') : 'pct-vazio';
+  const barColor = dp >= 70 ? 'var(--verde)' : dp >= 50 ? 'var(--amarelo)' : 'var(--vermelho)';
+  const dpEl = document.getElementById('mapa-dp-' + id);
+  if (dpEl) dpEl.innerHTML = q
+    ? `<span class="${dpCls}">${dp}%</span><span class="mini-barra-wrap"><span class="mini-barra-fill" style="width:${dp}%;background:${barColor}"></span></span>`
+    : '<span class="pct-vazio">—</span>';
+  _atualizarResumoMapa();
+}
+function _atualizarResumoMapa() {
+  const aulas = Object.values(mapaAulasCache).filter(x => x.disciplina_nome === mapaTabAtiva);
+  const tQ = aulas.reduce((s, x) => s + (x.questoes || 0), 0);
+  const tA = aulas.reduce((s, x) => s + (x.acertos || 0), 0);
+  const tDp = tQ ? Math.round(tA / tQ * 100) : 0;
+  const tTR = aulas.filter(x => x.teoria_revisao).length;
+  const resumoEl = document.getElementById('mapa-resumo');
+  if (resumoEl) resumoEl.textContent = `${aulas.length} aulas · T+R: ${tTR}/${aulas.length} · ${tQ} questões · ${tQ ? tDp + '% geral' : '—'}`;
 }
 </script>
 
