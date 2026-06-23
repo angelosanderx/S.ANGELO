@@ -10690,10 +10690,12 @@ window.editarCnefeSetor = (setor, docId, agId, concluido, upaId) => {
 
 window.salvarCnefeSetorEdit = async () => {
   const setor   = document.getElementById('cnefe-setor-edit-setor').value;
-  const docId   = document.getElementById('cnefe-setor-edit-id').value;
   const agId    = document.getElementById('cnefe-setor-edit-agente').value;
   const upaId   = document.getElementById('cnefe-setor-edit-upa').value.trim();
   const concluido = document.getElementById('cnefe-setor-edit-concluido').checked;
+  // Reusa o docId atualizado no cache (pode ter sido criado por cnefeEditarLocalidade após renderização)
+  const docIdHtml = document.getElementById('cnefe-setor-edit-id').value;
+  const docId = docIdHtml || (_cnefeSetoresList||[]).find(s => s.setor === setor)?.docId || '';
   const ag = _cnefeAgentesCache?.find(a => a.id === agId);
   try {
     const payload = { setor, pesquisa: 'PNAD-C', agente_id: agId, agente_nome: ag?.nome || '', concluido, upa_id: upaId };
@@ -10709,10 +10711,12 @@ window.salvarCnefeSetorEdit = async () => {
 window.toggleCnefeConcluidoRapido = async (setor, docId, novoEstado) => {
   const item = _cnefeSetoresList.find(s => s.setor === setor);
   const pesquisa = item?.pesquisa || 'PNAD-C';
+  // Reusa docId atualizado no cache (pode ter sido criado por cnefeEditarLocalidade após renderização)
+  const docIdEfetivo = docId || item?.docId || '';
   try {
-    let newDocId = docId;
-    if (docId) {
-      await setDoc(doc(db, 'cnefe_setores', docId), { concluido: novoEstado }, { merge: true });
+    let newDocId = docIdEfetivo;
+    if (docIdEfetivo) {
+      await setDoc(doc(db, 'cnefe_setores', docIdEfetivo), { concluido: novoEstado }, { merge: true });
     } else {
       const ref = await addDoc(collection(db, 'cnefe_setores'), {
         setor, pesquisa, concluido: novoEstado, criadoEm: serverTimestamp()
@@ -10721,7 +10725,7 @@ window.toggleCnefeConcluidoRapido = async (setor, docId, novoEstado) => {
     }
     if (item) { item.concluido = novoEstado; item.docId = newDocId; }
     if (_cnefeSetoresCache) {
-      const ci = _cnefeSetoresCache.find(s => s.id === docId || s.setor === setor);
+      const ci = _cnefeSetoresCache.find(s => s.id === docIdEfetivo || s.setor === setor);
       if (ci) ci.concluido = novoEstado;
       else _cnefeSetoresCache.push({ id: newDocId, setor, pesquisa, concluido: novoEstado });
     }
