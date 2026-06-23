@@ -35,7 +35,7 @@ const { FieldValue } = admin.firestore;
 const MAPEAMENTO = [
   { regex: /constitucional/i,          slug: 'd_constitucional'   },
   { regex: /administrativo/i,          slug: 'd_administrativo'   },
-  { regex: /tributar/i,                slug: 'd_tributario'       },
+  { regex: /tribut/i,                   slug: 'd_tributario'       },
   { regex: /geral|contabilidade/i,     slug: 'contabilidade_geral'},
   { regex: /portugu/i,                 slug: 'portugues'          },
 ];
