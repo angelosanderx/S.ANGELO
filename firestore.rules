@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Qualquer usuário autenticado pode ler e gravar em qualquer coleção
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
