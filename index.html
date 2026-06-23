@@ -11628,7 +11628,7 @@ async function carregarCnefeQualidade() {
         return aK.localeCompare(bK);
       });
 
-      html += `<div style="overflow-x:auto"><table style="min-width:700px">
+      html += `<div style="overflow-x:auto"><table style="min-width:820px">
         <thead><tr>
           <th>UPA / Setores</th><th>Agente</th>
           <th style="text-align:center">Mês CNEFE</th>
@@ -11636,6 +11636,7 @@ async function carregarCnefeQualidade() {
           <th style="text-align:center">Erros CNEFE</th>
           <th style="text-align:center">% Acerto</th>
           <th>Domicílios com erro</th>
+          <th title="Domicílios na PNAD sem moradores cadastrados">DPPOMA</th>
         </tr></thead><tbody>`;
 
       let mesAtual = '';
@@ -11650,7 +11651,7 @@ async function carregarCnefeQualidade() {
             (d.mesCnefe ? `${d.anoCnefe}_${String(d.mesCnefe).padStart(2,'0')}` : 'sem') === mesKey
           ).length;
           html += `<tr style="background:var(--azul-medio);color:#fff">
-            <td colspan="7" style="font-weight:700;font-size:0.83rem;padding:0.45rem 0.9rem;letter-spacing:0.3px">
+            <td colspan="8" style="font-weight:700;font-size:0.83rem;padding:0.45rem 0.9rem;letter-spacing:0.3px">
               📅 ${mesLabel} — ${upasDoMes} UPA${upasDoMes!==1?'s':''}
             </td></tr>`;
         }
@@ -11695,7 +11696,7 @@ async function carregarCnefeQualidade() {
           : `<code style="font-size:0.72rem;color:var(--texto-secundario)">${upaId}</code>`;
 
         html += `<tr style="background:var(--azul-claro)">
-          <td colspan="7" style="font-weight:700;font-size:0.82rem;padding:0.4rem 0.8rem;color:var(--azul)">
+          <td colspan="8" style="font-weight:700;font-size:0.82rem;padding:0.4rem 0.8rem;color:var(--azul)">
             📍 UPA ${upaId}
             <span style="font-weight:400;font-size:0.75rem;margin-left:0.75rem">Setores: ${amSetoresHtml}</span>
           </td></tr>`;
@@ -11717,6 +11718,11 @@ async function carregarCnefeQualidade() {
           const errosSetor     = domsEtapa1.filter(d => STATUS_ERRO_CNEFE.has(d.status_atual || ''));
           const domsVisitados  = domsEtapa1.filter(d => !STATUS_SEM_DADO.has(d.status_atual || ''));
           const totalSetor     = domsSetor.length;
+
+          // DPPOMA: domicílios na PNAD sem moradores cadastrados (qualquer etapa, exceto erros CNEFE)
+          const dppoma = domsSetor.filter(d =>
+            !(d.qtd_moradores_pnad > 0) && !STATUS_ERRO_CNEFE.has(d.status_atual || '')
+          );
 
           // % acerto sobre os visitados em etapa 1 (excluindo ainda não visitados)
           const pctAcerto = domsVisitados.length > 0
@@ -11755,6 +11761,11 @@ async function carregarCnefeQualidade() {
             ? `<span style="font-weight:700;color:${errosSetor.length>0?'var(--vermelho)':'var(--verde)'}">${errosSetor.length}</span>`
             : '<span style="color:var(--texto-secundario)">—</span>';
 
+          const dppomaCells = dppoma.length
+            ? dppoma.map(d => `<span style="display:inline-block;margin:1px 2px;font-size:0.7rem;border:1px solid var(--laranja);border-radius:4px;padding:1px 5px;background:var(--laranja-claro);color:var(--laranja)"
+                title="Sem moradores cadastrados — ${d.status_atual||'nao_visitado'}">Dom ${d.domicilio_num||'?'}</span>`).join('')
+            : '<span style="color:var(--texto-secundario);font-size:0.78rem">—</span>';
+
           html += `<tr>
             <td style="padding-left:1.5rem;font-size:0.82rem">Setor <code style="font-size:0.78rem">${ctrl}</code></td>
             <td style="font-size:0.82rem">${agentePrincipal}</td>
@@ -11765,6 +11776,7 @@ async function carregarCnefeQualidade() {
               ${pctAcerto !== null ? pctAcerto + '%' : '<span style="color:var(--texto-secundario)">—</span>'}
             </td>
             <td style="font-size:0.8rem">${totalSetor ? domsList : '<span style="color:var(--texto-secundario);font-size:0.78rem">—</span>'}</td>
+            <td style="font-size:0.8rem">${dppomaCells}</td>
           </tr>`;
         }
       }
