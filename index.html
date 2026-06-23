@@ -1684,11 +1684,14 @@
         <div class="card-tabela">
           <div class="card-tabela-header">
             <h3>Cruzamento CNEFE × PNAD</h3>
+            <div style="display:flex;align-items:center;gap:0.5rem">
+            <button onclick="abrirControleCnefeUpa()" style="background:none;border:1.5px solid var(--borda);border-radius:6px;padding:0.3rem 0.75rem;font-size:0.8rem;font-family:var(--fonte);cursor:pointer;color:var(--cinza-escuro);font-weight:600">📊 Controle por UPA</button>
             <div style="position:relative" id="qual-mes-wrap">
               <button onclick="toggleDropdownQualMes(event)" style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.75rem;border:1.5px solid var(--borda);border-radius:6px;background:var(--fundo);font-size:0.82rem;cursor:pointer;font-family:var(--fonte)">
                 <span id="qual-mes-label">Todos os meses</span><span style="font-size:0.7rem">▾</span>
               </button>
               <div id="qual-mes-dd" style="display:none;position:fixed;z-index:600;background:var(--fundo);border:1.5px solid var(--borda);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.13);min-width:180px;max-height:260px;overflow-y:auto;padding:0.3rem 0"></div>
+            </div>
             </div>
           </div>
           <div id="cnefe-qualidade-tabela"><div class="loader">Carregando...</div></div>
@@ -2495,6 +2498,25 @@
         <button class="filtro-chip ctrpend-sem" data-sem="4" onclick="selecionarSemanaCtrPend(this)">Sem. 4</button>
       </div>
       <div id="ctrpend-tabela"><div class="loader">Carregando...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Controle por UPA (CNEFE × PNAD) -->
+<div class="modal-overlay" id="modal-cnefe-controle" onclick="if(event.target===this)fecharModal('modal-cnefe-controle')">
+  <div class="modal" style="max-width:720px;width:100%">
+    <div class="modal-header" style="padding:1rem 1.25rem">
+      <div>
+        <h3 style="font-size:0.95rem;font-weight:700;color:var(--azul)">Controle por UPA — CNEFE × PNAD</h3>
+        <div style="font-size:0.75rem;color:var(--cinza);margin-top:2px">PNAD Contínua · Campos dos Goytacazes</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem">
+        <button onclick="imprimirControleCnefeUpa()" style="background:none;border:1.5px solid var(--borda);border-radius:6px;padding:0.3rem 0.75rem;font-size:0.8rem;font-family:var(--fonte);cursor:pointer;color:var(--cinza-escuro)">🖨️ Imprimir</button>
+        <button class="btn-fechar" onclick="fecharModal('modal-cnefe-controle')">×</button>
+      </div>
+    </div>
+    <div class="modal-body" style="padding:1rem 1.25rem">
+      <div id="cnefe-controle-tabela"><div class="loader">Carregando...</div></div>
     </div>
   </div>
 </div>
@@ -10431,6 +10453,7 @@ let _cnefeMesesUnicos   = [];
 const _cnefeFiltros     = { setor:'', pesquisa:'', agente:'', mes: new Set(), status:'', localidade:'' };
 window.setCnefeFiltro   = (c, v) => { _cnefeFiltros[c] = v; renderCnefeSetores(); };
 let _qualFiltroMeses   = new Set(); // filtro de meses na aba qualidade
+let _upaSummariesCache = [];        // cache p/ modal de controle por UPA
 let _cnefeMapInstance  = null;
 let _cnefeMapLayers    = { contorno: null, faces: null, pontos: null };
 const _cnefeKmlCache   = {};
@@ -11584,6 +11607,77 @@ window.aplicarFiltroQualMes = () => {
   carregarCnefeQualidade();
 };
 
+function _renderTabelaControleUpa(summaries) {
+  if (!summaries.length) return '<p style="color:var(--cinza);font-size:0.85rem">Nenhum dado disponível. Carregue a aba Qualidade primeiro.</p>';
+  const TH  = 'padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7';
+  const THL = 'padding:6px 10px;text-align:left;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7';
+  const TD  = 'padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center';
+  const TDL = 'padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:left';
+  let somaTotal = 0, somaVisit = 0, somaErros = 0, somaDppoma = 0;
+  const rows = summaries.map(u => {
+    somaTotal += u.total; somaVisit += u.visitados;
+    somaErros += u.erros; somaDppoma += u.dppoma;
+    const pctCor = u.pct === null ? '#444441' : u.pct >= 90 ? '#2C7A4B' : u.pct >= 70 ? '#8A5100' : '#A02020';
+    const icone  = u.pct === null ? '⬜' : u.pct >= 90 ? '🟢' : u.pct >= 70 ? '🟡' : '🔴';
+    const mesStr = u.mesCnefe ? `${_CNEFE_MESES[u.mesCnefe-1]}/${u.anoCnefe}` : '—';
+    const erroTxt = u.erros > 0 ? `<span style="color:#A02020;font-weight:600">${u.erros}</span>` : '<span style="color:#2C7A4B">0</span>';
+    const dppTxt  = u.dppoma > 0 ? `<span style="color:#8A5100;font-weight:600">${u.dppoma}</span>` : '0';
+    return `<tr>
+      <td style="${TDL}">${icone} ${u.upaId}</td>
+      <td style="${TD}">${mesStr}</td>
+      <td style="${TD}">${u.agente.split(' ')[0]}</td>
+      <td style="${TD}">${u.total}</td>
+      <td style="${TD}">${u.visitados}</td>
+      <td style="${TD}">${erroTxt}</td>
+      <td style="${TD}">${dppTxt}</td>
+      <td style="${TD};color:${pctCor};font-weight:600">${u.pct !== null ? u.pct + '%' : '—'}</td>
+    </tr>`;
+  }).join('');
+  const pctTotalVal = somaVisit > 0 ? Math.round((somaVisit - somaErros) / somaVisit * 100) : null;
+  const pctTotal = pctTotalVal !== null ? pctTotalVal + '%' : '—';
+  const pctTotalCor = pctTotalVal !== null ? (pctTotalVal >= 90 ? '#2C7A4B' : '#A02020') : '#444441';
+  return `<div style="border:0.5px solid #D3D1C7;border-radius:8px;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr style="background:#EEEDE8">
+        <th style="${THL}">UPA</th>
+        <th style="${TH}">Mês CNEFE</th>
+        <th style="${TH}">Agente</th>
+        <th style="${TH}" title="Total de domicílios">Total</th>
+        <th style="${TH}" title="Etapa 1 já visitados">Etapa 1</th>
+        <th style="${TH}" title="Erros CNEFE (endereço inválido)">Erros CNEFE</th>
+        <th style="${TH}" title="Sem moradores cadastrados">DPPOMA</th>
+        <th style="${TH}">% Acerto</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr style="background:#EEEDE8;border-top:0.5px solid #D3D1C7;font-weight:600">
+        <td style="${TDL}">Total</td>
+        <td style="${TD}">—</td><td style="${TD}">—</td>
+        <td style="${TD}">${somaTotal}</td>
+        <td style="${TD}">${somaVisit}</td>
+        <td style="${TD};color:${somaErros>0?'#A02020':'#2C7A4B'}">${somaErros}</td>
+        <td style="${TD};color:${somaDppoma>0?'#8A5100':'#444441'}">${somaDppoma}</td>
+        <td style="${TD};color:${pctTotalCor}">${pctTotal}</td>
+      </tr></tfoot>
+    </table>
+  </div>`;
+}
+
+window.abrirControleCnefeUpa = async () => {
+  abrirModal('modal-cnefe-controle');
+  if (!_upaSummariesCache.length) await carregarCnefeQualidade();
+  document.getElementById('cnefe-controle-tabela').innerHTML = _renderTabelaControleUpa(_upaSummariesCache);
+};
+
+window.imprimirControleCnefeUpa = () => {
+  const clone = document.getElementById('cnefe-controle-tabela').cloneNode(true);
+  const w = window.open('', '_blank', 'width=800,height:600');
+  w.document.write(`<!DOCTYPE html><html><head><title>Controle por UPA — CNEFE × PNAD</title>
+    <style>body{font-family:Arial,sans-serif;font-size:11px;padding:1rem}table{width:100%;border-collapse:collapse}
+    th,td{padding:6px 10px;border:0.5px solid #D3D1C7}thead tr{background:#EEEDE8}tfoot tr{background:#EEEDE8;font-weight:600}</style>
+    </head><body><h3 style="margin-bottom:0.75rem">Controle por UPA — CNEFE × PNAD</h3>${clone.innerHTML}</body></html>`);
+  w.document.close(); w.print();
+};
+
 async function carregarCnefeQualidade() {
   const el = document.getElementById('cnefe-qualidade-tabela');
   if (!el) return;
@@ -11877,79 +11971,10 @@ async function carregarCnefeQualidade() {
           erros: _upaErros, dppoma: _upaDppoma, pct: _upaPct
         });
       }
+      _upaSummariesCache = upaSummaries; // persiste para o modal
 
       html += '</tbody></table></div>';
 
-      // ── Tabela de controle por UPA (estilo controle de pendências) ──────────
-      const htmlControle = (() => {
-        if (!upaSummaries.length) return '';
-        const TH = 'padding:6px 10px;text-align:center;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7';
-        const THL = 'padding:6px 10px;text-align:left;font-weight:600;color:#444441;border-bottom:0.5px solid #D3D1C7';
-        const TD  = 'padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center';
-        const TDL = 'padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:left';
-
-        let somaTotal = 0, somaVisit = 0, somaErros = 0, somaDppoma = 0;
-        const rows = upaSummaries.map(u => {
-          somaTotal  += u.total;
-          somaVisit  += u.visitados;
-          somaErros  += u.erros;
-          somaDppoma += u.dppoma;
-
-          const pctCor = u.pct === null ? '#444441'
-            : u.pct >= 90 ? '#2C7A4B' : u.pct >= 70 ? '#8A5100' : '#A02020';
-          const icone = u.pct === null ? '⬜' : u.pct >= 90 ? '🟢' : u.pct >= 70 ? '🟡' : '🔴';
-          const pctTxt = u.pct !== null ? u.pct + '%' : '—';
-          const erroTxt = u.erros > 0
-            ? `<span style="color:#A02020;font-weight:600">${u.erros}</span>`
-            : '<span style="color:#2C7A4B">0</span>';
-          const dppTxt = u.dppoma > 0
-            ? `<span style="color:#8A5100;font-weight:600">${u.dppoma}</span>`
-            : '0';
-          const mesStr = u.mesCnefe ? `${_CNEFE_MESES[u.mesCnefe-1]}/${u.anoCnefe}` : '—';
-          return `<tr>
-            <td style="${TDL}">${icone} ${u.upaId}</td>
-            <td style="${TD}">${mesStr}</td>
-            <td style="${TD}">${u.agente.split(' ')[0]}</td>
-            <td style="${TD}">${u.total}</td>
-            <td style="${TD}">${u.visitados}</td>
-            <td style="${TD}">${erroTxt}</td>
-            <td style="${TD}">${dppTxt}</td>
-            <td style="${TD};color:${pctCor};font-weight:600">${pctTxt}</td>
-          </tr>`;
-        }).join('');
-
-        const pctTotal = somaVisit > 0 ? Math.round((somaVisit - somaErros) / somaVisit * 100) + '%' : '—';
-        const pctTotalCor = somaVisit > 0
-          ? (((somaVisit - somaErros) / somaVisit * 100) >= 90 ? '#2C7A4B' : '#A02020')
-          : '#444441';
-
-        return `<div style="border:0.5px solid #D3D1C7;border-radius:8px;overflow:hidden;margin-bottom:1.5rem">
-          <table style="width:100%;border-collapse:collapse;font-size:11px">
-            <thead><tr style="background:#EEEDE8">
-              <th style="${THL}">UPA</th>
-              <th style="${TH}">Mês CNEFE</th>
-              <th style="${TH}">Agente</th>
-              <th style="${TH}" title="Total de domicílios">Total</th>
-              <th style="${TH}" title="Etapa 1 já visitados">Etapa 1</th>
-              <th style="${TH}" title="Erros CNEFE (endereço inválido)">Erros CNEFE</th>
-              <th style="${TH}" title="Sem moradores cadastrados">DPPOMA</th>
-              <th style="${TH}">% Acerto</th>
-            </tr></thead>
-            <tbody>${rows}</tbody>
-            <tfoot><tr style="background:#EEEDE8;border-top:0.5px solid #D3D1C7;font-weight:600">
-              <td style="${TDL}">Total</td>
-              <td style="${TD}">—</td>
-              <td style="${TD}">—</td>
-              <td style="${TD}">${somaTotal}</td>
-              <td style="${TD}">${somaVisit}</td>
-              <td style="${TD};color:${somaErros>0?'#A02020':'#2C7A4B'}">${somaErros}</td>
-              <td style="${TD};color:${somaDppoma>0?'#8A5100':'#444441'}">${somaDppoma}</td>
-              <td style="${TD};color:${pctTotalCor}">${pctTotal}</td>
-            </tr></tfoot>
-          </table>
-        </div>`;
-      })();
-      html = htmlControle + html;
     }
 
     // ── Setores sem UPA ─────────────────────────────────────────────────────────
