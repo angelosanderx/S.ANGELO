@@ -11719,12 +11719,11 @@ async function carregarCnefeQualidade() {
           const domsVisitados  = domsEtapa1.filter(d => !STATUS_SEM_DADO.has(d.status_atual || ''));
           const totalSetor     = domsSetor.length;
 
-          // DPPOMA: domicílios na PNAD sem moradores cadastrados (qualquer etapa, exceto erros CNEFE)
+          // DPPOMA: domicílios na PNAD sem moradores cadastrados (qualquer etapa, qualquer status)
           // Considera tanto moradores PNAD (qtd_moradores_pnad) quanto morador CNEFE (morador_cnefe/morador)
           const dppoma = domsSetor.filter(d =>
             !(d.qtd_moradores_pnad > 0) &&
-            !(d.morador_cnefe || d.morador) &&
-            !STATUS_ERRO_CNEFE.has(d.status_atual || '')
+            !(d.morador_cnefe || d.morador)
           );
 
           // % acerto sobre os visitados em etapa 1 (excluindo ainda não visitados)
