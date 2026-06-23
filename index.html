@@ -10517,7 +10517,7 @@ window.renderCnefeSetores = () => {
       const agNome = s.agente_nome || (_cnefeAgentesCache?.find(a => a.id === s.agente_id)?.nome) || '—';
       const locVal = (s.localidade || '').replace(/'/g, '&#39;');
       tbody += `<tr>
-        <td><code style="font-size:0.78rem;cursor:pointer;color:var(--azul-medio);text-decoration:underline dotted" onclick="abrirCnefeListagem('${s.setor}')" title="Abrir listagem de campo">${s.setor}</code></td>
+        <td style="cursor:pointer;color:var(--azul-medio);text-decoration:underline dotted" onclick="abrirCnefeListagem('${s.setor}')" title="Abrir listagem de campo"><code style="font-size:0.78rem;color:inherit">${s.setor}</code></td>
         <td style="font-size:0.82rem">${s.pesquisa}</td>
         <td style="font-size:0.82rem">${primeiroNome(agNome)}</td>
         <td style="font-size:0.82rem;min-width:130px;cursor:pointer" onclick="cnefeEditarLocalidade(this,'${s.setor}','${s.docId||''}')">
