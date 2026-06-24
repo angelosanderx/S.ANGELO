@@ -56,6 +56,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .sc-loc{font-size:.95rem;font-weight:700;color:var(--texto)}
 .sc-stats{font-size:.76rem;color:var(--cinza);margin-top:3px}
 .sc-dist{font-size:.72rem;color:var(--azul-med);margin-top:2px}
+.sc-entr{font-size:.72rem;color:var(--cinza);margin-top:2px;font-weight:600}
 .sc-barra{height:4px;border-radius:2px;background:#e2e8f0;margin-top:6px;overflow:hidden}
 .sc-barra-fill{height:100%;border-radius:2px;background:var(--verde);transition:width .3s}
 .sc-check{position:absolute;top:.75rem;right:.85rem;font-size:1.3rem;line-height:1}
@@ -1302,15 +1303,22 @@ async function carregarSetores() {
   iniciarAvisosListener(); // começa a escutar avisos assim que o usuário é identificado
   carregarUltimaAtualizacao();
   try {
-    // Domicílios deste entrevistador pelo nome
-    const qDom = query(collection(db, 'domicilios'), where('entrevistador_nome', '==', usuarioNome));
+    // Supervisor/administrador vê os domicílios de TODOS os entrevistadores;
+    // o entrevistador comum vê só os seus, filtrando pelo nome.
+    const vistaCompleta = ['supervisor','administrador'].includes(usuarioPerfil);
+    $('set-titulo').textContent = vistaCompleta ? 'Todos os setores' : 'Meus setores';
+    const qDom = vistaCompleta
+      ? query(collection(db, 'domicilios'))
+      : query(collection(db, 'domicilios'), where('entrevistador_nome', '==', usuarioNome));
     const snap  = await getDocs(qDom);
     const todos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     const comCoord = todos.filter(d => d.latitude_kml && d.longitude_kml);
 
     if (todos.length === 0) {
       mostrarTela('tela-setores');
-      $('lista-setores').innerHTML = '<div class="vazio"><div class="vazio-ico">📋</div>Nenhum domicílio atribuído a este entrevistador.</div>';
+      $('lista-setores').innerHTML = vistaCompleta
+        ? '<div class="vazio"><div class="vazio-ico">📋</div>Nenhum domicílio cadastrado ainda.</div>'
+        : '<div class="vazio"><div class="vazio-ico">📋</div>Nenhum domicílio atribuído a este entrevistador.</div>';
       return;
     }
     if (comCoord.length === 0) {
@@ -1470,7 +1478,11 @@ function _htmlSetorCard(s) {
   const dist = s._dist != null && s._dist < Infinity
     ? (s._dist < 1000 ? `📍 ${Math.round(s._dist)}m` : `📍 ${(s._dist/1000).toFixed(1)}km`)
     : '';
-  const entr = '';
+  const vistaCompleta = ['supervisor','administrador'].includes(usuarioPerfil);
+  const nomeEntr = [...new Set(s.doms.map(d => d.entrevistador_nome).filter(Boolean))];
+  const entr = vistaCompleta && nomeEntr.length
+    ? `<div class="sc-entr">👤 ${nomeEntr.map(n=>n.split(' ')[0]).join(', ')}</div>`
+    : '';
   return `<div class="setor-card${concluido?' concluido':''}" onclick="selecionarSetor('${s.upa}')">
     ${concluido ? `<div class="sc-check">✅</div>` : ''}
     <div class="sc-code">${s.upa}</div>
@@ -1527,8 +1539,9 @@ window.abrirMapaGeral = async () => {
   const todosOsMeus = mySectors.flatMap(s => s.doms);
   if (!todosOsMeus.length) { toast('Nenhum domicílio carregado', 'erro'); return; }
   mostrarTela('tela-mapa');
+  const vistaCompleta = ['supervisor','administrador'].includes(usuarioPerfil);
   $('topbar-setor').textContent = 'Mapa geral';
-  $('topbar-localidade').textContent = usuarioNome + ' — todos os setores';
+  $('topbar-localidade').textContent = vistaCompleta ? 'Todos os entrevistadores — todos os setores' : (usuarioNome + ' — todos os setores');
   fecharTudo();
   const L = await Lp;
   if (mapaInst) { try { mapaInst.remove(); } catch(_){} mapaInst = null; }
@@ -1546,10 +1559,13 @@ window.abrirMapaGeral = async () => {
   renderDoms(L);
   atualizarStats();
   iniciarGPSWatch(L);
-  // Real-time: escuta por entrevistador_nome (todos os UPAs de uma vez)
+  // Real-time: para supervisor/administrador, escuta a coleção inteira;
+  // para entrevistador comum, só os seus (por entrevistador_nome).
   if (unsub) unsub();
   unsub = onSnapshot(
-    query(collection(db, 'domicilios'), where('entrevistador_nome', '==', usuarioNome)),
+    vistaCompleta
+      ? query(collection(db, 'domicilios'))
+      : query(collection(db, 'domicilios'), where('entrevistador_nome', '==', usuarioNome)),
     snap => {
       domicilios = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       renderDoms(L);
@@ -1703,7 +1719,7 @@ window.voltarSetores = () => {
   fecharTudo();
   // Reset state
   mapaGeral = false; domParaAbrir = null;
-  $('set-titulo').textContent = 'Meus setores';
+  $('set-titulo').textContent = ['supervisor','administrador'].includes(usuarioPerfil) ? 'Todos os setores' : 'Meus setores';
   // Restore tab
   abaAtual = 'setores';
   ['setores','pendencias','solicitacoes','avisos'].forEach(t => {
