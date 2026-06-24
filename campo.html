@@ -243,6 +243,33 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .btn-confirmar:disabled{opacity:.5}
 .btn-confirmar:active{opacity:.85}
 
+/* MODAL CONFIRMAÇÃO MORADOR */
+#modal-confirm-morador{
+  position:fixed;inset:0;z-index:1100;
+  background:rgba(0,0,0,.55);
+  display:flex;align-items:flex-end;justify-content:center;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+#modal-confirm-morador.hidden{display:none}
+.mcm-box{
+  background:#fff;border-radius:20px 20px 0 0;
+  width:100%;max-width:480px;
+  padding:1.5rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom));
+  text-align:center;
+}
+.mcm-icon{font-size:3rem;margin-bottom:.5rem}
+.mcm-aviso{font-size:.78rem;font-weight:700;color:var(--vermelho);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem}
+.mcm-nome{font-size:1.3rem;font-weight:800;color:var(--texto);margin:.6rem 0 .9rem;line-height:1.2;word-break:break-word}
+.mcm-label{display:flex;align-items:center;gap:.6rem;background:#fef2f2;border:2px solid #fca5a5;border-radius:12px;padding:.85rem 1rem;cursor:pointer;text-align:left;margin-bottom:1rem}
+.mcm-label input[type=checkbox]{width:22px;height:22px;flex-shrink:0;cursor:pointer;accent-color:var(--vermelho)}
+.mcm-label span{font-size:.88rem;font-weight:600;color:#b91c1c;line-height:1.35}
+.mcm-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mcm-btn{padding:.8rem;border-radius:11px;font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;border:none;transition:opacity .1s}
+.mcm-btn:active{opacity:.8}
+.mcm-btn.cancelar{background:var(--cinza-claro);color:var(--texto)}
+.mcm-btn.confirmar{background:var(--vermelho);color:#fff}
+.mcm-btn.confirmar:disabled{opacity:.35;cursor:not-allowed}
+
 /* TOAST */
 #toast{
   position:fixed;bottom:calc(env(safe-area-inset-bottom) + 74px);
@@ -450,6 +477,24 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   <div class="sol-grid" id="sol-grid"></div>
   <textarea id="sol-obs" class="campo-obs" placeholder="Observação (opcional)"></textarea>
   <button class="btn-confirmar" id="btn-conf-sol" onclick="confirmarSolicitar()">Confirmar</button>
+</div>
+
+<!-- MODAL: confirmar morador ao solicitar carta -->
+<div id="modal-confirm-morador" class="hidden">
+  <div class="mcm-box">
+    <div class="mcm-icon">⚠️</div>
+    <div class="mcm-aviso">Atenção — confirme antes de solicitar</div>
+    <div style="font-size:.83rem;color:var(--cinza);margin-bottom:.3rem">O nome do morador principal é:</div>
+    <div class="mcm-nome" id="mcm-nome-morador">—</div>
+    <label class="mcm-label">
+      <input type="checkbox" id="mcm-check" onchange="mcmAtualizarBtn()">
+      <span>Confirmo que o nome do morador está <strong>correto e atualizado</strong> no sistema</span>
+    </label>
+    <div class="mcm-btns">
+      <button class="mcm-btn cancelar" onclick="fecharConfirmMorador()">Cancelar</button>
+      <button class="mcm-btn confirmar" id="mcm-btn-confirmar" disabled onclick="mcmConfirmar()">Solicitar carta</button>
+    </div>
+  </div>
 </div>
 
 <!-- TOAST -->
@@ -1285,36 +1330,63 @@ window.fecharPanelSolicitar = () => {
   $('overlay').classList.remove('show');
 };
 
-window.confirmarSolicitar = async () => {
+window.confirmarSolicitar = () => {
   if (!solSel||!domAtivo) { toast('Selecione o tipo de solicitação'); return; }
+  const tipo = SOL_TIPOS.find(t => t.id === solSel);
+  // Cartas exigem confirmação do morador
+  if (tipo?.status === 'carta_solicitada') {
+    const morador = domAtivo.morador_cnefe || domAtivo.morador || '(sem nome cadastrado)';
+    $('mcm-nome-morador').textContent = morador;
+    $('mcm-check').checked = false;
+    $('mcm-btn-confirmar').disabled = true;
+    $('modal-confirm-morador').classList.remove('hidden');
+    return;
+  }
+  _gravarSolicitar();
+};
+
+window.fecharConfirmMorador = () => {
+  $('modal-confirm-morador').classList.add('hidden');
+};
+
+window.mcmAtualizarBtn = () => {
+  $('mcm-btn-confirmar').disabled = !$('mcm-check').checked;
+};
+
+window.mcmConfirmar = () => {
+  $('modal-confirm-morador').classList.add('hidden');
+  _gravarSolicitar();
+};
+
+async function _gravarSolicitar() {
   const btn = $('btn-conf-sol');
   btn.disabled = true; btn.textContent = 'Salvando…';
   try {
     const obs  = $('sol-obs').value.trim();
     const tipo = SOL_TIPOS.find(t => t.id === solSel);
     const novaSol = {
-      id:             Date.now().toString(36) + Math.random().toString(36).slice(2,6),
-      tipo:           solSel,
-      obs:            obs || null,
-      criado_em_ts:   Date.now(),
+      id:              Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      tipo:            solSel,
+      obs:             obs || null,
+      criado_em_ts:    Date.now(),
       criado_por_nome: usuarioNome,
     };
     const update = { solicitacoes: arrayUnion(novaSol), ultima_visita: serverTimestamp() };
     if (tipo?.status) update.status_atual = tipo.status;
     await updateDoc(doc(db, 'domicilios', domAtivo.id), update);
     await addDoc(collection(db, 'visitas'), {
-      domicilio_id:     domAtivo.id,
+      domicilio_id:       domAtivo.id,
       entrevistador_nome: usuarioNome,
-      data_visita:      serverTimestamp(),
-      status:           tipo?.status || domAtivo.status_atual || 'nao_visitado',
-      tipo_solicitacao: solSel,
-      observacao:       (tipo?.label||solSel) + (obs?' — '+obs:''),
+      data_visita:        serverTimestamp(),
+      status:             tipo?.status || domAtivo.status_atual || 'nao_visitado',
+      tipo_solicitacao:   solSel,
+      observacao:         (tipo?.label||solSel) + (obs?' — '+obs:''),
     });
     toast(`${tipo?.label||'Solicitação'} registrada!`, 'ok');
     fecharPanelSolicitar();
   } catch(e) { toast('Erro: ' + e.message, 'erro'); }
   finally { btn.disabled = false; btn.textContent = 'Confirmar'; }
-};
+}
 
 /* ── KEYBOARD ─────────────────────────────────────────── */
 document.addEventListener('keydown', e => { if(e.key==='Escape') fecharTudo(); });
