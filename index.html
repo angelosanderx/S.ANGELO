@@ -6926,15 +6926,16 @@ function _buildCronGrid() {
           if (m.hora) inner += `<div class="cron-card-hdr"><span class="cron-hd-hora">${m.hora}</span>${span>1?`<span class="cron-hd-span"> · ${span}d</span>`:''}</div>`;
           m.upas.forEach((upa, si) => {
             if (!upa) return;
+            const isLivre = m.tipos[si] === 'livre';
             const loc  = m.locs[si] || (_localidadesCache || {})[upa] || '';
             const tipo = m.tipos[si] || m.tipos[0] || '';
-            const isPend = tipo === 'Pendências';
-            const setorInfo = _cronSetores.find(s => s.upa === upa);
+            const isPend = !isLivre && tipo === 'Pendências';
+            const setorInfo = isLivre ? null : _cronSetores.find(s => s.upa === upa);
             const etapas = setorInfo?.etapas || [];
-            const etBadges = etapas.map(e => { const bd=_CRON_BADGE[e]||{bg:'#eee',c:'#333'}; return `<span class="cron-etapa-badge" style="background:${bd.bg};color:${bd.c}">E${e}</span>`; }).join('');
-            const upaSuf = String(upa).slice(-4);
+            const etBadges = isLivre ? '' : etapas.map(e => { const bd=_CRON_BADGE[e]||{bg:'#eee',c:'#333'}; return `<span class="cron-etapa-badge" style="background:${bd.bg};color:${bd.c}">E${e}</span>`; }).join('');
+            const codeHtml = isLivre ? '<span class="cron-setor-code">✎</span>' : `<span class="cron-setor-code">${String(upa).slice(-4)}</span>`;
             const bgStyle = isPend ? 'background:#F5F2EE;border-left:3px solid #B8A898' : 'background:rgba(255,255,255,0.6)';
-            inner += `<div class="cron-setor-item" style="${bgStyle}">${etBadges}<span class="cron-setor-code">${upaSuf}</span><span class="cron-setor-nome" title="${loc}">${loc||upa}</span></div>`;
+            inner += `<div class="cron-setor-item" style="${bgStyle}">${etBadges}${codeHtml}<span class="cron-setor-nome" title="${loc}">${loc||(isLivre?'':upa)}</span></div>`;
           });
         });
 
@@ -7016,7 +7017,7 @@ async function _cronCarregarEntrevs() {
 
 window.cronAddDia = async () => {
   await _cronCarregarEntrevs();
-  _cronPopState = { gk:'', dia:'', data_fim:'', hora:'', nomes:[], upas:[], missions:[] };
+  _cronPopState = { gk:'', dia:'', data_fim:'', hora:'', nomes:[], upas:[], textosLivres:[], missions:[] };
   _cronShowPopover(document.querySelector('.cron-add-dia-btn') || document.getElementById('cron-filtros-wrap'));
 };
 
@@ -7044,16 +7045,25 @@ window.cronOpenCell = async (el) => {
   }
 
   const nomes = (!gk || gk==='—') ? [] : gk.split('|');
-  let hora='', data_fim='', upas=[];
+  let hora='', data_fim='', upas=[], textosLivres=[];
   if (missions.length && dia) {
     const {liIdx, eqIdx} = missions[0];
     hora = _cronLinhas[liIdx]?.hora || '';
     data_fim = _cronLinhas[liIdx]?.data_fim || '';
     const eq = _cronLinhas[liIdx]?.equipes?.[eqIdx];
-    if (eq) upas = (eq.upas||[]).filter(Boolean);
+    if (eq) {
+      const rawUpas = eq.upas || [];
+      const rawTipos = eq.tipos || [];
+      const rawLocs  = eq.localidades || [];
+      rawUpas.forEach((u, i) => {
+        if (!u) return;
+        if (rawTipos[i] === 'livre') textosLivres.push(rawLocs[i] || '');
+        else upas.push(u);
+      });
+    }
   }
 
-  _cronPopState = { gk, dia, data_fim, hora, nomes:[...nomes], upas:[...upas], missions };
+  _cronPopState = { gk, dia, data_fim, hora, nomes:[...nomes], upas:[...upas], textosLivres, missions };
   await _cronCarregarEntrevs();
   _cronShowPopover(el);
 };
@@ -7061,8 +7071,19 @@ window.cronOpenCell = async (el) => {
 function _cronEntrevsHtml() {
   const s = _cronPopState;
   const users = _cronEntrevsCache || [];
-  if (!users.length) return '<span style="color:var(--cinza);font-size:10px">Nenhum entrevistador cadastrado.</span>';
-  return users.map(u => {
+  const knownNomes = new Set(users.map(u => u.nome));
+  const livresHtml = (s.nomes||[]).filter(n => !knownNomes.has(n)).map(n => {
+    const cor = corEntrevistador(n);
+    const ini = (n.trim().charAt(0)||'?').toUpperCase();
+    const nEsc = n.replace(/"/g,'&quot;');
+    const nomeEsc = n.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div class="cron-pop-check-item checked">
+      <span class="cron-avatar-circ" style="background:${cor}22;border:1.5px solid ${cor};color:${cor};width:16px;height:16px;font-size:7px;flex-shrink:0">${ini}</span>
+      <span style="font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${nEsc}">${nEsc}</span>
+      <button type="button" class="cron-pop-del" onclick="cronPopRemoveEntrevLivre('${nomeEsc}')">×</button>
+    </div>`;
+  }).join('');
+  const usersHtml = !users.length ? '' : users.map(u => {
     const checked = s.nomes.includes(u.nome) ? 'checked' : '';
     const cor = corEntrevistador(u.nome);
     const ini = u.nome.trim().charAt(0).toUpperCase();
@@ -7073,12 +7094,21 @@ function _cronEntrevsHtml() {
       <span style="font-size:11px">${u.nome.split(' ')[0]}</span>
     </label>`;
   }).join('');
+  if (!livresHtml && !usersHtml) return '<span style="color:var(--cinza);font-size:10px">Nenhum entrevistador cadastrado.</span>';
+  return livresHtml + usersHtml;
 }
 
 function _cronSetoresCheckHtml() {
   const s = _cronPopState;
-  if (!_cronSetores.length) return '<span style="color:var(--cinza);font-size:10px">Nenhum setor nesta semana.</span>';
-  return _cronSetores.map(st => {
+  const livresHtml = (s.textosLivres||[]).map((txt, idx) => {
+    const txtEsc = txt.replace(/"/g,'&quot;');
+    return `<div class="cron-pop-check-item checked">
+      <span class="cron-setor-code" style="min-width:30px;flex-shrink:0">✎</span>
+      <span style="font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${txtEsc}">${txtEsc}</span>
+      <button type="button" class="cron-pop-del" onclick="cronPopRemoveSetorLivre(${idx})">×</button>
+    </div>`;
+  }).join('');
+  const setoresHtml = !_cronSetores.length ? '' : _cronSetores.map(st => {
     const checked = s.upas.includes(st.upa) ? 'checked' : '';
     const etStr = st.etapas.map(e => { const bd=_CRON_BADGE[e]||{bg:'#eee',c:'#333'}; return `<span class="cron-etapa-badge" style="background:${bd.bg};color:${bd.c}">E${e}</span>`; }).join('');
     const upaEsc = st.upa.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
@@ -7089,6 +7119,8 @@ function _cronSetoresCheckHtml() {
       <span style="font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${st.localidade||''}">${st.localidade || st.label || st.upa}</span>
     </label>`;
   }).join('');
+  if (!livresHtml && !setoresHtml) return '<span style="color:var(--cinza);font-size:10px">Nenhum setor nesta semana.</span>';
+  return livresHtml + setoresHtml;
 }
 
 function _cronShowPopover(anchorEl) {
@@ -7120,6 +7152,10 @@ function _cronShowPopover(anchorEl) {
     <div class="cron-pop-field">
       <label class="cron-pop-label">Setores (${_cronSetores.length} nesta semana)</label>
       <div class="cron-pop-check-grid" id="pop-setores-list">${_cronSetoresCheckHtml()}</div>
+      <div class="cron-pop-setor-row" style="margin-top:4px">
+        <input type="text" id="pop-setor-livre-input" class="cron-pop-setor-loc" placeholder="Outro setor (texto livre)" onkeydown="if(event.key==='Enter'){event.preventDefault();cronPopAddSetorLivre();}">
+      </div>
+      <button type="button" class="cron-pop-add" onclick="cronPopAddSetorLivre()">+ adicionar texto livre</button>
     </div>`;
 
   const pop = document.createElement('div');
@@ -7132,6 +7168,10 @@ function _cronShowPopover(anchorEl) {
       <div class="cron-pop-field">
         <label class="cron-pop-label">Equipe</label>
         <div class="cron-pop-check-grid" id="pop-entrevs-list">${_cronEntrevsHtml()}</div>
+        <div class="cron-pop-setor-row" style="margin-top:4px">
+          <input type="text" id="pop-entrev-livre-input" class="cron-pop-setor-loc" placeholder="Outro integrante (texto livre)" onkeydown="if(event.key==='Enter'){event.preventDefault();cronPopAddEntrevLivre();}">
+        </div>
+        <button type="button" class="cron-pop-add" onclick="cronPopAddEntrevLivre()">+ adicionar integrante</button>
       </div>
       ${setoresHtml}
     </div>
@@ -7170,7 +7210,8 @@ window.cronPopToggleEntrev = (nome, checked) => {
   if (checked) { if (!_cronPopState.nomes.includes(nome)) _cronPopState.nomes.push(nome); }
   else _cronPopState.nomes = _cronPopState.nomes.filter(n => n !== nome);
   document.querySelectorAll('#pop-entrevs-list .cron-pop-check-item').forEach(lb => {
-    lb.classList.toggle('checked', lb.querySelector('input')?.checked || false);
+    const inp = lb.querySelector('input[type=checkbox]');
+    if (inp) lb.classList.toggle('checked', inp.checked);
   });
 };
 
@@ -7179,8 +7220,45 @@ window.cronPopToggleSetor = (upa, checked) => {
   if (checked) { if (!_cronPopState.upas.includes(upa)) _cronPopState.upas.push(upa); }
   else _cronPopState.upas = _cronPopState.upas.filter(u => u !== upa);
   document.querySelectorAll('#pop-setores-list .cron-pop-check-item').forEach(lb => {
-    lb.classList.toggle('checked', lb.querySelector('input')?.checked || false);
+    const inp = lb.querySelector('input[type=checkbox]');
+    if (inp) lb.classList.toggle('checked', inp.checked);
   });
+};
+
+window.cronPopAddEntrevLivre = () => {
+  if (!_cronPopState) return;
+  const inp = document.getElementById('pop-entrev-livre-input');
+  const val = (inp?.value || '').trim();
+  if (!val) return;
+  if (!_cronPopState.nomes.includes(val)) _cronPopState.nomes.push(val);
+  if (inp) inp.value = '';
+  const list = document.getElementById('pop-entrevs-list');
+  if (list) list.innerHTML = _cronEntrevsHtml();
+};
+
+window.cronPopRemoveEntrevLivre = (nome) => {
+  if (!_cronPopState) return;
+  _cronPopState.nomes = _cronPopState.nomes.filter(n => n !== nome);
+  const list = document.getElementById('pop-entrevs-list');
+  if (list) list.innerHTML = _cronEntrevsHtml();
+};
+
+window.cronPopAddSetorLivre = () => {
+  if (!_cronPopState) return;
+  const inp = document.getElementById('pop-setor-livre-input');
+  const val = (inp?.value || '').trim();
+  if (!val) return;
+  _cronPopState.textosLivres.push(val);
+  if (inp) inp.value = '';
+  const list = document.getElementById('pop-setores-list');
+  if (list) list.innerHTML = _cronSetoresCheckHtml();
+};
+
+window.cronPopRemoveSetorLivre = (idx) => {
+  if (!_cronPopState) return;
+  _cronPopState.textosLivres.splice(idx, 1);
+  const list = document.getElementById('pop-setores-list');
+  if (list) list.innerHTML = _cronSetoresCheckHtml();
 };
 
 window.cronSavePopover = async () => {
@@ -7198,6 +7276,11 @@ window.cronSavePopover = async () => {
   const upas  = s.upas.filter(Boolean);
   const locs  = upas.map(u => (_localidadesCache||{})[u] || _cronSetores.find(st=>st.upa===u)?.localidade || '');
   const tipos = upas.map(() => '');
+  (s.textosLivres||[]).forEach((txt, i) => {
+    upas.push(`_livre_${Date.now()}_${i}`);
+    locs.push(txt);
+    tipos.push('livre');
+  });
   if (!upas.length) { upas.push(''); locs.push(''); tipos.push(''); }
 
   if (isNameEdit) {
