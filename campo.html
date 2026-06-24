@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1e3a5f">
+<title>PNAD-C · Campo</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --azul:#1e3a5f; --azul-med:#2563eb; --verde:#16a34a; --vermelho:#dc2626;
+  --amarelo:#d97706; --laranja:#ea580c; --roxo:#7c3aed; --cinza:#64748b;
+  --cinza-claro:#f1f5f9; --branco:#ffffff; --texto:#1e293b; --borda:#e2e8f0;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#000}
+
+/* TELAS */
+.tela{position:fixed;inset:0;display:flex;flex-direction:column}
+.hidden{display:none!important}
+
+/* LOADING */
+#tela-loading{background:var(--azul);align-items:center;justify-content:center;gap:1rem;color:#fff}
+.spinner{width:38px;height:38px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .75s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* AUTH */
+#tela-login,#tela-pin{background:var(--azul);align-items:center;justify-content:center;padding:2rem 1.5rem}
+.auth-card{background:#fff;border-radius:18px;padding:2rem 1.5rem;width:100%;max-width:330px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.auth-logo{font-size:2.2rem;margin-bottom:.65rem}
+.auth-card h1{font-size:1.2rem;color:var(--azul);font-weight:700;margin-bottom:.2rem}
+.auth-sub{font-size:.78rem;color:var(--cinza);margin-bottom:1.4rem}
+.campo-inp{width:100%;padding:.75rem 1rem;border:1.5px solid var(--borda);border-radius:9px;font-size:1rem;margin-bottom:.7rem;outline:none;font-family:inherit;color:var(--texto)}
+.campo-inp:focus{border-color:var(--azul-med)}
+.btn-primary{width:100%;padding:.85rem;background:var(--azul);color:#fff;border:none;border-radius:9px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .15s}
+.btn-primary:active{opacity:.85}
+.btn-link{background:none;border:none;color:var(--azul-med);font-size:.82rem;cursor:pointer;margin-top:.9rem;font-family:inherit;padding:.4rem}
+.msg-erro{color:var(--vermelho);font-size:.8rem;margin-top:.5rem;min-height:1.2em}
+
+/* PIN */
+.pin-dots{display:flex;justify-content:center;gap:14px;margin:1.2rem 0 .8rem}
+.pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid #cbd5e1;background:transparent;transition:background .1s,border-color .1s}
+.pin-dot.filled{background:var(--azul);border-color:var(--azul)}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:.4rem}
+.np-btn{background:var(--cinza-claro);border:none;border-radius:9px;height:52px;font-size:1.3rem;font-weight:600;color:var(--texto);cursor:pointer;font-family:inherit;transition:background .1s}
+.np-btn:active{background:#dde3ec}
+.np-btn.apagar{font-size:1rem;color:var(--cinza)}
+.np-btn.vazio{background:transparent;cursor:default}
+
+/* SETOR LIST */
+#tela-setores{background:var(--cinza-claro)}
+.set-header{background:var(--azul);padding:calc(env(safe-area-inset-top) + .9rem) 1rem .9rem;color:#fff;flex-shrink:0}
+.set-header h2{font-size:1.05rem;font-weight:700}
+.set-header p{font-size:.78rem;opacity:.8;margin-top:2px}
+#lista-setores{flex:1;overflow-y:auto;padding:.65rem}
+.setor-card{background:#fff;border-radius:11px;padding:.85rem 1rem;margin-bottom:.5rem;box-shadow:0 1px 4px rgba(0,0,0,.08);cursor:pointer;border:2px solid transparent;transition:border-color .15s,box-shadow .15s}
+.setor-card:active{border-color:var(--azul-med);box-shadow:0 2px 12px rgba(37,99,235,.15)}
+.sc-code{font-size:.7rem;color:var(--cinza);font-family:monospace;margin-bottom:2px}
+.sc-loc{font-size:.95rem;font-weight:700;color:var(--texto)}
+.sc-stats{font-size:.76rem;color:var(--cinza);margin-top:3px}
+.sc-dist{font-size:.72rem;color:var(--azul-med);margin-top:2px}
+.sc-barra{height:4px;border-radius:2px;background:#e2e8f0;margin-top:6px;overflow:hidden}
+.sc-barra-fill{height:100%;border-radius:2px;background:var(--verde);transition:width .3s}
+
+/* MAPA */
+#tela-mapa{background:#1a1a2e}
+#topbar{
+  position:absolute;top:0;left:0;right:0;z-index:800;
+  background:var(--azul);
+  padding:calc(env(safe-area-inset-top) + .45rem) .7rem .45rem;
+  display:flex;align-items:center;gap:.5rem;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);
+}
+.tb-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:8px;font-size:1.15rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .1s}
+.tb-btn:active{background:rgba(255,255,255,.3)}
+#topbar-info{flex:1;min-width:0;line-height:1.25}
+#topbar-setor{font-size:.68rem;color:rgba(255,255,255,.65);display:block;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#topbar-localidade{font-size:.88rem;color:#fff;font-weight:700;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#topbar-stats{font-size:.68rem;color:rgba(255,255,255,.8);white-space:nowrap;flex-shrink:0}
+#mapa{position:absolute;top:calc(env(safe-area-inset-top) + 52px);left:0;right:0;bottom:0}
+
+/* FABs */
+#fab-gps{
+  position:absolute;bottom:calc(env(safe-area-inset-bottom) + 14px);right:12px;z-index:700;
+  width:46px;height:46px;border-radius:50%;background:#fff;
+  box-shadow:0 2px 10px rgba(0,0,0,.22);
+  display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;
+  transition:transform .1s;
+}
+#fab-gps:active{transform:scale(.9)}
+#fab-gps.ativo{background:var(--azul-med)}
+
+/* LAYER PANEL */
+#layer-panel{
+  position:absolute;top:calc(env(safe-area-inset-top) + 58px);right:8px;z-index:700;
+  background:#fff;border-radius:11px;padding:10px 13px;
+  box-shadow:0 2px 12px rgba(0,0,0,.15);min-width:136px;
+}
+.layer-item{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:.82rem;cursor:pointer;color:var(--texto)}
+.layer-item input{cursor:pointer;accent-color:var(--azul-med)}
+
+/* LEGENDA */
+#legenda{
+  position:absolute;top:calc(env(safe-area-inset-top) + 58px);left:8px;z-index:700;
+  background:rgba(255,255,255,.93);backdrop-filter:blur(4px);
+  border-radius:9px;padding:7px 9px;
+  box-shadow:0 1px 6px rgba(0,0,0,.12);
+}
+.leg-item{display:flex;align-items:center;gap:5px;margin-bottom:2px;font-size:9.5px;color:var(--texto)}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;border:1px solid rgba(0,0,0,.1)}
+
+/* OVERLAY */
+#overlay{position:fixed;inset:0;z-index:850;background:rgba(0,0,0,.38);display:none}
+#overlay.show{display:block}
+
+/* BOTTOM SHEET */
+#bottom-sheet{
+  position:absolute;bottom:0;left:0;right:0;z-index:900;
+  background:#fff;border-radius:16px 16px 0 0;
+  box-shadow:0 -4px 20px rgba(0,0,0,.15);
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+  padding-bottom:calc(env(safe-area-inset-bottom) + .5rem);
+  max-height:75vh;overflow-y:auto;
+}
+#bottom-sheet.hidden{transform:translateY(110%);display:block!important}
+.bs-handle{width:38px;height:4px;border-radius:2px;background:#dde3ec;margin:8px auto 0}
+.bs-header{display:flex;align-items:flex-start;justify-content:space-between;padding:.7rem 1rem 0;gap:.5rem}
+.bs-titulo{font-size:1rem;font-weight:700;color:var(--texto)}
+.bs-sub{font-size:.75rem;color:var(--cinza);margin-top:1px}
+.status-pill{padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700;letter-spacing:.3px;white-space:nowrap;flex-shrink:0;margin-top:2px}
+.bs-close{background:var(--cinza-claro);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:.85rem;color:var(--cinza);flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.bs-info{padding:.55rem 1rem .7rem;display:flex;flex-direction:column;gap:3px}
+.bs-row{font-size:.82rem;color:var(--texto);line-height:1.4}
+.bs-row .lbl{color:var(--cinza);font-size:.72rem}
+.bs-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 1rem .9rem}
+.bs-btn{background:var(--cinza-claro);border:1.5px solid var(--borda);border-radius:11px;padding:.65rem .5rem;font-size:.73rem;font-weight:600;color:var(--texto);cursor:pointer;text-align:center;font-family:inherit;transition:background .1s,border-color .1s}
+.bs-btn:active{background:#e2e8f0;border-color:#b0bec5}
+.bs-ico{font-size:1.3rem;display:block;margin-bottom:3px}
+
+/* PANELS */
+.panel{
+  position:absolute;bottom:0;left:0;right:0;z-index:960;
+  background:#fff;border-radius:16px 16px 0 0;
+  box-shadow:0 -4px 24px rgba(0,0,0,.2);
+  padding:0 1rem calc(env(safe-area-inset-bottom) + 1rem);
+  max-height:82vh;overflow-y:auto;
+  transition:transform .25s ease;
+}
+.panel.hidden{transform:translateY(110%);display:block!important}
+.panel-handle{width:38px;height:4px;border-radius:2px;background:#dde3ec;margin:8px auto .8rem}
+.panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem}
+.panel-header h3{font-size:.95rem;font-weight:700;color:var(--texto)}
+.panel-close{background:var(--cinza-claro);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;color:var(--cinza);display:flex;align-items:center;justify-content:center;font-size:.85rem}
+
+/* STATUS */
+.status-grid{display:flex;flex-direction:column;gap:6px;margin-bottom:.9rem}
+.status-opt{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;border:2px solid var(--borda);cursor:pointer;transition:border-color .12s,background .12s}
+.status-opt.sel{border-color:var(--azul-med);background:#eff6ff}
+.status-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.status-lbl{font-size:.88rem;font-weight:500;color:var(--texto)}
+
+/* SOLICITAR */
+.sol-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:.9rem}
+.sol-btn{padding:10px 7px;border-radius:10px;border:2px solid var(--borda);cursor:pointer;background:#fff;font-size:.76rem;font-weight:500;text-align:center;color:var(--texto);font-family:inherit;transition:border-color .12s,background .12s,color .12s}
+.sol-btn.sel{border-color:var(--azul-med);background:#eff6ff;color:var(--azul-med);font-weight:700}
+.sol-ico{font-size:1.15rem;display:block;margin-bottom:3px}
+.campo-obs{width:100%;border:1.5px solid var(--borda);border-radius:9px;padding:.6rem .75rem;font-size:.85rem;font-family:inherit;resize:none;height:70px;margin-bottom:.75rem;outline:none;color:var(--texto)}
+.campo-obs:focus{border-color:var(--azul-med)}
+.btn-confirmar{width:100%;padding:.85rem;background:var(--azul);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .15s}
+.btn-confirmar:disabled{opacity:.5}
+.btn-confirmar:active{opacity:.85}
+
+/* TOAST */
+#toast{
+  position:fixed;bottom:calc(env(safe-area-inset-bottom) + 74px);
+  left:50%;transform:translateX(-50%) translateY(6px);
+  background:#1e293b;color:#fff;
+  padding:9px 20px;border-radius:20px;
+  font-size:.83rem;z-index:9999;white-space:nowrap;
+  opacity:0;transition:opacity .25s,transform .25s;
+  pointer-events:none;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* VAZIO */
+.vazio{padding:2rem;text-align:center;color:var(--cinza);font-size:.88rem;line-height:1.6}
+.vazio-ico{font-size:2rem;margin-bottom:.5rem}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="tela-loading" class="tela">
+  <div class="spinner"></div>
+  <p style="color:rgba(255,255,255,.75);font-size:.82rem;margin-top:.5rem">Iniciando…</p>
+</div>
+
+<!-- LOGIN -->
+<div id="tela-login" class="tela hidden">
+  <div class="auth-card">
+    <div class="auth-logo">📋</div>
+    <h1>PNAD-C Campo</h1>
+    <p class="auth-sub">IBGE · Campos dos Goytacazes</p>
+    <input class="campo-inp" type="email" id="login-email" placeholder="E-mail" autocomplete="email">
+    <input class="campo-inp" type="password" id="login-senha" placeholder="Senha" autocomplete="current-password">
+    <button class="btn-primary" id="btn-login" onclick="fazerLogin()">Entrar</button>
+    <p id="login-erro" class="msg-erro"></p>
+  </div>
+</div>
+
+<!-- PIN -->
+<div id="tela-pin" class="tela hidden">
+  <div class="auth-card">
+    <div class="auth-logo">🔑</div>
+    <h1 id="pin-titulo">Seu PIN</h1>
+    <p id="pin-nome" class="auth-sub"></p>
+    <div class="pin-dots">
+      <span class="pin-dot" id="pd0"></span>
+      <span class="pin-dot" id="pd1"></span>
+      <span class="pin-dot" id="pd2"></span>
+      <span class="pin-dot" id="pd3"></span>
+    </div>
+    <p id="pin-instrucao" style="font-size:.76rem;color:var(--cinza);margin-bottom:.7rem"></p>
+    <div class="numpad">
+      <button class="np-btn" onclick="pinDigito('1')">1</button>
+      <button class="np-btn" onclick="pinDigito('2')">2</button>
+      <button class="np-btn" onclick="pinDigito('3')">3</button>
+      <button class="np-btn" onclick="pinDigito('4')">4</button>
+      <button class="np-btn" onclick="pinDigito('5')">5</button>
+      <button class="np-btn" onclick="pinDigito('6')">6</button>
+      <button class="np-btn" onclick="pinDigito('7')">7</button>
+      <button class="np-btn" onclick="pinDigito('8')">8</button>
+      <button class="np-btn" onclick="pinDigito('9')">9</button>
+      <button class="np-btn vazio"></button>
+      <button class="np-btn" onclick="pinDigito('0')">0</button>
+      <button class="np-btn apagar" onclick="pinApagar()">⌫</button>
+    </div>
+    <p id="pin-erro" class="msg-erro"></p>
+    <button class="btn-link" onclick="sairConta()">Trocar conta</button>
+  </div>
+</div>
+
+<!-- SELEÇÃO DE SETOR -->
+<div id="tela-setores" class="tela hidden">
+  <div class="set-header">
+    <h2 id="set-titulo">Meus setores</h2>
+    <p id="set-sub">Selecione o setor que vai trabalhar hoje</p>
+  </div>
+  <div id="lista-setores"></div>
+</div>
+
+<!-- MAPA -->
+<div id="tela-mapa" class="tela hidden">
+  <div id="topbar">
+    <button class="tb-btn" onclick="voltarSetores()" title="Voltar">‹</button>
+    <div id="topbar-info">
+      <span id="topbar-setor">—</span>
+      <span id="topbar-localidade">Carregando…</span>
+    </div>
+    <span id="topbar-stats"></span>
+    <button class="tb-btn" id="btn-layers" onclick="toggleLayerPanel()" title="Camadas">☰</button>
+  </div>
+  <div id="mapa"></div>
+
+  <!-- FAB GPS -->
+  <div id="fab-gps" onclick="centrarGPS()" title="Minha posição">📍</div>
+
+  <!-- Layer Panel -->
+  <div id="layer-panel" class="hidden">
+    <div class="layer-item"><input type="checkbox" id="lyr-contorno" checked onchange="toggleLayer('contorno')"><label for="lyr-contorno">Contorno</label></div>
+    <div class="layer-item"><input type="checkbox" id="lyr-faces" checked onchange="toggleLayer('faces')"><label for="lyr-faces">Faces / Ruas</label></div>
+    <div class="layer-item"><input type="checkbox" id="lyr-doms" checked onchange="toggleLayer('doms')"><label for="lyr-doms">Domicílios</label></div>
+    <div class="layer-item"><input type="checkbox" id="lyr-gps" checked onchange="toggleLayer('gps')"><label for="lyr-gps">Minha posição</label></div>
+  </div>
+
+  <!-- Legenda -->
+  <div id="legenda">
+    <div class="leg-item"><span class="leg-dot" style="background:#94a3b8"></span>Não visitado</div>
+    <div class="leg-item"><span class="leg-dot" style="background:#60a5fa"></span>Agendado</div>
+    <div class="leg-item"><span class="leg-dot" style="background:#fbbf24"></span>Ausente</div>
+    <div class="leg-item"><span class="leg-dot" style="background:#22c55e"></span>Realizada</div>
+    <div class="leg-item"><span class="leg-dot" style="background:#ef4444"></span>Recusa</div>
+    <div class="leg-item"><span class="leg-dot" style="background:#f97316"></span>Carta</div>
+    <div class="leg-item"><span class="leg-dot" style="background:#a855f7"></span>Supervisão</div>
+  </div>
+</div>
+
+<!-- OVERLAY -->
+<div id="overlay" onclick="fecharTudo()"></div>
+
+<!-- BOTTOM SHEET: domicílio -->
+<div id="bottom-sheet" class="hidden">
+  <div class="bs-handle"></div>
+  <div class="bs-header">
+    <div style="flex:1;min-width:0">
+      <div class="bs-titulo" id="bs-titulo">—</div>
+      <div class="bs-sub" id="bs-sub">—</div>
+    </div>
+    <span class="status-pill" id="bs-pill"></span>
+    <button class="bs-close" onclick="fecharBS()">✕</button>
+  </div>
+  <div class="bs-info">
+    <div class="bs-row"><span class="lbl">Endereço </span><span id="bs-end">—</span></div>
+    <div class="bs-row"><span class="lbl">Morador CNEFE </span><span id="bs-morador">—</span></div>
+    <div class="bs-row"><span class="lbl">Entrevistador </span><span id="bs-entr">—</span></div>
+    <div class="bs-row" id="bs-sols-row" style="display:none"><span class="lbl">Solicitações </span><span id="bs-sols">—</span></div>
+  </div>
+  <div class="bs-actions">
+    <button class="bs-btn" onclick="navegarDom()"><span class="bs-ico">🗺️</span>Navegar</button>
+    <button class="bs-btn" onclick="abrirPanelSolicitar()"><span class="bs-ico">📋</span>Solicitar</button>
+    <button class="bs-btn" onclick="abrirPanelStatus()"><span class="bs-ico">✅</span>Status</button>
+  </div>
+</div>
+
+<!-- PANEL: status -->
+<div id="panel-status" class="panel hidden">
+  <div class="panel-handle"></div>
+  <div class="panel-header">
+    <h3>Registrar visita</h3>
+    <button class="panel-close" onclick="fecharPanelStatus()">✕</button>
+  </div>
+  <div class="status-grid" id="status-grid"></div>
+  <textarea id="status-obs" class="campo-obs" placeholder="Observação (opcional)"></textarea>
+  <button class="btn-confirmar" id="btn-conf-status" onclick="confirmarStatus()">Registrar</button>
+</div>
+
+<!-- PANEL: solicitar -->
+<div id="panel-solicitar" class="panel hidden">
+  <div class="panel-handle"></div>
+  <div class="panel-header">
+    <h3>Solicitar apoio</h3>
+    <button class="panel-close" onclick="fecharPanelSolicitar()">✕</button>
+  </div>
+  <div class="sol-grid" id="sol-grid"></div>
+  <textarea id="sol-obs" class="campo-obs" placeholder="Observação (opcional)"></textarea>
+  <button class="btn-confirmar" id="btn-conf-sol" onclick="confirmarSolicitar()">Confirmar</button>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp }    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+         browserLocalPersistence, setPersistence }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, collection, doc, getDoc, getDocs, query,
+         where, onSnapshot, updateDoc, addDoc, serverTimestamp, arrayUnion }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+/* ── FIREBASE ─────────────────────────────────────────── */
+const fbApp = initializeApp({
+  apiKey:            'AIzaSyABWwa6Y0SCBK8jXTNNB_zhQeIOVvfLHrI',
+  authDomain:        'pnad-c-campos.firebaseapp.com',
+  projectId:         'pnad-c-campos',
+  storageBucket:     'pnad-c-campos.firebasestorage.app',
+  messagingSenderId: '816527372751',
+  appId:             '1:816527372751:web:b7b251d0060663a384e2ba',
+});
+const auth = getAuth(fbApp);
+const db   = getFirestore(fbApp);
+await setPersistence(auth, browserLocalPersistence);
+
+/* ── ESTADO ───────────────────────────────────────────── */
+let usuario    = null;   // { uid, nome, email, role }
+let setorAtual = null;   // código UPA string
+let domicilios = [];     // doms carregados do setor atual
+let domAtivo   = null;   // dom selecionado no mapa
+let mapaInst   = null;
+let gpsWatchId = null;
+let gpsMarker  = null, gpsCircle = null;
+let unsub      = null;   // onSnapshot unsubscribe
+let pinInput   = '';
+let pinMode    = '';     // 'verificar'|'criar'|'confirmar'
+let pinTemp    = '';
+let statusSel  = null;
+let solSel     = null;
+let mySectors  = [];     // [{ upa, localidade, doms[], _dist? }]
+let gpsPos     = null;   // { lat, lng }
+let layers     = { contorno: null, faces: null, doms: null, gps: null };
+const Lp       = _carregarLeaflet();
+
+/* ── STATUS ───────────────────────────────────────────── */
+const STATUS_INFO = {
+  nao_visitado:    { cor: '#94a3b8', label: 'Não visitado' },
+  agendado:        { cor: '#60a5fa', label: 'Agendado' },
+  ausente:         { cor: '#fbbf24', label: 'Ausente' },
+  realizada:       { cor: '#22c55e', label: 'Realizada' },
+  recusa:          { cor: '#ef4444', label: 'Recusa' },
+  carta_solicitada:{ cor: '#f97316', label: 'Carta solicitada' },
+  supervisao:      { cor: '#a855f7', label: 'Supervisão' },
+  vago:            { cor: '#dc2626', label: 'Vago' },
+  uso_ocasional:   { cor: '#dc2626', label: 'Uso ocasional' },
+  inapto:          { cor: '#7f1d1d', label: 'Inapto' },
+  demolido:        { cor: '#7f1d1d', label: 'Demolido' },
+  inexistente:     { cor: '#7f1d1d', label: 'Inexistente' },
+  fechado:         { cor: '#78716c', label: 'Fechado' },
+};
+const corS = s => (STATUS_INFO[s] || STATUS_INFO.nao_visitado).cor;
+const lblS = s => (STATUS_INFO[s] || STATUS_INFO.nao_visitado).label;
+const STATUS_VISITA = ['ausente','agendado','realizada','recusa'];
+
+/* ── SOLICITAR ────────────────────────────────────────── */
+const SOL_TIPOS = [
+  { id:'carta_abertura',    ico:'📄', label:'Carta de Abertura',   status:'carta_solicitada' },
+  { id:'carta_retorno',     ico:'🔄', label:'Carta de Retorno',    status:'carta_solicitada' },
+  { id:'carta_recusa',      ico:'✉️',  label:'Carta de Recusa',     status:'carta_solicitada' },
+  { id:'apoio_supervisao',  ico:'👤', label:'Apoio Supervisão',    status:'supervisao' },
+  { id:'apoio_viatura',     ico:'🚗', label:'Apoio Viatura',       status:'supervisao' },
+  { id:'corrigir_moradores',ico:'👥', label:'Corrigir Moradores',  status: null },
+  { id:'contato_informante',ico:'📞', label:'Contato Informante',  status: null },
+  { id:'verificar_status',  ico:'🔍', label:'Verificar Status',    status: null },
+];
+
+/* ── UI HELPERS ───────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+
+function mostrarTela(id) {
+  ['tela-loading','tela-login','tela-pin','tela-setores','tela-mapa']
+    .forEach(t => $(t).classList.toggle('hidden', t !== id));
+}
+
+function toast(msg, tipo = 'info') {
+  const el = $('toast');
+  el.textContent = msg;
+  el.style.background = tipo === 'erro' ? '#dc2626' : tipo === 'ok' ? '#15803d' : '#1e293b';
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+/* ── AUTH ─────────────────────────────────────────────── */
+onAuthStateChanged(auth, async user => {
+  if (!user) { mostrarTela('tela-login'); return; }
+  try {
+    const snap = await getDoc(doc(db, 'usuarios', user.uid));
+    usuario = { uid: user.uid, email: user.email, nome: user.email, ...(snap.data() || {}) };
+  } catch(_) {
+    usuario = { uid: user.uid, email: user.email, nome: user.email };
+  }
+  const pin = localStorage.getItem('campo_pin_' + user.uid);
+  pin ? iniciarVerificarPin() : iniciarCriarPin();
+});
+
+window.fazerLogin = async () => {
+  const email = $('login-email').value.trim();
+  const senha = $('login-senha').value;
+  $('login-erro').textContent = '';
+  const btn = $('btn-login');
+  btn.disabled = true; btn.textContent = 'Entrando…';
+  try {
+    await signInWithEmailAndPassword(auth, email, senha);
+  } catch(e) {
+    $('login-erro').textContent = e.code === 'auth/invalid-credential'
+      ? 'E-mail ou senha incorretos.' : 'Erro ao entrar. Tente novamente.';
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
+};
+
+window.sairConta = async () => {
+  if (!confirm('Sair da conta?')) return;
+  if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
+  if (unsub) unsub();
+  await signOut(auth);
+};
+
+/* ── PIN ──────────────────────────────────────────────── */
+function iniciarVerificarPin() {
+  pinMode = 'verificar'; pinInput = '';
+  $('pin-titulo').textContent = 'Digite seu PIN';
+  $('pin-nome').textContent = usuario.nome || usuario.email;
+  $('pin-instrucao').textContent = 'PIN de 4 dígitos';
+  $('pin-erro').textContent = '';
+  atualizarDots(); mostrarTela('tela-pin');
+}
+
+function iniciarCriarPin() {
+  pinMode = 'criar'; pinInput = ''; pinTemp = '';
+  $('pin-titulo').textContent = 'Criar PIN de acesso';
+  $('pin-nome').textContent = usuario.nome || usuario.email;
+  $('pin-instrucao').textContent = 'Escolha um PIN de 4 dígitos';
+  $('pin-erro').textContent = '';
+  atualizarDots(); mostrarTela('tela-pin');
+}
+
+function atualizarDots() {
+  for (let i = 0; i < 4; i++)
+    $(`pd${i}`).classList.toggle('filled', i < pinInput.length);
+}
+
+window.pinDigito = d => {
+  if (pinInput.length >= 4) return;
+  pinInput += d; atualizarDots();
+  if (pinInput.length === 4) setTimeout(processarPin, 120);
+};
+
+window.pinApagar = () => { pinInput = pinInput.slice(0,-1); atualizarDots(); };
+
+async function processarPin() {
+  $('pin-erro').textContent = '';
+  if (pinMode === 'verificar') {
+    const stored = localStorage.getItem('campo_pin_' + usuario.uid);
+    if (pinInput === stored) { await carregarSetores(); }
+    else {
+      $('pin-erro').textContent = 'PIN incorreto. Tente novamente.';
+      pinInput = ''; atualizarDots();
+    }
+  } else if (pinMode === 'criar') {
+    pinTemp = pinInput; pinInput = ''; pinMode = 'confirmar';
+    $('pin-titulo').textContent = 'Confirme o PIN';
+    $('pin-instrucao').textContent = 'Digite o PIN novamente para confirmar';
+    atualizarDots();
+  } else if (pinMode === 'confirmar') {
+    if (pinInput === pinTemp) {
+      localStorage.setItem('campo_pin_' + usuario.uid, pinInput);
+      await carregarSetores();
+    } else {
+      $('pin-erro').textContent = 'PINs não coincidem. Recomeçando.';
+      pinInput = ''; pinTemp = ''; pinMode = 'criar';
+      $('pin-titulo').textContent = 'Criar PIN de acesso';
+      $('pin-instrucao').textContent = 'Escolha um PIN de 4 dígitos';
+      atualizarDots();
+    }
+  }
+}
+
+/* ── LEAFLET ──────────────────────────────────────────── */
+function _carregarLeaflet() {
+  if (window._Lp) return window._Lp;
+  return (window._Lp = new Promise(res => {
+    if (window.L) { res(window.L); return; }
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    s.onload = () => res(window.L);
+    document.head.appendChild(s);
+  }));
+}
+
+/* ── SETORES ──────────────────────────────────────────── */
+async function carregarSetores() {
+  mostrarTela('tela-loading');
+  try {
+    // Domicílios deste entrevistador com coordenadas
+    const qDom = query(collection(db, 'domicilios'), where('entrevistador_id', '==', usuario.uid));
+    const snap  = await getDocs(qDom);
+    const todos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const comCoord = todos.filter(d => d.latitude_kml && d.longitude_kml);
+
+    if (todos.length === 0) {
+      mostrarTela('tela-setores');
+      $('lista-setores').innerHTML = '<div class="vazio"><div class="vazio-ico">📋</div>Nenhum domicílio atribuído a este entrevistador.</div>';
+      return;
+    }
+    if (comCoord.length === 0) {
+      mostrarTela('tela-setores');
+      $('lista-setores').innerHTML = '<div class="vazio"><div class="vazio-ico">🗺️</div>Domicílios encontrados, mas sem coordenadas KML.<br>Peça ao supervisor para importar o KML.</div>';
+      return;
+    }
+
+    // Agrupa por UPA
+    const upaMap = {};
+    todos.forEach(d => {
+      const k = d.upa || d.controle?.slice(0,-1) || '?';
+      if (!upaMap[k]) upaMap[k] = { upa: k, doms: [] };
+      upaMap[k].doms.push(d);
+    });
+
+    // Carrega localidades
+    const locSnap = await getDocs(collection(db, 'localidades_upa')).catch(() => null);
+    const locs = {};
+    locSnap?.docs.forEach(d => { locs[d.id] = d.data().localidade || ''; });
+
+    mySectors = Object.values(upaMap).map(s => ({ ...s, localidade: locs[s.upa] || '' }));
+
+    // GPS
+    const pos = await obterGPS().catch(() => null);
+    if (pos) gpsPos = pos;
+
+    if (mySectors.length === 1) {
+      await abrirSetor(mySectors[0].upa, mySectors[0].doms);
+    } else {
+      renderListaSetores(pos);
+    }
+  } catch(e) {
+    console.error(e);
+    mostrarTela('tela-setores');
+    $('lista-setores').innerHTML = `<div class="vazio"><div class="vazio-ico">⚠️</div>Erro ao carregar: ${e.message}</div>`;
+  }
+}
+
+function obterGPS() {
+  return new Promise((res, rej) => {
+    if (!navigator.geolocation) { rej(new Error('GPS não suportado')); return; }
+    navigator.geolocation.getCurrentPosition(
+      p => res({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      e => rej(e),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+    );
+  });
+}
+
+function haversineM(lat1,lng1,lat2,lng2) {
+  const R=6371000, f1=lat1*Math.PI/180, f2=lat2*Math.PI/180;
+  const df=(lat2-lat1)*Math.PI/180, dl=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(df/2)**2+Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function renderListaSetores(pos) {
+  mostrarTela('tela-setores');
+  const lista = [...mySectors];
+  if (pos) {
+    lista.forEach(s => {
+      const valid = s.doms.filter(d => d.latitude_kml && d.longitude_kml);
+      if (!valid.length) { s._dist = Infinity; return; }
+      const lats = valid.map(d => parseFloat(d.latitude_kml));
+      const lngs = valid.map(d => parseFloat(d.longitude_kml));
+      const cLat = lats.reduce((a,b)=>a+b,0)/lats.length;
+      const cLng = lngs.reduce((a,b)=>a+b,0)/lngs.length;
+      s._dist = haversineM(pos.lat, pos.lng, cLat, cLng);
+    });
+    lista.sort((a,b) => (a._dist||Infinity)-(b._dist||Infinity));
+  }
+  $('lista-setores').innerHTML = lista.map(s => {
+    const tot  = s.doms.length;
+    const real = s.doms.filter(d => d.status_atual === 'realizada').length;
+    const pct  = tot > 0 ? Math.round(real/tot*100) : 0;
+    const dist = s._dist != null && s._dist < Infinity
+      ? (s._dist < 1000 ? `📍 ${Math.round(s._dist)}m` : `📍 ${(s._dist/1000).toFixed(1)}km`)
+      : '';
+    return `<div class="setor-card" onclick="selecionarSetor('${s.upa}')">
+      <div class="sc-code">${s.upa}</div>
+      <div class="sc-loc">${s.localidade || 'Setor sem nome'}</div>
+      <div class="sc-stats">${tot} domicílios · ${real} realizadas (${pct}%)</div>
+      ${dist ? `<div class="sc-dist">${dist}</div>` : ''}
+      <div class="sc-barra"><div class="sc-barra-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+window.selecionarSetor = async upa => {
+  const s = mySectors.find(x => x.upa === upa);
+  if (s) await abrirSetor(upa, s.doms);
+};
+
+window.voltarSetores = () => {
+  if (unsub) { unsub(); unsub = null; }
+  if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+  gpsMarker = null; gpsCircle = null;
+  fecharTudo();
+  mostrarTela('tela-setores');
+};
+
+/* ── ABRIR SETOR ──────────────────────────────────────── */
+async function abrirSetor(upa, domsIniciais) {
+  setorAtual = upa;
+  domicilios = domsIniciais || [];
+  mostrarTela('tela-mapa');
+  $('topbar-setor').textContent = upa;
+  $('topbar-localidade').textContent = mySectors.find(s=>s.upa===upa)?.localidade || `UPA ${upa}`;
+  fecharTudo();
+
+  const L = await Lp;
+  if (mapaInst) { try { mapaInst.remove(); } catch(_){} mapaInst = null; }
+  layers = { contorno: null, faces: null, doms: null, gps: null };
+  gpsMarker = null; gpsCircle = null;
+
+  const mapaDiv = $('mapa');
+  mapaInst = L.map(mapaDiv, { zoomControl: false, attributionControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaInst);
+  L.control.attribution({ position: 'bottomleft', prefix: '© OSM' }).addTo(mapaInst);
+  L.control.zoom({ position: 'bottomright' }).addTo(mapaInst);
+
+  // Centraliza provisoriamente
+  const comCoord = domicilios.filter(d => d.latitude_kml && d.longitude_kml);
+  if (comCoord.length) {
+    const b = comCoord.map(d => [parseFloat(d.latitude_kml), parseFloat(d.longitude_kml)]);
+    try { mapaInst.fitBounds(b, { padding:[30,30], maxZoom:17 }); } catch(_){}
+  } else {
+    mapaInst.setView([-21.75, -41.32], 14);
+  }
+
+  // Carrega KML e domicílios
+  await carregarKML(upa, L);
+  renderDoms(L);
+
+  // Real-time updates
+  if (unsub) unsub();
+  unsub = onSnapshot(
+    query(collection(db, 'domicilios'), where('upa', '==', upa)),
+    snap => {
+      domicilios = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderDoms(L);
+      atualizarStats();
+      if (domAtivo) {
+        const d = domicilios.find(x => x.id === domAtivo.id);
+        if (d) { domAtivo = d; preencherBS(d); }
+      }
+    },
+    e => console.error('onSnapshot:', e)
+  );
+
+  iniciarGPSWatch(L);
+  atualizarStats();
+}
+
+async function carregarKML(upa, L) {
+  try {
+    const q = query(collection(db, 'cnefe_kml'), where('setor', '==', upa));
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+    const data = snap.docs[0].data();
+
+    if (data.contorno?.length) {
+      layers.contorno = L.polygon(data.contorno, { color:'#dc2626', weight:2.5, fillOpacity:.06 });
+      if ($('lyr-contorno').checked) layers.contorno.addTo(mapaInst);
+      try { mapaInst.fitBounds(L.polygon(data.contorno).getBounds(), { padding:[20,20], maxZoom:17 }); } catch(_){}
+    }
+
+    const linhas = (data.faces || []).map(f => {
+      const ln = L.polyline(f.coords, { color:'#ca8a04', weight:1.8, opacity:.7 });
+      if (f.quadra) ln.bindPopup(`<b>Quadra ${f.quadra} · Face ${f.face||'—'}</b><br>${f.logradouro||''}${f.cep?' · CEP '+f.cep:''}`);
+      return ln;
+    });
+    if (linhas.length) {
+      layers.faces = L.layerGroup(linhas);
+      if ($('lyr-faces').checked) layers.faces.addTo(mapaInst);
+    }
+  } catch(e) { console.warn('KML:', e); }
+}
+
+/* ── MARCADORES ───────────────────────────────────────── */
+function renderDoms(L) {
+  if (!mapaInst) return;
+  if (!layers.doms) layers.doms = L.layerGroup([]);
+  layers.doms.clearLayers();
+
+  domicilios.filter(d => d.latitude_kml && d.longitude_kml).forEach(d => {
+    const lat = parseFloat(d.latitude_kml), lng = parseFloat(d.longitude_kml);
+    if (isNaN(lat)||isNaN(lng)) return;
+    const cor = corS(d.status_atual || 'nao_visitado');
+    const m = L.circleMarker([lat,lng], {
+      radius:7, color:'#fff', weight:1.8, fillColor:cor, fillOpacity:.9,
+    });
+    m.on('click', () => abrirBS(d));
+    layers.doms.addLayer(m);
+  });
+
+  if ($('lyr-doms').checked && !mapaInst.hasLayer(layers.doms))
+    layers.doms.addTo(mapaInst);
+}
+
+function atualizarStats() {
+  const tot  = domicilios.length;
+  const real = domicilios.filter(d => d.status_atual === 'realizada').length;
+  const pend = domicilios.filter(d => ['nao_visitado','ausente','agendado'].includes(d.status_atual||'nao_visitado')).length;
+  $('topbar-stats').textContent = `${real}/${tot} · ${pend} pend.`;
+}
+
+/* ── GPS WATCH ────────────────────────────────────────── */
+function iniciarGPSWatch(L) {
+  if (!navigator.geolocation || gpsWatchId) return;
+  gpsWatchId = navigator.geolocation.watchPosition(
+    pos => {
+      const { latitude:lat, longitude:lng, accuracy:acc } = pos.coords;
+      gpsPos = { lat, lng };
+      if (gpsMarker) {
+        gpsMarker.setLatLng([lat,lng]);
+        gpsCircle.setLatLng([lat,lng]).setRadius(acc);
+      } else {
+        const ico = L.divIcon({
+          className:'',
+          html:'<div style="width:14px;height:14px;border-radius:50%;background:#2563eb;border:2.5px solid #fff;box-shadow:0 0 0 3px rgba(37,99,235,.3)"></div>',
+          iconSize:[14,14], iconAnchor:[7,7],
+        });
+        gpsMarker = L.marker([lat,lng], { icon:ico, zIndexOffset:1000 });
+        gpsCircle = L.circle([lat,lng], { radius:acc, color:'#2563eb', fillColor:'#93c5fd', fillOpacity:.12, weight:1 });
+        const grp = L.layerGroup([gpsCircle, gpsMarker]);
+        layers.gps = grp;
+        if ($('lyr-gps').checked) grp.addTo(mapaInst);
+      }
+      $('fab-gps').classList.add('ativo');
+    },
+    null, { enableHighAccuracy:true, maximumAge:5000 }
+  );
+}
+
+window.centrarGPS = () => {
+  if (!gpsPos||!mapaInst) { toast('GPS não disponível ainda'); return; }
+  mapaInst.panTo([gpsPos.lat, gpsPos.lng]);
+};
+
+/* ── LAYER TOGGLE ─────────────────────────────────────── */
+window.toggleLayerPanel = () => $('layer-panel').classList.toggle('hidden');
+
+window.toggleLayer = nome => {
+  const layer = layers[nome];
+  if (!layer||!mapaInst) return;
+  mapaInst.hasLayer(layer) ? layer.remove() : layer.addTo(mapaInst);
+};
+
+/* ── BOTTOM SHEET ─────────────────────────────────────── */
+function abrirBS(d) {
+  domAtivo = d; preencherBS(d);
+  $('bottom-sheet').classList.remove('hidden');
+  $('overlay').classList.add('show');
+}
+
+function preencherBS(d) {
+  const s = d.status_atual || 'nao_visitado';
+  $('bs-titulo').textContent  = `Dom. ${d.domicilio_num||'?'} · Sem. ${d.semana||'?'}`;
+  $('bs-sub').textContent     = `Etapa ${d.visita_etapa||'?'} · ${d.periodo||''}`;
+  $('bs-end').textContent     = d.endereco || d.logradouro_kml || '—';
+  $('bs-morador').textContent = d.morador || d.morador_cnefe || '—';
+  $('bs-entr').textContent    = d.entrevistador_nome || '—';
+
+  const pill = $('bs-pill');
+  pill.textContent = lblS(s);
+  pill.style.cssText = `background:${corS(s)}22;color:${corS(s)};border:1px solid ${corS(s)}55`;
+
+  // Solicitações ativas
+  const sols = (d.solicitacoes||[]).filter(x=>!x.resolvido);
+  const solRow = $('bs-sols-row');
+  if (sols.length) {
+    $('bs-sols').textContent = sols.map(x => SOL_TIPOS.find(t=>t.id===x.tipo)?.label||x.tipo).join(', ');
+    solRow.style.display = '';
+  } else {
+    solRow.style.display = 'none';
+  }
+}
+
+window.fecharBS = () => {
+  $('bottom-sheet').classList.add('hidden');
+  $('overlay').classList.remove('show');
+  domAtivo = null;
+};
+
+window.fecharTudo = () => {
+  $('bottom-sheet').classList.add('hidden');
+  $('panel-status').classList.add('hidden');
+  $('panel-solicitar').classList.add('hidden');
+  $('layer-panel').classList.add('hidden');
+  $('overlay').classList.remove('show');
+};
+
+/* ── NAVEGAR ──────────────────────────────────────────── */
+window.navegarDom = () => {
+  if (!domAtivo) return;
+  const lat = domAtivo.latitude_kml, lng = domAtivo.longitude_kml;
+  if (!lat||!lng) { toast('Coordenadas não disponíveis'); return; }
+  window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
+};
+
+/* ── PANEL STATUS ─────────────────────────────────────── */
+window.abrirPanelStatus = () => {
+  if (!domAtivo) return;
+  statusSel = domAtivo.status_atual || null;
+  $('status-grid').innerHTML = STATUS_VISITA.map(s =>
+    `<div class="status-opt${s===statusSel?' sel':''}" onclick="selStatus('${s}')">
+       <span class="status-dot" style="background:${corS(s)}"></span>
+       <span class="status-lbl">${lblS(s)}</span>
+     </div>`
+  ).join('');
+  $('status-obs').value = '';
+  $('panel-status').classList.remove('hidden');
+  $('overlay').classList.add('show');
+};
+
+window.selStatus = s => {
+  statusSel = s;
+  document.querySelectorAll('.status-opt').forEach(el =>
+    el.classList.toggle('sel', el.querySelector('.status-lbl').textContent === lblS(s))
+  );
+};
+
+window.fecharPanelStatus = () => {
+  $('panel-status').classList.add('hidden');
+  if ($('bottom-sheet').classList.contains('hidden')) $('overlay').classList.remove('show');
+};
+
+window.confirmarStatus = async () => {
+  if (!statusSel||!domAtivo) { toast('Selecione um status'); return; }
+  const btn = $('btn-conf-status');
+  btn.disabled = true; btn.textContent = 'Salvando…';
+  try {
+    const obs = $('status-obs').value.trim();
+    await updateDoc(doc(db, 'domicilios', domAtivo.id), {
+      status_atual: statusSel, ultima_visita: serverTimestamp(),
+    });
+    await addDoc(collection(db, 'visitas'), {
+      domicilio_id:      domAtivo.id,
+      entrevistador_id:  usuario.uid,
+      data_visita:       serverTimestamp(),
+      status:            statusSel,
+      observacao:        obs,
+    });
+    toast(`${lblS(statusSel)} registrada!`, 'ok');
+    fecharPanelStatus();
+  } catch(e) { toast('Erro: ' + e.message, 'erro'); }
+  finally { btn.disabled = false; btn.textContent = 'Registrar'; }
+};
+
+/* ── PANEL SOLICITAR ──────────────────────────────────── */
+window.abrirPanelSolicitar = () => {
+  if (!domAtivo) return;
+  solSel = null;
+  $('sol-grid').innerHTML = SOL_TIPOS.map(t =>
+    `<button class="sol-btn" id="sol-${t.id}" onclick="selSol('${t.id}')">
+       <span class="sol-ico">${t.ico}</span>${t.label}
+     </button>`
+  ).join('');
+  $('sol-obs').value = '';
+  $('panel-solicitar').classList.remove('hidden');
+  $('overlay').classList.add('show');
+};
+
+window.selSol = id => {
+  solSel = id;
+  document.querySelectorAll('.sol-btn').forEach(b => b.classList.remove('sel'));
+  $('sol-' + id)?.classList.add('sel');
+};
+
+window.fecharPanelSolicitar = () => {
+  $('panel-solicitar').classList.add('hidden');
+  if ($('bottom-sheet').classList.contains('hidden')) $('overlay').classList.remove('show');
+};
+
+window.confirmarSolicitar = async () => {
+  if (!solSel||!domAtivo) { toast('Selecione o tipo de solicitação'); return; }
+  const btn = $('btn-conf-sol');
+  btn.disabled = true; btn.textContent = 'Salvando…';
+  try {
+    const obs  = $('sol-obs').value.trim();
+    const tipo = SOL_TIPOS.find(t => t.id === solSel);
+    const novaSol = {
+      id:             Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      tipo:           solSel,
+      obs:            obs || null,
+      criado_em_ts:   Date.now(),
+      criado_por_nome:usuario.nome || usuario.email,
+    };
+    const update = { solicitacoes: arrayUnion(novaSol), ultima_visita: serverTimestamp() };
+    if (tipo?.status) update.status_atual = tipo.status;
+    await updateDoc(doc(db, 'domicilios', domAtivo.id), update);
+    await addDoc(collection(db, 'visitas'), {
+      domicilio_id:     domAtivo.id,
+      entrevistador_id: usuario.uid,
+      data_visita:      serverTimestamp(),
+      status:           tipo?.status || domAtivo.status_atual || 'nao_visitado',
+      tipo_solicitacao: solSel,
+      observacao:       (tipo?.label||solSel) + (obs?' — '+obs:''),
+    });
+    toast(`${tipo?.label||'Solicitação'} registrada!`, 'ok');
+    fecharPanelSolicitar();
+  } catch(e) { toast('Erro: ' + e.message, 'erro'); }
+  finally { btn.disabled = false; btn.textContent = 'Confirmar'; }
+};
+
+/* ── KEYBOARD ─────────────────────────────────────────── */
+$('login-senha').addEventListener('keydown', e => { if(e.key==='Enter') fazerLogin(); });
+document.addEventListener('keydown', e => { if(e.key==='Escape') fecharTudo(); });
+</script>
+</body>
+</html>

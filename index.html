@@ -2504,8 +2504,8 @@
 
 <!-- Modal: Controle por UPA (CNEFE × PNAD) -->
 <div class="modal-overlay" id="modal-cnefe-controle" onclick="if(event.target===this)fecharModal('modal-cnefe-controle')">
-  <div class="modal" style="max-width:720px;width:100%">
-    <div class="modal-header" style="padding:1rem 1.25rem">
+  <div class="modal" style="max-width:min(98vw,1100px);width:100%;display:flex;flex-direction:column;max-height:90vh;overflow:hidden">
+    <div class="modal-header" style="padding:1rem 1.25rem;flex-shrink:0">
       <div>
         <h3 style="font-size:0.95rem;font-weight:700;color:var(--azul)">Controle por UPA — CNEFE × PNAD</h3>
         <div style="font-size:0.75rem;color:var(--cinza);margin-top:2px">PNAD Contínua · Campos dos Goytacazes</div>
@@ -2515,8 +2515,8 @@
         <button class="btn-fechar" onclick="fecharModal('modal-cnefe-controle')">×</button>
       </div>
     </div>
-    <div class="modal-body" style="padding:1rem 1.25rem">
-      <div style="display:flex;gap:0;border-bottom:2px solid var(--borda);margin-bottom:0.85rem">
+    <div class="modal-body" style="padding:1rem 1.25rem;overflow-y:auto;flex:1;min-height:0">
+      <div style="display:flex;gap:0;border-bottom:2px solid var(--borda);margin-bottom:0.85rem;flex-shrink:0">
         <button id="tab-btn-controle" class="cnefe-tab-btn ativo" onclick="mudarTabControleUpa('controle')" style="font-size:0.82rem">Controle por UPA</button>
         <button id="tab-btn-erros"    class="cnefe-tab-btn"       onclick="mudarTabControleUpa('erros')"    style="font-size:0.82rem">Erros CNEFE</button>
       </div>
@@ -6508,9 +6508,16 @@ async function _carregarLocalidades() {
 
 window.salvarLocalidadeUPA = async (upa, valor) => {
   if (!_localidadesCache) _localidadesCache = {};
+  if (_localidadesCache[upa] === valor) return; // sem mudança
   _localidadesCache[upa] = valor;
+  // Propaga para o cache do CNEFE
+  if (_cnefeSetoresList) {
+    const li = _cnefeSetoresList.findIndex(x => x.setor === upa);
+    if (li >= 0) _cnefeSetoresList[li].localidade = valor;
+  }
   try {
     await setDoc(doc(db, 'localidades_upa', upa), { localidade: valor }, { merge: true });
+    renderAmostraMestra(); // re-renderiza todos os meses com o novo nome
   } catch(e) {
     console.error('Erro ao salvar localidade:', e);
     mostrarToast('Erro ao salvar localidade', 'erro');
@@ -10489,6 +10496,8 @@ window.carregarCnefe = async () => {
       _amCache = snap.docs.map(d => d.data());
     } catch(e) { console.warn('[CNEFE] amostra_mestra:', e); }
   }
+  // Garante localidades no cache (mesmo cache usado na Amostra Mestra)
+  await _carregarLocalidades();
   carregarCnefeAgentes();
   carregarCnefeSetores();
 };
@@ -10553,7 +10562,7 @@ async function carregarCnefeSetores() {
           mesCnefe: _mc, anoCnefe: _ac, prazoFinal: _pf, mesPnad, anoPnad,
           concluido: manual?.concluido || false,
           upa_id: manual?.upa_id || '',
-          localidade: manual?.localidade || '',
+          localidade: manual?.localidade || (_localidadesCache||{})[k] || '',
           status_listagem_ibge:  manual?.status_listagem_ibge  || '',
           status_avaliacao_ibge: manual?.status_avaliacao_ibge || '',
           origem: 'pnad', docId: manual?.id || null,
@@ -10604,7 +10613,7 @@ async function carregarCnefeSetores() {
           mesCnefe: _mc2, anoCnefe: _ac2, prazoFinal: _pf2, mesPnad, anoPnad,
           concluido: manual?.concluido || false,
           upa_id: manual?.upa_id || '',
-          localidade: manual?.localidade || '',
+          localidade: manual?.localidade || (_localidadesCache||{})[upa] || '',
           status_listagem_ibge:  manual?.status_listagem_ibge  || '',
           status_avaliacao_ibge: manual?.status_avaliacao_ibge || '',
           origem: 'pnad', docId: manual?.id || null,
@@ -10903,6 +10912,10 @@ window.cnefeEditarLocalidade = (td, setor, docIdAtual) => {
         const li = _cnefeSetoresList.findIndex(x => x.setor === setor);
         if (li >= 0) { _cnefeSetoresList[li].localidade = val; _cnefeSetoresList[li].docId = _cnefeSetoresList[li].docId || docId; }
       }
+      // Persiste em localidades_upa para aparecer em todos os meses da Amostra Mestra
+      if (!_localidadesCache) _localidadesCache = {};
+      _localidadesCache[setor] = val;
+      setDoc(doc(db, 'localidades_upa', setor), { localidade: val }, { merge: true }).catch(() => {});
       if (input.parentNode) input.replaceWith(novaSpan(val));
     } catch(e) { mostrarToast('Erro: '+e.message, 'erro'); if (input.parentNode) input.replaceWith(novaSpan(atual)); }
   };
@@ -11644,7 +11657,7 @@ function _renderTabelaControleUpa(summaries) {
   const pctTotalVal = somaVisit > 0 ? Math.round((somaVisit - somaErros) / somaVisit * 100) : null;
   const pctTotal = pctTotalVal !== null ? pctTotalVal + '%' : '—';
   const pctTotalCor = pctTotalVal !== null ? (pctTotalVal >= 90 ? '#2C7A4B' : '#A02020') : '#444441';
-  return `<div style="border:0.5px solid #D3D1C7;border-radius:8px;overflow:hidden">
+  return `<div style="overflow-x:auto;min-width:0"><div style="border:0.5px solid #D3D1C7;border-radius:8px;overflow:hidden;min-width:560px">
     <table style="width:100%;border-collapse:collapse;font-size:11px">
       <thead><tr style="background:#EEEDE8">
         <th style="${THL}">UPA</th>
@@ -11667,7 +11680,7 @@ function _renderTabelaControleUpa(summaries) {
         <td style="${TD};color:${pctTotalCor}">${pctTotal}</td>
       </tr></tfoot>
     </table>
-  </div>`;
+  </div></div>`;
 }
 
 function _renderTabelaErrosCnefe(erros) {
@@ -11678,7 +11691,8 @@ function _renderTabelaErrosCnefe(erros) {
   const TDL = 'padding:5px 8px;border-bottom:0.5px solid #EEEDE8;font-size:10.5px';
   const rows = erros.map(({ d, upaId, mesCnefe, anoCnefe, agente }) => {
     const tel1 = (d.historico_telefones || []).find(t => String(t.entrevista) === '1');
-    const obs  = tel1?.observacao || d.observacao_sigc || '—';
+    const obsEquipe = (d.observacoes || []).map(o => o.texto).filter(Boolean).join(' | ');
+    const obs  = tel1?.observacao || d.observacao_sigc || obsEquipe || '—';
     const mesStr = mesCnefe ? `${_CNEFE_MESES[mesCnefe-1]}/${anoCnefe}` : '—';
     const statusLabel = { vago:'Vago', uso_ocasional:'Uso ocasional', inapto:'Inapto', demolido:'Demolido', inexistente:'Inexistente' }[d.status_atual] || d.status_atual || '?';
     const morador = d.morador_cnefe || d.morador || '—';
@@ -11692,10 +11706,10 @@ function _renderTabelaErrosCnefe(erros) {
       <td style="${TD}">${mesStr}</td>
       <td style="${TD}">${agente.split(' ')[0]}</td>
       <td style="${TD}">${entr}</td>
-      <td style="${TDL};max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(obs)}">${esc(obs)}</td>
+      <td style="${TDL};max-width:200px;font-size:9.5px;word-break:break-word;line-height:1.4">${esc(obs)}</td>
     </tr>`;
   }).join('');
-  return `<div style="overflow-x:auto"><div style="border:0.5px solid #D3D1C7;border-radius:8px;overflow:hidden">
+  return `<div style="overflow-x:auto;min-width:0"><div style="border:0.5px solid #D3D1C7;border-radius:8px;overflow:hidden;min-width:860px">
     <table style="width:100%;border-collapse:collapse;font-size:11px">
       <thead><tr style="background:#EEEDE8">
         <th style="${TH}">Dom.</th>
