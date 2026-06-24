@@ -782,6 +782,15 @@
   .cron-pop-save { flex:1;padding:5px;background:var(--azul);color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:11px;font-family:var(--fonte); }
   .cron-pop-save:disabled { opacity:0.6;cursor:default; }
   .cron-pop-cancel { padding:5px 10px;background:#fff;color:#555;border:1px solid var(--borda);border-radius:5px;cursor:pointer;font-size:11px;font-family:var(--fonte); }
+  .cron-add-dia-btn { border:1.5px dashed var(--azul);background:#f0f7ff;color:var(--azul);border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px;font-family:var(--fonte);font-weight:600; }
+  .cron-add-dia-btn:hover { background:#dbeafe; }
+  .cron-pop-date-row { display:flex;gap:6px; }
+  .cron-pop-date-row .cron-pop-field { flex:1; }
+  .cron-pop-check-grid { display:flex;flex-direction:column;gap:1px;max-height:150px;overflow-y:auto;border:1px solid var(--borda);border-radius:5px;padding:3px; }
+  .cron-pop-check-item { display:flex;align-items:center;gap:5px;padding:3px 5px;border-radius:4px;cursor:pointer;font-size:11px;line-height:1.2; }
+  .cron-pop-check-item:hover { background:#f0f4f8; }
+  .cron-pop-check-item.checked { background:#e8f0fe; }
+  .cron-pop-check-item input[type=checkbox] { cursor:pointer;flex-shrink:0;margin:0; }
   @media print {
     .nav-lateral,.topo,#cron-filtros-wrap { display:none !important; }
     .cron-grid { font-size:9pt; }
@@ -6831,31 +6840,44 @@ async function _cronRenderTabela() {
 
 function _buildCronGrid() {
   const linhas = _cronLinhas;
-  if (!linhas.length) return '<div class="vazio" style="padding:2rem;text-align:center;color:var(--cinza)">Nenhuma atividade programada para esta semana.</div>';
+  const addBtn = `<div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button class="cron-add-dia-btn" onclick="cronAddDia()">＋ Dia</button></div>`;
+  if (!linhas.length) return addBtn + '<div class="vazio" style="padding:1.5rem;text-align:center;color:var(--cinza)">Nenhuma atividade. Clique em ＋ Dia para começar.</div>';
 
-  // Unique sorted days
+  // Collect all days, expanding date ranges into individual days
   const diasSet = new Set();
-  linhas.forEach(ln => { if (ln.data) diasSet.add(ln.data); });
-  const dias = [...diasSet].sort();
-  if (!dias.length) return '<div class="vazio" style="padding:2rem;text-align:center;color:var(--cinza)">Nenhuma atividade.</div>';
-
-  // Group by sorted interviewer key
-  const groupMap = new Map();
   linhas.forEach(ln => {
-    (ln.equipes || []).forEach(eq => {
+    if (!ln.data) return;
+    diasSet.add(ln.data);
+    if (ln.data_fim && ln.data_fim > ln.data) {
+      let cur = new Date(ln.data + 'T12:00:00');
+      const end = new Date(ln.data_fim + 'T12:00:00');
+      while (cur <= end) { diasSet.add(cur.toISOString().slice(0,10)); cur.setDate(cur.getDate()+1); }
+    }
+  });
+  const dias = [...diasSet].sort();
+  if (!dias.length) return addBtn + '<div class="vazio" style="padding:1.5rem;text-align:center;color:var(--cinza)">Nenhuma atividade.</div>';
+
+  // Group by sorted interviewer key; map each day in the range to the equipe
+  const groupMap = new Map();
+  linhas.forEach((ln, liIdx) => {
+    (ln.equipes || []).forEach((eq, eqIdx) => {
       const nomes = (eq.entrevistadores || '').split(',').map(s => s.trim()).filter(Boolean);
       const key = [...nomes].sort().join('|') || '—';
       if (!groupMap.has(key)) groupMap.set(key, { nomes, cells: new Map() });
       const g = groupMap.get(key);
-      if (!g.cells.has(ln.data)) g.cells.set(ln.data, []);
-      g.cells.get(ln.data).push({ hora: ln.hora, upas: eq.upas || [''], locs: eq.localidades || [''], tipos: eq.tipos || [''] });
+      const startD = ln.data || '';
+      const endD   = (ln.data_fim && ln.data_fim >= startD) ? ln.data_fim : startD;
+      dias.forEach(d => {
+        if (d < startD || d > endD) return;
+        if (!g.cells.has(d)) g.cells.set(d, []);
+        g.cells.get(d).push({ hora: ln.hora, upas: eq.upas || [''], locs: eq.localidades || [''], tipos: eq.tipos || [''], liIdx, eqIdx, startD, endD });
+      });
     });
   });
 
   const groups = [...groupMap.values()];
   const gridCols = `80px repeat(${dias.length}, minmax(0,1fr))`;
 
-  // Header row
   const hdrCells = dias.map(d => {
     const dt = new Date(d + 'T12:00:00');
     const dow = _DIAS_ABR[dt.getDay()];
@@ -6863,7 +6885,6 @@ function _buildCronGrid() {
     return `<div class="cron-grid-hd">${dow}<br><span style="font-weight:400;opacity:0.85;font-size:9px">${dm}</span></div>`;
   }).join('');
 
-  // Group rows
   let groupsHtml = '';
   let firstGroup = true;
   let palIdx = 0;
@@ -6880,35 +6901,45 @@ function _buildCronGrid() {
     }).join('');
     const namesCell = `<div class="cron-names-cell" style="background:${pal.bg};border-right:2px solid ${pal.borda}" data-gk="${gkAttr}" data-dia="" onclick="cronOpenCell(this)" title="Editar equipe">${avatarHtml || '<span style="color:var(--cinza);font-size:0.75rem">—</span>'}</div>`;
 
-    const dayCells = dias.map(d => {
+    // Day cells with multi-day span support
+    const covered = new Set();
+    const dayCells = dias.map((d, di) => {
+      if (covered.has(d)) return '';
       const missions = g.cells.get(d);
       const dAttr = d.replace(/"/g,'&quot;');
       if (!missions) return `<div class="cron-day-empty" style="background:${pal.bg}88" data-gk="${gkAttr}" data-dia="${dAttr}" onclick="cronOpenCell(this)" title="Adicionar missão"></div>`;
+
+      // Compute span from first mission's endD
+      const m0 = missions.find(m => m.startD === d) || missions[0];
+      let span = 1;
+      if (m0.endD > d) {
+        for (let j = di+1; j < dias.length && dias[j] <= m0.endD; j++) { span++; covered.add(dias[j]); }
+      }
 
       const dt = new Date(d + 'T12:00:00');
       const dayLabel = `${_DIAS_ABR[dt.getDay()]} ${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
 
       let inner = '';
-      missions.forEach(m => {
-        if (m.hora) inner += `<div class="cron-card-hdr"><span class="cron-hd-hora">${m.hora}</span></div>`;
-        m.upas.forEach((upa, si) => {
-          if (!upa) return;
-          const loc  = m.locs[si] || (_localidadesCache || {})[upa] || '';
-          const tipo = m.tipos[si] || m.tipos[0] || '';
-          const isPend = tipo === 'Pendências';
-          const setorInfo = _cronSetores.find(s => s.upa === upa);
-          const etapas = setorInfo?.etapas || [];
-          const etBadges = etapas.map(e => {
-            const bd = _CRON_BADGE[e] || { bg:'#eee', c:'#333' };
-            return `<span class="cron-etapa-badge" style="background:${bd.bg};color:${bd.c}">E${e}</span>`;
-          }).join('');
-          const upaSuf = String(upa).slice(-4);
-          const bgStyle = isPend ? 'background:#F5F2EE;border-left:3px solid #B8A898' : 'background:rgba(255,255,255,0.6)';
-          inner += `<div class="cron-setor-item" style="${bgStyle}">${etBadges}<span class="cron-setor-code">${upaSuf}</span><span class="cron-setor-nome" title="${loc}">${loc || upa}</span></div>`;
+      const seenMission = new Set();
+      missions.filter(m => { const k=`${m.liIdx}-${m.eqIdx}`; if(seenMission.has(k)) return false; seenMission.add(k); return true; })
+        .forEach(m => {
+          if (m.hora) inner += `<div class="cron-card-hdr"><span class="cron-hd-hora">${m.hora}</span>${span>1?`<span class="cron-hd-span"> · ${span}d</span>`:''}</div>`;
+          m.upas.forEach((upa, si) => {
+            if (!upa) return;
+            const loc  = m.locs[si] || (_localidadesCache || {})[upa] || '';
+            const tipo = m.tipos[si] || m.tipos[0] || '';
+            const isPend = tipo === 'Pendências';
+            const setorInfo = _cronSetores.find(s => s.upa === upa);
+            const etapas = setorInfo?.etapas || [];
+            const etBadges = etapas.map(e => { const bd=_CRON_BADGE[e]||{bg:'#eee',c:'#333'}; return `<span class="cron-etapa-badge" style="background:${bd.bg};color:${bd.c}">E${e}</span>`; }).join('');
+            const upaSuf = String(upa).slice(-4);
+            const bgStyle = isPend ? 'background:#F5F2EE;border-left:3px solid #B8A898' : 'background:rgba(255,255,255,0.6)';
+            inner += `<div class="cron-setor-item" style="${bgStyle}">${etBadges}<span class="cron-setor-code">${upaSuf}</span><span class="cron-setor-nome" title="${loc}">${loc||upa}</span></div>`;
+          });
         });
-      });
 
-      return `<div class="cron-card" style="background:${pal.bg};border-left:1px solid ${pal.borda}55" data-gk="${gkAttr}" data-dia="${dAttr}" onclick="cronOpenCell(this)"><div class="cron-day-mobile-hdr">${dayLabel}</div>${inner}</div>`;
+      const spanStyle = span > 1 ? `grid-column:span ${span};` : '';
+      return `<div class="cron-card" style="${spanStyle}background:${pal.bg};border-left:1px solid ${pal.borda}55" data-gk="${gkAttr}" data-dia="${dAttr}" onclick="cronOpenCell(this)"><div class="cron-day-mobile-hdr">${dayLabel}</div>${inner}</div>`;
     }).join('');
 
     if (!firstGroup) groupsHtml += '<div class="cron-group-sep"></div>';
@@ -6916,7 +6947,7 @@ function _buildCronGrid() {
     groupsHtml += `<div class="cron-group-block">${namesCell}${dayCells}</div>`;
   }
 
-  return `<div class="cron-grid" style="grid-template-columns:${gridCols}"><div class="cron-names-cell cron-grid-hd" style="justify-content:center">Equipe</div>${hdrCells}${groupsHtml}</div>`;
+  return addBtn + `<div style="overflow-x:auto;width:100%"><div class="cron-grid" style="grid-template-columns:${gridCols}"><div class="cron-names-cell cron-grid-hd" style="justify-content:center">Equipe</div>${hdrCells}${groupsHtml}</div></div>`;
 }
 
 // ── funções auxiliares ─────────────────────────────────────────────────────
@@ -6971,64 +7002,125 @@ function _buildCronSetores(mes, semana) {
 
 // ── Cronograma — edição inline ─────────────────────────────────────────────
 
-let _cronPopState = null;
+let _cronPopState   = null;
+let _cronEntrevsCache = null;
 
-window.cronOpenCell = (el) => {
+async function _cronCarregarEntrevs() {
+  if (_cronEntrevsCache) return;
+  try {
+    const snap = await getDocs(collection(db, 'usuarios'));
+    _cronEntrevsCache = snap.docs.map(d => d.data()).filter(u => u.nome)
+      .sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+  } catch(e) { _cronEntrevsCache = []; }
+}
+
+window.cronAddDia = async () => {
+  await _cronCarregarEntrevs();
+  _cronPopState = { gk:'', dia:'', data_fim:'', hora:'', nomes:[], upas:[], missions:[] };
+  _cronShowPopover(document.querySelector('.cron-add-dia-btn') || document.getElementById('cron-filtros-wrap'));
+};
+
+window.cronOpenCell = async (el) => {
   const gk  = el.dataset.gk  || '';
   const dia = el.dataset.dia || '';
 
-  // Resolve missions for this (group, day) from _cronLinhas
   const missions = [];
   if (dia) {
     _cronLinhas.forEach((ln, liIdx) => {
-      if (ln.data !== dia) return;
-      (ln.equipes || []).forEach((eq, eqIdx) => {
-        const ns = (eq.entrevistadores || '').split(',').map(s => s.trim()).filter(Boolean);
-        if (([...ns].sort().join('|') || '—') === gk) missions.push({ liIdx, eqIdx });
+      const startD = ln.data || '', endD = ln.data_fim || startD;
+      if (dia < startD || dia > endD) return;
+      (ln.equipes||[]).forEach((eq, eqIdx) => {
+        const ns = (eq.entrevistadores||'').split(',').map(s=>s.trim()).filter(Boolean);
+        if (([...ns].sort().join('|')||'—') === gk) missions.push({ liIdx, eqIdx });
+      });
+    });
+  } else if (gk) {
+    _cronLinhas.forEach((ln, liIdx) => {
+      (ln.equipes||[]).forEach((eq, eqIdx) => {
+        const ns = (eq.entrevistadores||'').split(',').map(s=>s.trim()).filter(Boolean);
+        if (([...ns].sort().join('|')||'—') === gk) missions.push({ liIdx, eqIdx });
       });
     });
   }
 
-  const nomes = gk === '—' || !gk ? [] : gk.split('|');
-  let hora = '', upas = [''], locs = [''], tipos = [''];
-  if (missions.length) {
-    const { liIdx, eqIdx } = missions[0];
+  const nomes = (!gk || gk==='—') ? [] : gk.split('|');
+  let hora='', data_fim='', upas=[];
+  if (missions.length && dia) {
+    const {liIdx, eqIdx} = missions[0];
     hora = _cronLinhas[liIdx]?.hora || '';
+    data_fim = _cronLinhas[liIdx]?.data_fim || '';
     const eq = _cronLinhas[liIdx]?.equipes?.[eqIdx];
-    if (eq) { upas = [...(eq.upas || [''])]; locs = [...(eq.localidades || [''])]; tipos = [...(eq.tipos || [''])]; }
+    if (eq) upas = (eq.upas||[]).filter(Boolean);
   }
 
-  _cronPopState = { gk, dia, nomes: [...nomes], missions, hora, upas, locs, tipos };
+  _cronPopState = { gk, dia, data_fim, hora, nomes:[...nomes], upas:[...upas], missions };
+  await _cronCarregarEntrevs();
   _cronShowPopover(el);
 };
 
-function _cronSetoresListHtml() {
+function _cronEntrevsHtml() {
   const s = _cronPopState;
-  const n = Math.max(s.upas.length, 1);
-  let h = '';
-  for (let si = 0; si < n; si++) {
-    const u = (s.upas[si] || '').replace(/"/g,'&quot;');
-    const l = (s.locs[si] || '').replace(/"/g,'&quot;');
-    h += `<div class="cron-pop-setor-row">
-      <input class="cron-pop-setor-upa" type="text" placeholder="UPA" value="${u}" list="cron-pop-dl"
-        oninput="cronPopSetUpa(this,${si})" onchange="cronPopSetUpa(this,${si})">
-      <input class="cron-pop-setor-loc" type="text" placeholder="Localidade" value="${l}"
-        oninput="_cronPopState.locs[${si}]=this.value">
-      <button class="cron-pop-del" onclick="cronPopDelSetor(${si})" title="Remover">×</button>
-    </div>`;
-  }
-  return h;
+  const users = _cronEntrevsCache || [];
+  if (!users.length) return '<span style="color:var(--cinza);font-size:10px">Nenhum entrevistador cadastrado.</span>';
+  return users.map(u => {
+    const checked = s.nomes.includes(u.nome) ? 'checked' : '';
+    const cor = corEntrevistador(u.nome);
+    const ini = u.nome.trim().charAt(0).toUpperCase();
+    const nomeEsc = u.nome.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<label class="cron-pop-check-item${checked?' checked':''}">
+      <input type="checkbox" ${checked} onchange="cronPopToggleEntrev('${nomeEsc}',this.checked)">
+      <span class="cron-avatar-circ" style="background:${cor}22;border:1.5px solid ${cor};color:${cor};width:16px;height:16px;font-size:7px;flex-shrink:0">${ini}</span>
+      <span style="font-size:11px">${u.nome.split(' ')[0]}</span>
+    </label>`;
+  }).join('');
+}
+
+function _cronSetoresCheckHtml() {
+  const s = _cronPopState;
+  if (!_cronSetores.length) return '<span style="color:var(--cinza);font-size:10px">Nenhum setor nesta semana.</span>';
+  return _cronSetores.map(st => {
+    const checked = s.upas.includes(st.upa) ? 'checked' : '';
+    const etStr = st.etapas.map(e => { const bd=_CRON_BADGE[e]||{bg:'#eee',c:'#333'}; return `<span class="cron-etapa-badge" style="background:${bd.bg};color:${bd.c}">E${e}</span>`; }).join('');
+    const upaEsc = st.upa.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<label class="cron-pop-check-item${checked?' checked':''}">
+      <input type="checkbox" ${checked} onchange="cronPopToggleSetor('${upaEsc}',this.checked)">
+      <span class="cron-setor-code" style="min-width:30px;flex-shrink:0">${String(st.upa).slice(-4)}</span>
+      ${etStr}
+      <span style="font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${st.localidade||''}">${st.localidade || st.label || st.upa}</span>
+    </label>`;
+  }).join('');
 }
 
 function _cronShowPopover(anchorEl) {
   document.getElementById('cron-pop')?.remove();
   const s = _cronPopState;
-  const diaLabel = s.dia ? (() => {
+  const isNameEdit = s.dia === '' && s.gk !== '';
+  const diaLabel = isNameEdit ? 'Editar equipe' : s.dia ? (() => {
     const dt = new Date(s.dia + 'T12:00:00');
     return `${_DIAS_ABR[dt.getDay()]} ${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
   })() : 'Nova entrada';
 
-  const dl = `<datalist id="cron-pop-dl">${_cronSetores.map(x=>`<option value="${x.upa}">${x.label||x.upa}</option>`).join('')}</datalist>`;
+  const datesHtml = isNameEdit ? '' : `
+    <div class="cron-pop-date-row">
+      <div class="cron-pop-field">
+        <label class="cron-pop-label">De</label>
+        <input class="cron-pop-input" type="date" id="pop-de" value="${s.dia}" oninput="_cronPopState.dia=this.value">
+      </div>
+      <div class="cron-pop-field">
+        <label class="cron-pop-label">Até</label>
+        <input class="cron-pop-input" type="date" id="pop-ate" value="${s.data_fim||s.dia}" oninput="_cronPopState.data_fim=this.value">
+      </div>
+    </div>
+    <div class="cron-pop-field">
+      <label class="cron-pop-label">Hora</label>
+      <input class="cron-pop-input" type="time" id="pop-hora" value="${s.hora}" oninput="_cronPopState.hora=this.value">
+    </div>`;
+
+  const setoresHtml = isNameEdit ? '' : `
+    <div class="cron-pop-field">
+      <label class="cron-pop-label">Setores (${_cronSetores.length} nesta semana)</label>
+      <div class="cron-pop-check-grid" id="pop-setores-list">${_cronSetoresCheckHtml()}</div>
+    </div>`;
 
   const pop = document.createElement('div');
   pop.id = 'cron-pop';
@@ -7036,21 +7128,12 @@ function _cronShowPopover(anchorEl) {
   pop.innerHTML = `
     <div class="cron-pop-hdr"><span>${diaLabel}</span><button onclick="cronClosePopover()">×</button></div>
     <div class="cron-pop-body">
+      ${datesHtml}
       <div class="cron-pop-field">
-        <label class="cron-pop-label">Hora</label>
-        <input class="cron-pop-input" type="time" id="pop-hora" value="${s.hora}" oninput="_cronPopState.hora=this.value">
+        <label class="cron-pop-label">Equipe</label>
+        <div class="cron-pop-check-grid" id="pop-entrevs-list">${_cronEntrevsHtml()}</div>
       </div>
-      <div class="cron-pop-field">
-        <label class="cron-pop-label">Equipe (vírgula entre nomes)</label>
-        <input class="cron-pop-input" type="text" id="pop-entrevs" value="${s.nomes.join(', ')}" placeholder="João, Maria…"
-          oninput="_cronPopState.nomes=this.value.split(',').map(x=>x.trim()).filter(Boolean)">
-      </div>
-      <div class="cron-pop-field">
-        <label class="cron-pop-label">Setores</label>
-        ${dl}
-        <div id="pop-setores-list">${_cronSetoresListHtml()}</div>
-        <button class="cron-pop-add" onclick="cronPopAddSetor()">＋ Setor</button>
-      </div>
+      ${setoresHtml}
     </div>
     <div class="cron-pop-footer">
       <button class="cron-pop-save" onclick="cronSavePopover()">Salvar</button>
@@ -7058,9 +7141,8 @@ function _cronShowPopover(anchorEl) {
     </div>`;
   document.body.appendChild(pop);
 
-  // Position
   const r = anchorEl.getBoundingClientRect();
-  const pw = 286, ph = Math.min(420, window.innerHeight * 0.85);
+  const pw = 290, ph = Math.min(480, window.innerHeight * 0.88);
   let left = r.left, top = r.bottom + 4;
   if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
   if (left < 8) left = 8;
@@ -7074,7 +7156,6 @@ function _cronShowPopover(anchorEl) {
 function _cronPopOutside(e) {
   const pop = document.getElementById('cron-pop');
   if (!pop || pop.contains(e.target)) return;
-  // Don't close if click was on the cell that opened it
   cronClosePopover();
 }
 
@@ -7084,76 +7165,66 @@ window.cronClosePopover = () => {
   _cronPopState = null;
 };
 
-window.cronPopSetUpa = (el, si) => {
+window.cronPopToggleEntrev = (nome, checked) => {
   if (!_cronPopState) return;
-  _cronPopState.upas[si] = el.value;
-  const sf = _cronSetores.find(s => s.upa === el.value);
-  if (sf?.localidade && !(_cronPopState.locs[si])) {
-    _cronPopState.locs[si] = sf.localidade;
-    const rows = document.querySelectorAll('#pop-setores-list .cron-pop-setor-row');
-    if (rows[si]) { const loc = rows[si].querySelectorAll('input')[1]; if (loc) loc.value = sf.localidade; }
-  }
+  if (checked) { if (!_cronPopState.nomes.includes(nome)) _cronPopState.nomes.push(nome); }
+  else _cronPopState.nomes = _cronPopState.nomes.filter(n => n !== nome);
+  document.querySelectorAll('#pop-entrevs-list .cron-pop-check-item').forEach(lb => {
+    lb.classList.toggle('checked', lb.querySelector('input')?.checked || false);
+  });
 };
 
-window.cronPopDelSetor = (si) => {
+window.cronPopToggleSetor = (upa, checked) => {
   if (!_cronPopState) return;
-  _cronPopState.upas.splice(si, 1);
-  _cronPopState.locs.splice(si, 1);
-  if (_cronPopState.tipos) _cronPopState.tipos.splice(si, 1);
-  if (!_cronPopState.upas.length) { _cronPopState.upas = ['']; _cronPopState.locs = ['']; _cronPopState.tipos = ['']; }
-  document.getElementById('pop-setores-list').innerHTML = _cronSetoresListHtml();
-};
-
-window.cronPopAddSetor = () => {
-  if (!_cronPopState) return;
-  _cronPopState.upas.push('');
-  _cronPopState.locs.push('');
-  (_cronPopState.tipos = _cronPopState.tipos || []).push('');
-  document.getElementById('pop-setores-list').innerHTML = _cronSetoresListHtml();
+  if (checked) { if (!_cronPopState.upas.includes(upa)) _cronPopState.upas.push(upa); }
+  else _cronPopState.upas = _cronPopState.upas.filter(u => u !== upa);
+  document.querySelectorAll('#pop-setores-list .cron-pop-check-item').forEach(lb => {
+    lb.classList.toggle('checked', lb.querySelector('input')?.checked || false);
+  });
 };
 
 window.cronSavePopover = async () => {
   const s = _cronPopState;
   if (!s || !_cronMes || !_cronSemana) return;
 
-  // Sync text inputs (user may not have triggered oninput)
-  const horaEl = document.getElementById('pop-hora');
-  if (horaEl) s.hora = horaEl.value;
-  const entrevsEl = document.getElementById('pop-entrevs');
-  if (entrevsEl) s.nomes = entrevsEl.value.split(',').map(x => x.trim()).filter(Boolean);
-  document.querySelectorAll('#pop-setores-list .cron-pop-setor-row').forEach((row, si) => {
-    const [uEl, lEl] = row.querySelectorAll('input');
-    if (uEl) s.upas[si] = uEl.value;
-    if (lEl) s.locs[si] = lEl.value;
-  });
+  const deEl  = document.getElementById('pop-de');   if (deEl)   s.dia      = deEl.value;
+  const ateEl = document.getElementById('pop-ate');  if (ateEl)  s.data_fim = ateEl.value;
+  const horaEl= document.getElementById('pop-hora'); if (horaEl) s.hora     = horaEl.value;
+
+  const isNameEdit = s.dia === '' && s.gk !== '';
+  if (!s.dia && !isNameEdit) { mostrarToast('Escolha uma data', 'aviso'); return; }
 
   const entrevsStr = s.nomes.join(', ');
-  const upas   = s.upas.filter((u, i) => u || s.locs[i]);
-  const locs   = s.locs.slice(0, upas.length);
-  const tipos  = (s.tipos || []).slice(0, upas.length);
+  const upas  = s.upas.filter(Boolean);
+  const locs  = upas.map(u => (_localidadesCache||{})[u] || _cronSetores.find(st=>st.upa===u)?.localidade || '');
+  const tipos = upas.map(() => '');
   if (!upas.length) { upas.push(''); locs.push(''); tipos.push(''); }
 
-  if (s.missions.length) {
-    // Update existing equipe (first match)
-    const { liIdx, eqIdx } = s.missions[0];
+  if (isNameEdit) {
+    s.missions.forEach(({liIdx, eqIdx}) => {
+      const eq = _cronLinhas[liIdx]?.equipes?.[eqIdx];
+      if (eq) eq.entrevistadores = entrevsStr;
+    });
+  } else if (s.missions.length) {
+    const {liIdx, eqIdx} = s.missions[0];
     const ln = _cronLinhas[liIdx];
     if (ln) {
       ln.hora = s.hora;
+      if (s.data_fim && s.data_fim > s.dia) ln.data_fim = s.data_fim; else delete ln.data_fim;
       const eq = ln.equipes[eqIdx];
       if (eq) { eq.entrevistadores = entrevsStr; eq.upas = upas; eq.localidades = locs; eq.tipos = tipos; }
     }
   } else {
-    // Create: find or make a linha for this day
-    let liIdx = _cronLinhas.findIndex(ln => ln.data === s.dia);
-    if (liIdx < 0) { _cronLinhas.push({ data: s.dia, hora: s.hora, equipes: [] }); liIdx = _cronLinhas.length - 1; }
-    else _cronLinhas[liIdx].hora = _cronLinhas[liIdx].hora || s.hora;
-    _cronLinhas[liIdx].equipes.push({ entrevistadores: entrevsStr, upas, localidades: locs, tipos });
+    const newLn = { data: s.dia, hora: s.hora, equipes: [{ entrevistadores: entrevsStr, upas, localidades: locs, tipos }] };
+    if (s.data_fim && s.data_fim > s.dia) newLn.data_fim = s.data_fim;
+    _cronLinhas.push(newLn);
   }
 
   const btn = document.querySelector('.cron-pop-save');
   if (btn) { btn.textContent = 'Salvando…'; btn.disabled = true; }
   try {
     await setDoc(doc(db, 'cronograma', `${_cronMes}_${_cronSemana}`), { linhas: _cronLinhas });
+    _buildCronSetores(_cronMes, _cronSemana);
     cronClosePopover();
     document.getElementById('cron-tabela-wrap').innerHTML = _buildCronGrid();
   } catch(e) {
