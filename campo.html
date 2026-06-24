@@ -473,6 +473,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     </div>
     <div id="cron-tabela-wrap"></div>
   </div>
+  <div id="campo-ultima-atualizacao" style="text-align:center;font-size:11px;color:#888780;font-style:italic;padding:.4rem 0 calc(env(safe-area-inset-bottom) + .4rem);background:#fff;border-top:1px solid var(--borda);flex-shrink:0"></div>
 </div>
 
 <!-- POPUP: novo aviso da supervisão -->
@@ -1159,9 +1160,31 @@ function _carregarLeaflet() {
 }
 
 /* ── SETORES ──────────────────────────────────────────── */
+async function carregarUltimaAtualizacao() {
+  try {
+    const snap = await getDoc(doc(db, 'meta_importacao', 'ultima_atualizacao'));
+    const el = $('campo-ultima-atualizacao');
+    if (!el) return;
+    if (snap.exists()) {
+      const ts = snap.data().timestamp?.toDate?.();
+      if (ts) {
+        const dd = String(ts.getDate()).padStart(2,'0');
+        const mm = String(ts.getMonth()+1).padStart(2,'0');
+        const yyyy = ts.getFullYear();
+        const hh = String(ts.getHours()).padStart(2,'0');
+        const mi = String(ts.getMinutes()).padStart(2,'0');
+        el.textContent = `Dados atualizados em ${dd}/${mm}/${yyyy} às ${hh}:${mi}`;
+      }
+    } else {
+      el.textContent = 'Dados ainda não importados';
+    }
+  } catch(e) { /* ignora */ }
+}
+
 async function carregarSetores() {
   mostrarTela('tela-loading');
   iniciarAvisosListener(); // começa a escutar avisos assim que o usuário é identificado
+  carregarUltimaAtualizacao();
   try {
     // Domicílios deste entrevistador pelo nome
     const qDom = query(collection(db, 'domicilios'), where('entrevistador_nome', '==', usuarioNome));
