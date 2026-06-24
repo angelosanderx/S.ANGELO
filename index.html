@@ -782,6 +782,8 @@
   .cron-pop-save { flex:1;padding:5px;background:var(--azul);color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:11px;font-family:var(--fonte); }
   .cron-pop-save:disabled { opacity:0.6;cursor:default; }
   .cron-pop-cancel { padding:5px 10px;background:#fff;color:#555;border:1px solid var(--borda);border-radius:5px;cursor:pointer;font-size:11px;font-family:var(--fonte); }
+  .cron-pop-del-equipe { padding:5px 8px;background:#fff;color:var(--vermelho);border:1px solid var(--vermelho);border-radius:5px;cursor:pointer;font-size:11px;font-family:var(--fonte);white-space:nowrap; }
+  .cron-pop-del-equipe:disabled { opacity:0.6;cursor:default; }
   .cron-add-dia-btn { border:1.5px dashed var(--azul);background:#f0f7ff;color:var(--azul);border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px;font-family:var(--fonte);font-weight:600; }
   .cron-add-dia-btn:hover { background:#dbeafe; }
   .cron-pop-date-row { display:flex;gap:6px; }
@@ -7176,6 +7178,7 @@ function _cronShowPopover(anchorEl) {
       ${setoresHtml}
     </div>
     <div class="cron-pop-footer">
+      ${(isNameEdit && s.missions.length) ? '<button class="cron-pop-del-equipe" onclick="cronDeleteEquipe()">🗑️ Excluir equipe</button>' : ''}
       <button class="cron-pop-save" onclick="cronSavePopover()">Salvar</button>
       <button class="cron-pop-cancel" onclick="cronClosePopover()">Cancelar</button>
     </div>`;
@@ -7203,6 +7206,37 @@ window.cronClosePopover = () => {
   document.getElementById('cron-pop')?.remove();
   document.removeEventListener('mousedown', _cronPopOutside);
   _cronPopState = null;
+};
+
+window.cronDeleteEquipe = async () => {
+  const s = _cronPopState;
+  if (!s || !s.missions?.length) return;
+  const label = s.nomes.length ? s.nomes.join(', ') : 'esta equipe';
+  if (!confirm(`Excluir ${label} e todas as suas missões desta semana?\nEsta ação não pode ser desfeita.`)) return;
+
+  const byLine = new Map();
+  s.missions.forEach(({liIdx, eqIdx}) => {
+    if (!byLine.has(liIdx)) byLine.set(liIdx, []);
+    byLine.get(liIdx).push(eqIdx);
+  });
+  byLine.forEach((eqIdxs, liIdx) => {
+    const ln = _cronLinhas[liIdx];
+    if (!ln) return;
+    eqIdxs.sort((a,b) => b-a).forEach(eqIdx => ln.equipes.splice(eqIdx, 1));
+  });
+  _cronLinhas = _cronLinhas.filter(ln => ln.equipes && ln.equipes.length);
+
+  const btn = document.querySelector('.cron-pop-del-equipe');
+  if (btn) { btn.textContent = 'Excluindo…'; btn.disabled = true; }
+  try {
+    await setDoc(doc(db, 'cronograma', `${_cronMes}_${_cronSemana}`), { linhas: _cronLinhas });
+    _buildCronSetores(_cronMes, _cronSemana);
+    cronClosePopover();
+    document.getElementById('cron-tabela-wrap').innerHTML = _buildCronGrid();
+  } catch(e) {
+    mostrarToast('Erro ao excluir equipe', 'erro');
+    if (btn) { btn.textContent = '🗑️ Excluir equipe'; btn.disabled = false; }
+  }
 };
 
 window.cronPopToggleEntrev = (nome, checked) => {
