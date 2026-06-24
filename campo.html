@@ -516,6 +516,10 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div class="layer-item"><input type="checkbox" id="lyr-faces" checked onchange="toggleLayer('faces')"><label for="lyr-faces">Faces / Ruas</label></div>
     <div class="layer-item"><input type="checkbox" id="lyr-doms" checked onchange="toggleLayer('doms')"><label for="lyr-doms">Domicílios</label></div>
     <div class="layer-item"><input type="checkbox" id="lyr-gps" checked onchange="toggleLayer('gps')"><label for="lyr-gps">Minha posição</label></div>
+    <hr style="border:none;border-top:1px solid var(--borda);margin:7px 0">
+    <div id="offline-status" style="font-size:.72rem;color:var(--cinza);margin-bottom:7px">Mapa offline: —</div>
+    <button id="btn-baixar-mapa" onclick="baixarMapaOffline()" style="width:100%;border:none;border-radius:8px;background:var(--azul-med);color:#fff;font-size:.78rem;font-weight:700;padding:.5rem;cursor:pointer;font-family:inherit;margin-bottom:6px">📥 Baixar mapa offline</button>
+    <button onclick="limparMapaOffline()" style="width:100%;border:1px solid var(--borda);border-radius:8px;background:#fff;color:var(--cinza);font-size:.74rem;padding:.4rem;cursor:pointer;font-family:inherit">🗑️ Limpar mapa offline</button>
   </div>
 
   <!-- Legenda -->
@@ -746,6 +750,7 @@ let _avisoAtivo  = null;
 let gpsPos     = null;   // { lat, lng }
 let layers     = { contorno: null, faces: null, doms: null, gps: null };
 const Lp       = _carregarLeaflet();
+_carregarLeafletOffline(); // pré-carrega em segundo plano (a própria função espera o Leaflet primeiro)
 
 /* ── COR POR ENTREVISTADOR (igual ao painel principal) ── */
 const CORES_ENTREVISTADORES = {
@@ -1159,6 +1164,117 @@ function _carregarLeaflet() {
   }));
 }
 
+/* ── MAPA OFFLINE (leaflet.offline) ──────────────────────
+   Permite baixar os blocos (tiles) do mapa da área do setor
+   para uso sem internet em campo. ────────────────────────*/
+const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+let _offlineTileLayer  = null;
+let _offlineSaveControl = null;
+
+function _carregarLeafletOffline() {
+  if (window._LOp) return window._LOp;
+  return (window._LOp = (async () => {
+    await Lp; // garante que o Leaflet (window.L) já está carregado
+    if (window.LeafletOffline) return window.LeafletOffline;
+    if (!window.idb) {
+      window.idb = await import('https://cdn.jsdelivr.net/npm/idb@8/+esm');
+    }
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/leaflet.offline@3.2.1/dist/bundle.js';
+      s.onload = res;
+      s.onerror = rej;
+      document.head.appendChild(s);
+    });
+    return window.LeafletOffline;
+  })());
+}
+
+async function _criarCamadaMapaOffline(L, mapa) {
+  await _carregarLeafletOffline();
+  _offlineTileLayer = L.tileLayer.offline(TILE_URL, { maxZoom: 19 }).addTo(mapa);
+  _offlineSaveControl = L.control.savetiles(_offlineTileLayer, {
+    saveWhatYouSee: true,
+    maxZoom: 18,
+    parallel: 6,
+  }).addTo(mapa);
+  // o controle nativo da lib (botões +/-) fica escondido; usamos nossos próprios botões
+  const ctrlEl = _offlineSaveControl.getContainer?.();
+  if (ctrlEl) ctrlEl.style.display = 'none';
+  return _offlineTileLayer;
+}
+
+window.baixarMapaOffline = () => {
+  if (!_offlineSaveControl || !_offlineTileLayer) { toast('Mapa ainda não carregado', 'erro'); return; }
+  if (navigator.onLine === false) { toast('Sem conexão com a internet', 'erro'); return; }
+
+  const btn = $('btn-baixar-mapa');
+  const statusEl = $('offline-status');
+  let acabou = false;
+  let ultimoProgresso = Date.now();
+
+  const onLoadTile = () => { ultimoProgresso = Date.now(); };
+  const onSaveTile = (st) => {
+    ultimoProgresso = Date.now();
+    if (statusEl) statusEl.textContent = `Baixando mapa… ${st.lengthSaved}/${st.lengthToBeSaved}`;
+  };
+  const finalizar = (st) => {
+    if (acabou) return;
+    acabou = true;
+    clearInterval(checadorParado);
+    _offlineTileLayer.off('loadtileend', onLoadTile);
+    _offlineTileLayer.off('savetileend', onSaveTile);
+    _offlineTileLayer.off('saveend', onSaveEnd);
+    if (btn) { btn.disabled = false; btn.textContent = '📥 Baixar mapa offline'; }
+    toast(`Mapa salvo para uso offline (${st.lengthSaved}/${st.lengthToBeSaved} blocos)`, st.lengthSaved === 0 ? 'erro' : 'ok');
+    atualizarStatusOffline();
+  };
+  const onSaveEnd = (st) => finalizar(st);
+
+  // se ficar 8s sem nenhum progresso, encerra (provável falha de rede em algum bloco)
+  const checadorParado = setInterval(() => {
+    if (Date.now() - ultimoProgresso > 8000) finalizar(_offlineSaveControl.status);
+  }, 2000);
+
+  _offlineTileLayer.on('loadtileend', onLoadTile);
+  _offlineTileLayer.on('savetileend', onSaveTile);
+  _offlineTileLayer.on('saveend', onSaveEnd);
+
+  _offlineSaveControl.options.confirm = (status, ok) => {
+    if (confirm(`Baixar ${status.lengthToBeSaved} blocos do mapa para uso offline?`)) {
+      if (btn) { btn.disabled = true; btn.textContent = '📥 Baixando…'; }
+      if (statusEl) statusEl.textContent = `Baixando mapa… 0/${status.lengthToBeSaved}`;
+      ok();
+    } else {
+      clearInterval(checadorParado);
+      _offlineTileLayer.off('loadtileend', onLoadTile);
+      _offlineTileLayer.off('savetileend', onSaveTile);
+      _offlineTileLayer.off('saveend', onSaveEnd);
+    }
+  };
+  _offlineSaveControl._saveTiles();
+};
+
+window.limparMapaOffline = async () => {
+  if (!confirm('Remover todos os blocos do mapa salvos para uso offline?')) return;
+  await _carregarLeafletOffline();
+  await window.LeafletOffline.truncate();
+  toast('Mapa offline removido', 'ok');
+  atualizarStatusOffline();
+};
+
+async function atualizarStatusOffline() {
+  const el = $('offline-status');
+  if (!el) return;
+  try {
+    await _carregarLeafletOffline();
+    const n = await window.LeafletOffline.getStorageLength();
+    el.textContent = n > 0 ? `Mapa offline: ${n} blocos salvos` : 'Mapa offline: nenhum bloco salvo';
+  } catch(e) {
+    el.textContent = 'Mapa offline: —';
+  }
+}
+
 /* ── SETORES ──────────────────────────────────────────── */
 async function carregarUltimaAtualizacao() {
   try {
@@ -1419,7 +1535,7 @@ window.abrirMapaGeral = async () => {
   layers = { contorno: null, faces: null, doms: null, gps: null };
   gpsMarker = null; gpsCircle = null;
   mapaInst = L.map($('mapa'), { zoomControl: false, attributionControl: false });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(mapaInst);
+  await _criarCamadaMapaOffline(L, mapaInst);
   L.control.attribution({ position:'bottomleft', prefix:'© OSM' }).addTo(mapaInst);
   L.control.zoom({ position:'bottomright' }).addTo(mapaInst);
   domicilios = todosOsMeus;
@@ -1614,7 +1730,7 @@ async function abrirSetor(upa, domsIniciais) {
 
   const mapaDiv = $('mapa');
   mapaInst = L.map(mapaDiv, { zoomControl: false, attributionControl: false });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaInst);
+  await _criarCamadaMapaOffline(L, mapaInst);
   L.control.attribution({ position: 'bottomleft', prefix: '© OSM' }).addTo(mapaInst);
   L.control.zoom({ position: 'bottomright' }).addTo(mapaInst);
 
@@ -1780,7 +1896,10 @@ window.centrarGPS = () => {
 };
 
 /* ── LAYER TOGGLE ─────────────────────────────────────── */
-window.toggleLayerPanel = () => $('layer-panel').classList.toggle('hidden');
+window.toggleLayerPanel = () => {
+  $('layer-panel').classList.toggle('hidden');
+  if (!$('layer-panel').classList.contains('hidden')) atualizarStatusOffline();
+};
 
 window.toggleLayer = nome => {
   const layer = layers[nome];
