@@ -744,28 +744,30 @@
   .cron-nav-btn { border:1.5px solid var(--borda);border-radius:6px;background:#fff;cursor:pointer;padding:0.22rem 0.7rem;font-size:0.95rem;color:var(--cinza-escuro);font-family:var(--fonte);transition:border-color 0.12s,color 0.12s; }
   .cron-nav-btn:hover { border-color:var(--azul);color:var(--azul); }
   .cron-week-nav { display:flex;align-items:center;gap:0.5rem; }
-  .cron-grid { display:grid;font-size:9px;width:100%;column-gap:3px;row-gap:0; }
-  .cron-grid-hd { position:relative;background:var(--azul);color:#fff;font-weight:700;font-size:9px;padding:4px 6px;text-align:center;white-space:nowrap;letter-spacing:0.03em;border-right:1px solid rgba(255,255,255,0.15); }
+  .cron-grid { display:grid;font-size:10.5px;width:100%;column-gap:3px;row-gap:0; }
+  .cron-grid-hd { position:relative;background:var(--azul);color:#fff;font-weight:700;font-size:10.5px;padding:4px 6px;text-align:center;white-space:nowrap;letter-spacing:0.03em;border-right:1px solid rgba(255,255,255,0.15); }
   .cron-day-del-btn { position:absolute;top:0;right:1px;background:none;border:none;color:rgba(255,255,255,0.65);font-size:12px;line-height:1;cursor:pointer;padding:1px 3px; }
   .cron-day-del-btn:hover { color:#fff; }
+  .cron-col-resize { position:absolute;top:0;right:-3px;width:6px;height:100%;cursor:col-resize;z-index:2; }
+  .cron-col-resize:hover { background:rgba(255,255,255,0.35); }
   .cron-group-block { display:contents; }
   .cron-group-sep { grid-column:1/-1;height:6px;background:#eef0f3; }
   .cron-names-cell { padding:4px 6px;display:flex;flex-direction:column;gap:3px;align-items:flex-start;box-sizing:border-box;cursor:pointer; }
   .cron-names-cell:hover { filter:brightness(0.96); }
   .cron-avatar { display:flex;align-items:center;gap:3px; }
-  .cron-avatar-circ { width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0; }
+  .cron-avatar-circ { width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0; }
   .cron-card { padding:4px 6px;box-sizing:border-box;min-height:34px;cursor:pointer; }
   .cron-card:hover { filter:brightness(0.97); }
   .cron-day-empty { min-height:34px;box-sizing:border-box;cursor:pointer; }
   .cron-day-empty:hover { filter:brightness(0.94); }
-  .cron-card-hdr { font-size:9px;margin-bottom:2px;display:flex;gap:4px;align-items:center;flex-wrap:wrap; }
+  .cron-card-hdr { font-size:10px;margin-bottom:2px;display:flex;gap:4px;align-items:center;flex-wrap:wrap; }
   .cron-hd-span { color:#888; }
   .cron-hd-hora { font-weight:600;color:#555;white-space:normal;overflow-wrap:break-word; }
   .cron-hd-pend { font-style:italic;color:#A32D2D; }
   .cron-setor-item { display:flex;align-items:center;gap:3px;background:rgba(255,255,255,0.6);border-radius:3px;padding:2px 4px;margin-bottom:2px; }
-  .cron-etapa-badge { font-size:7px;font-weight:700;padding:1px 3px;border-radius:3px;flex-shrink:0;white-space:nowrap; }
-  .cron-setor-code { font-family:monospace;font-size:8px;color:#666;flex-shrink:0;white-space:nowrap; }
-  .cron-setor-nome { font-size:9px;font-weight:700;min-width:0;flex:1;white-space:normal;overflow-wrap:break-word;line-height:1.25; }
+  .cron-etapa-badge { font-size:8px;font-weight:700;padding:1px 3px;border-radius:3px;flex-shrink:0;white-space:nowrap; }
+  .cron-setor-code { font-family:monospace;font-size:9px;color:#666;flex-shrink:0;white-space:nowrap; }
+  .cron-setor-nome { font-size:10px;font-weight:700;min-width:0;flex:1;white-space:normal;overflow-wrap:break-word;line-height:1.25; }
   .cron-day-mobile-hdr { display:none; }
   /* ── Cronograma — popover de edição ── */
   .cron-popover { position:fixed;background:#fff;border:1px solid var(--borda);border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.18);z-index:2000;width:280px;max-height:90vh;overflow-y:auto;font-size:12px; }
@@ -6880,14 +6882,15 @@ function _buildCronGrid() {
   });
 
   const groups = [...groupMap.values()];
-  const gridCols = `80px repeat(${dias.length}, minmax(0,1fr))`;
+  const colWidths = _cronGetColWidths(dias.length);
+  const gridCols = colWidths.map(w => `${w}px`).join(' ');
 
-  const hdrCells = dias.map(d => {
+  const hdrCells = dias.map((d, di) => {
     const dt = new Date(d + 'T12:00:00');
     const dow = _DIAS_ABR[dt.getDay()];
     const dm  = `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
     const dEsc = d.replace(/'/g,"\\'");
-    return `<div class="cron-grid-hd"><button class="cron-day-del-btn" title="Excluir este dia" onclick="cronDeleteDia('${dEsc}')">×</button>${dow}<br><span style="font-weight:400;opacity:0.85;font-size:9px">${dm}</span></div>`;
+    return `<div class="cron-grid-hd"><button class="cron-day-del-btn" title="Excluir este dia" onclick="cronDeleteDia('${dEsc}')">×</button>${dow}<br><span style="font-weight:400;opacity:0.85;font-size:9px">${dm}</span><div class="cron-col-resize" title="Arraste para redimensionar" onmousedown="cronColResizeStart(event,${di+1})"></div></div>`;
   }).join('');
 
   let groupsHtml = '';
@@ -6902,7 +6905,7 @@ function _buildCronGrid() {
     const avatarHtml = g.nomes.map(n => {
       const cor = corEntrevistador(n);
       const ini = n.trim().charAt(0).toUpperCase();
-      return `<div class="cron-avatar"><div class="cron-avatar-circ" style="background:${cor}22;border:1.5px solid ${cor};color:${cor}">${ini}</div><span style="font-size:8px;font-weight:600;color:${pal.cor};max-width:60px;white-space:normal;overflow-wrap:break-word;line-height:1.2">${n.split(' ')[0]}</span></div>`;
+      return `<div class="cron-avatar"><div class="cron-avatar-circ" style="background:${cor}22;border:1.5px solid ${cor};color:${cor}">${ini}</div><span style="font-size:9px;font-weight:600;color:${pal.cor};max-width:70px;white-space:normal;overflow-wrap:break-word;line-height:1.2">${n.split(' ')[0]}</span></div>`;
     }).join('');
     const namesCell = `<div class="cron-names-cell" style="background:${pal.bg};border-right:2px solid ${pal.borda}" data-gk="${gkAttr}" data-dia="" onclick="cronOpenCell(this)" title="Editar equipe">${avatarHtml || '<span style="color:var(--cinza);font-size:0.75rem">—</span>'}</div>`;
 
@@ -6957,7 +6960,58 @@ function _buildCronGrid() {
     groupsHtml += `<div class="cron-group-block">${namesCell}${dayCells}</div>`;
   }
 
-  return addBtn + `<div style="overflow-x:auto;width:100%"><div class="cron-grid" style="grid-template-columns:${gridCols}"><div class="cron-names-cell cron-grid-hd" style="justify-content:center">Equipe</div>${hdrCells}${groupsHtml}</div></div>`;
+  return addBtn + `<div style="overflow-x:auto;width:100%"><div class="cron-grid" id="cron-grid-el" style="grid-template-columns:${gridCols}"><div class="cron-names-cell cron-grid-hd" style="justify-content:center">Equipe<div class="cron-col-resize" title="Arraste para redimensionar" onmousedown="cronColResizeStart(event,0)"></div></div>${hdrCells}${groupsHtml}</div></div>`;
+}
+
+// ── Cronograma — largura de coluna ajustável manualmente ──────────────────
+
+const _CRON_COL_DEFAULT = [80, 110]; // [0]=Equipe, [1]=cada coluna de dia
+function _cronGetColWidths(n) {
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem('pnad_cron_col_widths') || '[]'); } catch(e) { saved = []; }
+  const widths = [];
+  for (let i = 0; i <= n; i++) {
+    const def = i === 0 ? _CRON_COL_DEFAULT[0] : _CRON_COL_DEFAULT[1];
+    const v = Number(saved[i]);
+    widths.push(Number.isFinite(v) && v >= 50 ? v : def);
+  }
+  return widths;
+}
+function _cronSaveColWidths(widths) {
+  try { localStorage.setItem('pnad_cron_col_widths', JSON.stringify(widths.map(w => Math.round(w)))); } catch(e) {}
+}
+
+let _cronResizeState = null;
+
+window.cronColResizeStart = (e, idx) => {
+  e.preventDefault();
+  const grid = document.getElementById('cron-grid-el');
+  if (!grid) return;
+  const widths = getComputedStyle(grid).gridTemplateColumns.split(' ').map(v => parseFloat(v));
+  _cronResizeState = { idx, startX: e.clientX, widths, grid };
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  document.addEventListener('mousemove', _cronColResizeMove);
+  document.addEventListener('mouseup', _cronColResizeEnd);
+};
+
+function _cronColResizeMove(e) {
+  const st = _cronResizeState;
+  if (!st) return;
+  const delta = e.clientX - st.startX;
+  st.widths[st.idx] = Math.max(50, Math.round(st.widths[st.idx] + delta));
+  st.startX = e.clientX;
+  st.grid.style.gridTemplateColumns = st.widths.map(w => `${w}px`).join(' ');
+}
+
+function _cronColResizeEnd() {
+  const st = _cronResizeState;
+  document.removeEventListener('mousemove', _cronColResizeMove);
+  document.removeEventListener('mouseup', _cronColResizeEnd);
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+  if (st) _cronSaveColWidths(st.widths);
+  _cronResizeState = null;
 }
 
 // ── funções auxiliares ─────────────────────────────────────────────────────
