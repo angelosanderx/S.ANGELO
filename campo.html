@@ -280,12 +280,9 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   <div id="legenda">
     <div id="legenda-entr"></div>
     <div style="border-top:1px solid #e2e8f0;margin:4px 0"></div>
-    <div class="leg-item"><span class="leg-dot" style="background:#fff;border:2.5px solid #22c55e"></span>Realizada</div>
-    <div class="leg-item"><span class="leg-dot" style="background:#fff;border:2.5px solid #ef4444"></span>Recusa</div>
-    <div class="leg-item"><span class="leg-dot" style="background:#fff;border:2.5px solid #fbbf24"></span>Ausente</div>
-    <div class="leg-item"><span class="leg-dot" style="background:#fff;border:2.5px solid #a855f7"></span>Supervisão</div>
-    <div class="leg-item"><span class="leg-dot" style="background:#fff;border:2.5px solid #f97316"></span>Carta</div>
-    <div class="leg-item"><span class="leg-dot" style="background:#fff;border:2.5px solid #cbd5e1"></span>Não visitado</div>
+    <div class="leg-item"><span style="width:14px;height:14px;border-radius:50%;background:#22c55e;border:1.5px solid #fff;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#fff;flex-shrink:0">✓</span> Realizada</div>
+    <div class="leg-item"><span style="width:14px;height:14px;border-radius:50%;background:#f97316;border:1.5px solid #fff;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#fff;flex-shrink:0">…</span> Em andamento</div>
+    <div class="leg-item"><span style="width:14px;height:14px;border-radius:50%;background:#e2e8f0;border:1.5px solid #94a3b8;display:inline-flex;flex-shrink:0"></span> Pendente</div>
   </div>
 </div>
 
@@ -418,16 +415,14 @@ function corEntrevistador(nome) {
   return PALETA[h % PALETA.length];
 }
 
-// Cor da borda pelo status
-const COR_BORDA_STATUS = {
-  realizada:        '#22c55e',
-  recusa:           '#ef4444',
-  ausente:          '#fbbf24',
-  supervisao:       '#a855f7',
-  carta_solicitada: '#f97316',
-  agendado:         '#60a5fa',
-};
-const bordaStatus = s => COR_BORDA_STATUS[s] || '#cbd5e1';
+// Três estados de visita
+const STATUS_PENDENTES = new Set(['nao_visitado','ausente','fechado','recusa','agendado']);
+function estadoDom(s) {
+  if (s === 'realizada')                          return 'realizada';
+  if (s === 'carta_solicitada' || s === 'supervisao') return 'andamento';
+  if (STATUS_PENDENTES.has(s || 'nao_visitado')) return 'pendente';
+  return 'pendente';
+}
 
 /* ── STATUS ───────────────────────────────────────────── */
 const STATUS_INFO = {
@@ -793,12 +788,18 @@ function renderDoms(L) {
     const fill = corEntrevistador(nome);
     const borda = bordaStatus(d.status_atual);
     if (nome) entrsVisiveis.set(nome, fill);
-    const num = d.domicilio_num || '?';
+    const num   = d.domicilio_num || '?';
+    const est   = estadoDom(d.status_atual);
+    const check = est === 'realizada' ? '✓' : est === 'andamento' ? '…' : '';
+    const borda = est === 'realizada' ? '#15803d' : est === 'andamento' ? '#f97316' : '#fff';
     const ico = L.divIcon({
       className: '',
-      html: `<div style="width:30px;height:30px;border-radius:50%;background:${fill};border:3px solid ${borda};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6);box-shadow:0 2px 6px rgba(0,0,0,.3);font-family:sans-serif">${num}</div>`,
-      iconSize: [30,30],
-      iconAnchor: [15,15],
+      html: `<div style="position:relative;width:32px;height:32px">
+        <div style="width:32px;height:32px;border-radius:50%;background:${fill};border:3px solid ${borda};display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.55);box-shadow:0 2px 6px rgba(0,0,0,.28);font-family:sans-serif">${num}</div>
+        ${check ? `<div style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;border-radius:50%;background:${est==='realizada'?'#22c55e':'#f97316'};border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#fff">${check}</div>` : ''}
+      </div>`,
+      iconSize: [32,32],
+      iconAnchor: [16,16],
     });
     const m = L.marker([lat,lng], { icon: ico });
     m.on('click', () => abrirBS(d));
