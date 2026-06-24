@@ -726,7 +726,6 @@ function renderDoms(L) {
     if (isNaN(lat)||isNaN(lng)) return;
     const nome = d.entrevistador_nome || '';
     const fill = corEntrevistador(nome);
-    const borda = bordaStatus(d.status_atual);
     if (nome) entrsVisiveis.set(nome, fill);
     const num   = d.domicilio_num || '?';
     const est   = estadoDom(d.status_atual);
