@@ -122,8 +122,33 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 #overlay{position:fixed;inset:0;z-index:850;background:rgba(0,0,0,.38);display:none}
 #overlay.show{display:block}
 
-/* status pill (usado no panel-ficha) */
-.status-pill{padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+/* status pill */
+.status-pill{padding:2px 9px;border-radius:10px;font-size:.7rem;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+
+/* BOTTOM SHEET (click no marcador) */
+#bottom-sheet{
+  position:absolute;bottom:0;left:0;right:0;z-index:910;
+  background:#fff;border-radius:18px 18px 0 0;
+  box-shadow:0 -4px 24px rgba(0,0,0,.18);
+  padding-bottom:calc(env(safe-area-inset-bottom) + .5rem);
+  transition:transform .28s cubic-bezier(.4,0,.2,1);
+  transform:translateY(110%);
+}
+#bottom-sheet.aberto{transform:translateY(0)}
+.bs-handle{width:36px;height:4px;border-radius:2px;background:#dde3ec;margin:10px auto 0}
+.bs-topo{padding:.65rem 1rem .5rem;display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem}
+.bs-id{font-size:1rem;font-weight:800;color:var(--texto);line-height:1.2}
+.bs-meta{font-size:.72rem;color:var(--cinza);margin-top:1px}
+.bs-dados{padding:0 1rem .6rem;display:flex;flex-direction:column;gap:5px;border-bottom:1px solid var(--borda)}
+.bs-linha{font-size:.83rem;color:var(--texto);line-height:1.35}
+.bs-linha .ic{margin-right:4px;opacity:.6}
+.bs-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:.7rem 1rem}
+.bs-btn{border:none;border-radius:12px;padding:.65rem .3rem;font-size:.75rem;font-weight:700;
+  cursor:pointer;text-align:center;font-family:inherit;display:flex;flex-direction:column;
+  align-items:center;gap:3px;transition:opacity .1s;background:var(--cinza-claro);color:var(--texto)}
+.bs-btn:active{opacity:.75}
+.bs-btn .bi{font-size:1.25rem}
+.bs-btn.primario{background:var(--azul);color:#fff}
 
 /* FICHA INLINE */
 #panel-ficha{
@@ -297,6 +322,28 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 <!-- OVERLAY -->
 <div id="overlay" onclick="fecharTudo()"></div>
 
+<!-- BOTTOM SHEET: click no marcador -->
+<div id="bottom-sheet">
+  <div class="bs-handle"></div>
+  <div class="bs-topo">
+    <div>
+      <div class="bs-id" id="bs-id">—</div>
+      <div class="bs-meta" id="bs-meta">—</div>
+    </div>
+    <span class="status-pill" id="bs-pill"></span>
+  </div>
+  <div class="bs-dados">
+    <div class="bs-linha"><span class="ic">📍</span><span id="bs-end">—</span></div>
+    <div class="bs-linha"><span class="ic">👤</span><span id="bs-entr">—</span></div>
+    <div class="bs-linha" id="bs-etapa5-linha" style="display:none;color:#b91c1c;font-weight:600">⚠️ Etapa 5 — sai da amostra no próximo trimestre</div>
+  </div>
+  <div class="bs-btns">
+    <button class="bs-btn" onclick="abrirFichaCompleta()"><span class="bi">📋</span>Ficha</button>
+    <button class="bs-btn" onclick="abrirPanelObs()"><span class="bi">💬</span>Observações</button>
+    <button class="bs-btn primario" onclick="abrirPanelSolicitar()"><span class="bi">➕</span>Solicitar</button>
+  </div>
+</div>
+
 <!-- FICHA INLINE -->
 <div id="panel-ficha">
   <div class="pf-header">
@@ -338,9 +385,19 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   </div>
 
   <div class="pf-actions">
-    <button class="pf-btn" onclick="abrirPanelSolicitar()">📋 Solicitar</button>
-    <button class="pf-btn primario" onclick="abrirPanelStatus()">✅ Registrar status</button>
+    <button class="pf-btn" onclick="abrirPanelStatus()">✅ Registrar status</button>
+    <button class="pf-btn" onclick="abrirPanelSolicitar()">➕ Solicitar</button>
   </div>
+</div>
+
+<!-- PANEL: observações da equipe -->
+<div id="panel-obs" class="panel hidden">
+  <div class="panel-handle"></div>
+  <div class="panel-header">
+    <h3>Observações da equipe</h3>
+    <button class="panel-close" onclick="fecharPanelObs()">✕</button>
+  </div>
+  <div id="panel-obs-conteudo"></div>
 </div>
 
 <!-- PANEL: status -->
@@ -728,7 +785,7 @@ async function abrirSetor(upa, domsIniciais) {
       atualizarStats();
       if (domAtivo) {
         const d = domicilios.find(x => x.id === domAtivo.id);
-        if (d) { domAtivo = d; preencherBS(d); }
+        if (d) { domAtivo = d; atualizarBSAberto(d); }
       }
     },
     e => console.error('onSnapshot:', e)
@@ -856,13 +913,87 @@ window.toggleLayer = nome => {
   mapaInst.hasLayer(layer) ? layer.remove() : layer.addTo(mapaInst);
 };
 
-/* ── FICHA INLINE ─────────────────────────────────────── */
+/* ── BOTTOM SHEET (marcador) ──────────────────────────── */
 function abrirBS(d) {
   domAtivo = d;
-  preencherFicha(d);
-  $('panel-ficha').classList.add('aberto');
+  const s = d.status_atual || 'nao_visitado';
+  $('bs-id').textContent   = `Dom. ${d.domicilio_num||'?'} · Controle ${d.controle||'?'}`;
+  $('bs-meta').textContent = `Sem. ${d.semana||'?'} · Etapa ${d.visita_etapa||'?'}`;
+  $('bs-end').textContent  = d.endereco || d.logradouro_kml || '—';
+  $('bs-entr').textContent = d.entrevistador_nome || 'Sem entrevistador';
+  $('bs-etapa5-linha').style.display = String(d.visita_etapa) === '5' ? '' : 'none';
+  const pill = $('bs-pill');
+  pill.textContent = lblS(s);
+  pill.style.cssText = `background:${corS(s)}22;color:${corS(s)};border:1px solid ${corS(s)}55`;
+  $('bottom-sheet').classList.add('aberto');
+  $('overlay').classList.add('show');
   $('fab-nav').classList.toggle('visivel', !!(d.latitude_kml && d.longitude_kml));
 }
+
+function atualizarBSAberto(d) {
+  // atualiza BS se aberto
+  if ($('bottom-sheet').classList.contains('aberto')) abrirBS(d);
+  // atualiza ficha se aberta
+  if ($('panel-ficha').classList.contains('aberto')) preencherFicha(d);
+}
+
+window.fecharBS = () => {
+  $('bottom-sheet').classList.remove('aberto');
+  $('overlay').classList.remove('show');
+  $('fab-nav').classList.remove('visivel');
+  domAtivo = null;
+};
+
+window.abrirFichaCompleta = () => {
+  preencherFicha(domAtivo);
+  $('panel-ficha').classList.add('aberto');
+};
+
+window.abrirPanelObs = () => {
+  const d = domAtivo;
+  if (!d) return;
+  const obs  = (d.observacoes || []).filter(o => o.texto);
+  const sols = (d.solicitacoes || []).filter(x => !x.resolvido);
+  const tels = (d.historico_telefones || []).filter(t => t.observacao);
+  let html = '';
+  if (obs.length === 0 && sols.length === 0 && tels.length === 0) {
+    html = '<div class="vazio" style="padding:1.5rem"><div class="vazio-ico">💬</div>Nenhuma observação registrada.</div>';
+  }
+  if (obs.length) {
+    html += obs.map(o => `<div style="background:#f8fafc;border-radius:9px;padding:.6rem .85rem;margin-bottom:.4rem;font-size:.83rem;color:var(--texto);line-height:1.45">
+      ${o.texto}
+      ${o.autor ? `<div style="font-size:.68rem;color:var(--cinza);margin-top:3px">— ${o.autor}</div>` : ''}
+    </div>`).join('');
+  }
+  if (tels.length) {
+    html += `<div style="font-size:.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin:.7rem 0 .4rem">Observações de visita</div>`;
+    html += tels.map(t => `<div style="background:#f0f9ff;border-radius:9px;padding:.6rem .85rem;margin-bottom:.4rem;font-size:.83rem;color:var(--texto);line-height:1.45">
+      ${t.observacao}
+      <div style="font-size:.68rem;color:var(--cinza);margin-top:3px">Entrevista ${t.entrevista}</div>
+    </div>`).join('');
+  }
+  if (sols.length) {
+    html += `<div style="font-size:.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin:.7rem 0 .4rem">Solicitações ativas</div>`;
+    html += sols.map(x => {
+      const tipo = SOL_TIPOS.find(t => t.id === x.tipo);
+      return `<div class="sol-card">
+        <div class="sol-card-tipo">${tipo?.ico||'📋'} ${tipo?.label||x.tipo}</div>
+        ${x.obs?`<div class="sol-card-obs">${x.obs}</div>`:''}
+        ${x.criado_por_nome?`<div class="sol-card-obs">— ${x.criado_por_nome}</div>`:''}
+      </div>`;
+    }).join('');
+  }
+  $('panel-obs-conteudo').innerHTML = html;
+  $('panel-obs').classList.remove('hidden');
+  $('overlay').classList.add('show');
+};
+
+window.fecharPanelObs = () => {
+  $('panel-obs').classList.add('hidden');
+  $('overlay').classList.remove('show');
+};
+
+/* ── FICHA INLINE ─────────────────────────────────────── */
 
 function preencherFicha(d) {
   const s = d.status_atual || 'nao_visitado';
@@ -942,20 +1073,21 @@ function preencherFicha(d) {
 
 window.fecharFicha = () => {
   $('panel-ficha').classList.remove('aberto');
-  $('fab-nav').classList.remove('visivel');
   $('panel-status').classList.add('hidden');
   $('panel-solicitar').classList.add('hidden');
   $('overlay').classList.remove('show');
-  domAtivo = null;
 };
 
 window.fecharTudo = () => {
+  $('bottom-sheet').classList.remove('aberto');
   $('panel-ficha').classList.remove('aberto');
+  $('panel-obs').classList.add('hidden');
   $('panel-status').classList.add('hidden');
   $('panel-solicitar').classList.add('hidden');
   $('layer-panel').classList.add('hidden');
   $('overlay').classList.remove('show');
   $('fab-nav').classList.remove('visivel');
+  domAtivo = null;
 };
 
 /* ── NAVEGAR ──────────────────────────────────────────── */
