@@ -129,7 +129,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   box-shadow:0 -4px 20px rgba(0,0,0,.15);
   transition:transform .3s cubic-bezier(.34,1.56,.64,1);
   padding-bottom:calc(env(safe-area-inset-bottom) + .5rem);
-  max-height:75vh;overflow-y:auto;
+  max-height:88vh;overflow-y:auto;
 }
 #bottom-sheet.hidden{transform:translateY(110%);display:block!important}
 .bs-handle{width:38px;height:4px;border-radius:2px;background:#dde3ec;margin:8px auto 0}
@@ -138,13 +138,26 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .bs-sub{font-size:.75rem;color:var(--cinza);margin-top:1px}
 .status-pill{padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700;letter-spacing:.3px;white-space:nowrap;flex-shrink:0;margin-top:2px}
 .bs-close{background:var(--cinza-claro);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:.85rem;color:var(--cinza);flex-shrink:0;display:flex;align-items:center;justify-content:center}
-.bs-info{padding:.55rem 1rem .7rem;display:flex;flex-direction:column;gap:3px}
+.bs-info{padding:.55rem 1rem .4rem;display:flex;flex-direction:column;gap:3px}
 .bs-row{font-size:.82rem;color:var(--texto);line-height:1.4}
 .bs-row .lbl{color:var(--cinza);font-size:.72rem}
-.bs-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 1rem .9rem}
-.bs-btn{background:var(--cinza-claro);border:1.5px solid var(--borda);border-radius:11px;padding:.65rem .5rem;font-size:.73rem;font-weight:600;color:var(--texto);cursor:pointer;text-align:center;font-family:inherit;transition:background .1s,border-color .1s}
+.bs-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 1rem .9rem}
+.bs-btn{background:var(--cinza-claro);border:1.5px solid var(--borda);border-radius:11px;padding:.65rem .5rem;font-size:.78rem;font-weight:600;color:var(--texto);cursor:pointer;text-align:center;font-family:inherit;transition:background .1s,border-color .1s}
 .bs-btn:active{background:#e2e8f0;border-color:#b0bec5}
 .bs-ico{font-size:1.3rem;display:block;margin-bottom:3px}
+
+/* FICHA SECTION */
+.bs-secao{padding:.5rem 1rem;border-top:1px solid var(--borda)}
+.bs-secao-titulo{font-size:.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem}
+.etapa-card{background:var(--cinza-claro);border-radius:9px;padding:.55rem .75rem;margin-bottom:.4rem}
+.etapa-num{font-size:.68rem;font-weight:700;color:var(--cinza);margin-bottom:2px}
+.etapa-resultado{font-size:.82rem;font-weight:700;color:var(--texto);margin-bottom:2px}
+.etapa-detalhe{font-size:.72rem;color:var(--cinza);line-height:1.4}
+.etapa-badge{display:inline-block;padding:1px 7px;border-radius:6px;font-size:.68rem;font-weight:700;margin-right:4px}
+.sol-card{background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;padding:.5rem .75rem;margin-bottom:.4rem}
+.sol-card-tipo{font-size:.8rem;font-weight:700;color:#c2410c}
+.sol-card-obs{font-size:.72rem;color:var(--cinza);margin-top:2px}
+.etapa5-alerta{background:#fef2f2;border:1px solid #fca5a5;border-radius:9px;padding:.55rem .75rem;margin-bottom:.5rem;font-size:.8rem;color:#b91c1c;font-weight:600}
 
 /* PANELS */
 .panel{
@@ -283,13 +296,31 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   </div>
   <div class="bs-info">
     <div class="bs-row"><span class="lbl">Endereço </span><span id="bs-end">—</span></div>
+    <div class="bs-row" id="bs-comp-row"><span class="lbl">Complemento </span><span id="bs-comp">—</span></div>
     <div class="bs-row"><span class="lbl">Morador CNEFE </span><span id="bs-morador">—</span></div>
     <div class="bs-row"><span class="lbl">Entrevistador </span><span id="bs-entr">—</span></div>
-    <div class="bs-row" id="bs-sols-row" style="display:none"><span class="lbl">Solicitações </span><span id="bs-sols">—</span></div>
   </div>
+
+  <!-- Alerta etapa 5 -->
+  <div id="bs-etapa5" class="etapa5-alerta" style="margin:0 1rem .5rem;display:none">
+    ⚠️ Etapa 5 — domicílio sai da amostra no próximo trimestre
+  </div>
+
+  <!-- Histórico de entrevistas -->
+  <div class="bs-secao" id="bs-hist-secao" style="display:none">
+    <div class="bs-secao-titulo">Histórico de entrevistas</div>
+    <div id="bs-historico"></div>
+  </div>
+
+  <!-- Solicitações ativas -->
+  <div class="bs-secao" id="bs-sols-secao" style="display:none">
+    <div class="bs-secao-titulo">Solicitações ativas</div>
+    <div id="bs-solicitacoes"></div>
+  </div>
+
   <div class="bs-actions">
     <button class="bs-btn" onclick="abrirPanelSolicitar()"><span class="bs-ico">📋</span>Solicitar</button>
-    <button class="bs-btn" onclick="abrirPanelStatus()"><span class="bs-ico">✅</span>Status</button>
+    <button class="bs-btn" onclick="abrirPanelStatus()"><span class="bs-ico">✅</span>Registrar status</button>
   </div>
 </div>
 
@@ -816,24 +847,81 @@ function abrirBS(d) {
 
 function preencherBS(d) {
   const s = d.status_atual || 'nao_visitado';
-  $('bs-titulo').textContent  = `Dom. ${d.domicilio_num||'?'} · Sem. ${d.semana||'?'}`;
-  $('bs-sub').textContent     = `Etapa ${d.visita_etapa||'?'} · ${d.periodo||''}`;
-  $('bs-end').textContent     = d.endereco || d.logradouro_kml || '—';
-  $('bs-morador').textContent = d.morador || d.morador_cnefe || '—';
-  $('bs-entr').textContent    = d.entrevistador_nome || '—';
 
+  // Cabeçalho
+  $('bs-titulo').textContent = `Dom. ${d.domicilio_num||'?'} · Controle ${d.controle||'?'}`;
+  $('bs-sub').textContent    = `Semana ${d.semana||'?'} · Etapa ${d.visita_etapa||'?'} · ${(d.periodo||'').replace(/_/g,' ')}`;
+
+  // Pill de status
   const pill = $('bs-pill');
   pill.textContent = lblS(s);
   pill.style.cssText = `background:${corS(s)}22;color:${corS(s)};border:1px solid ${corS(s)}55`;
 
-  // Solicitações ativas
-  const sols = (d.solicitacoes||[]).filter(x=>!x.resolvido);
-  const solRow = $('bs-sols-row');
-  if (sols.length) {
-    $('bs-sols').textContent = sols.map(x => SOL_TIPOS.find(t=>t.id===x.tipo)?.label||x.tipo).join(', ');
-    solRow.style.display = '';
+  // Dados básicos
+  $('bs-end').textContent     = d.endereco || d.logradouro_kml || '—';
+  $('bs-morador').textContent = d.morador_cnefe || d.morador || '—';
+  $('bs-entr').textContent    = d.entrevistador_nome || '—';
+  const comp = d.complemento || '';
+  $('bs-comp').textContent = comp || '—';
+  $('bs-comp-row').style.display = comp ? '' : 'none';
+
+  // Alerta etapa 5
+  $('bs-etapa5').style.display = String(d.visita_etapa) === '5' ? '' : 'none';
+
+  // ── Histórico de entrevistas ──
+  const especies  = (d.historico_especies  || []).slice().sort((a,b) => parseInt(a.entrevista)-parseInt(b.entrevista));
+  const telefones = (d.historico_telefones || []);
+  const telMap    = {};
+  telefones.forEach(t => { telMap[String(t.entrevista)] = t; });
+
+  const etapas = [...new Set([
+    ...especies.map(h => String(h.entrevista)),
+    ...telefones.map(t => String(t.entrevista)),
+  ])].sort((a,b) => parseInt(a)-parseInt(b));
+
+  const histSecao = $('bs-hist-secao');
+  if (etapas.length) {
+    histSecao.style.display = '';
+    $('bs-historico').innerHTML = etapas.map(etapa => {
+      const esp = especies.find(h => String(h.entrevista) === etapa);
+      const tel = telMap[etapa];
+      const resultado = esp?.resultado || '—';
+      const mesAno    = esp?.mes_ano   || '';
+      const entr      = esp?.entrevistador || '';
+      const telefone  = tel?.telefone  || '';
+      const obs       = tel?.observacao || '';
+
+      let badgeBg = '#e2e8f0', badgeCor = '#64748b';
+      if (/realizada/i.test(resultado))                          { badgeBg='#dcfce7'; badgeCor='#15803d'; }
+      else if (/recusa/i.test(resultado))                        { badgeBg='#fee2e2'; badgeCor='#b91c1c'; }
+      else if (/fechado|vago|ocasional|desocupado/i.test(resultado)) { badgeBg='#fef9c3'; badgeCor='#92400e'; }
+
+      return `<div class="etapa-card">
+        <div class="etapa-num">${etapa}ª entrevista${mesAno ? ' · ' + mesAno : ''}</div>
+        <div><span class="etapa-badge" style="background:${badgeBg};color:${badgeCor}">${resultado}</span></div>
+        ${entr    ? `<div class="etapa-detalhe">👤 ${entr}</div>`     : ''}
+        ${telefone? `<div class="etapa-detalhe">📞 ${telefone}</div>` : ''}
+        ${obs     ? `<div class="etapa-detalhe">💬 ${obs}</div>`      : ''}
+      </div>`;
+    }).join('');
   } else {
-    solRow.style.display = 'none';
+    histSecao.style.display = 'none';
+  }
+
+  // ── Solicitações ativas ──
+  const sols = (d.solicitacoes||[]).filter(x => !x.resolvido);
+  const solSecao = $('bs-sols-secao');
+  if (sols.length) {
+    solSecao.style.display = '';
+    $('bs-solicitacoes').innerHTML = sols.map(x => {
+      const tipo = SOL_TIPOS.find(t => t.id === x.tipo);
+      return `<div class="sol-card">
+        <div class="sol-card-tipo">${tipo?.ico||'📋'} ${tipo?.label||x.tipo}</div>
+        ${x.obs ? `<div class="sol-card-obs">${x.obs}</div>` : ''}
+      </div>`;
+    }).join('');
+  } else {
+    solSecao.style.display = 'none';
   }
 }
 
