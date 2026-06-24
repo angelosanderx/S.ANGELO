@@ -194,9 +194,12 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .etapa-num{font-size:.68rem;font-weight:700;color:var(--cinza);margin-bottom:3px}
 .etapa-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700}
 .etapa-detalhe{font-size:.73rem;color:var(--cinza);line-height:1.5;margin-top:3px}
-.sol-card{background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;padding:.55rem .75rem;margin-bottom:.4rem}
+.sol-card{background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;padding:.55rem .75rem;margin-bottom:.4rem;display:flex;align-items:flex-start;gap:.5rem}
+.sol-card-body{flex:1;min-width:0}
 .sol-card-tipo{font-size:.82rem;font-weight:700;color:#c2410c}
 .sol-card-obs{font-size:.73rem;color:var(--cinza);margin-top:2px}
+.sol-card-desfazer{background:none;border:1px solid #fed7aa;border-radius:7px;padding:3px 8px;font-size:.68rem;font-weight:700;color:#c2410c;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-top:1px;font-family:inherit}
+.sol-card-desfazer:active{background:#fed7aa}
 .etapa5-alerta{background:#fef2f2;border:1px solid #fca5a5;border-radius:9px;padding:.6rem .75rem;margin-bottom:.55rem;font-size:.82rem;color:#b91c1c;font-weight:600}
 .pf-actions{
   position:absolute;bottom:0;left:0;right:0;
@@ -453,9 +456,14 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <h3>Observações da equipe</h3>
     <button class="panel-close" onclick="fecharPanelObs()">✕</button>
   </div>
-  <div id="panel-obs-feed" style="margin-bottom:.75rem;max-height:45vh;overflow-y:auto"></div>
+
+  <div style="font-size:.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem">Solicitações ativas</div>
+  <div id="panel-obs-sols" style="margin-bottom:.9rem"></div>
+
+  <div style="font-size:.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem">Observações</div>
+  <div id="panel-obs-feed" style="margin-bottom:.6rem;max-height:30vh;overflow-y:auto"></div>
   <div style="display:flex;gap:8px;align-items:flex-end">
-    <textarea id="obs-input" class="campo-obs" style="height:60px;margin-bottom:0;flex:1" placeholder="Adicionar observação…"></textarea>
+    <textarea id="obs-input" class="campo-obs" style="height:56px;margin-bottom:0;flex:1" placeholder="Adicionar observação…"></textarea>
     <button class="btn-confirmar" style="width:auto;padding:.6rem 1rem" onclick="salvarObsEquipe()">Enviar</button>
   </div>
 </div>
@@ -1116,6 +1124,18 @@ async function carregarRoteiroFicha(d) {
   }
 }
 
+function _htmlSolCard(x) {
+  const tipo = SOL_TIPOS.find(t => t.id === x.tipo);
+  return `<div class="sol-card">
+    <div class="sol-card-body">
+      <div class="sol-card-tipo">${tipo?.ico||'📋'} ${tipo?.label||x.tipo}</div>
+      ${x.obs?`<div class="sol-card-obs">${x.obs}</div>`:''}
+      ${x.criado_por_nome?`<div class="sol-card-obs">— ${x.criado_por_nome}</div>`:''}
+    </div>
+    <button class="sol-card-desfazer" onclick="desfazerSolicitar('${x.id}')">Desfazer</button>
+  </div>`;
+}
+
 function renderObsFeed(d) {
   const obs = (d.observacoes || []);
   if (obs.length === 0) {
@@ -1137,9 +1157,38 @@ function renderObsFeed(d) {
 window.abrirPanelObs = () => {
   if (!domAtivo) return;
   renderObsFeed(domAtivo);
+  renderSolsFeed(domAtivo);
   $('obs-input').value = '';
   $('panel-obs').classList.remove('hidden');
   $('overlay').classList.add('show');
+};
+
+function renderSolsFeed(d) {
+  let el = $('panel-obs-sols');
+  if (!el) return;
+  const sols = (d.solicitacoes||[]).filter(x => !x.resolvido);
+  el.innerHTML = sols.length
+    ? sols.map(_htmlSolCard).join('')
+    : '<div style="font-size:.83rem;color:var(--cinza);font-style:italic;padding:.4rem 0">Nenhuma solicitação ativa.</div>';
+}
+
+window.desfazerSolicitar = async (solId) => {
+  if (!domAtivo || !solId) return;
+  if (!confirm('Desfazer esta solicitação?')) return;
+  try {
+    const novas = (domAtivo.solicitacoes || []).filter(x => x.id !== solId);
+    await updateDoc(doc(db, 'domicilios', domAtivo.id), { solicitacoes: novas });
+    domAtivo.solicitacoes = novas;
+    renderSolsFeed(domAtivo);
+    // atualiza ficha se aberta
+    const solsCard = $('pf-sols-card');
+    if (solsCard && !$('panel-ficha').classList.contains('aberto') === false) {
+      const sols = novas.filter(x => !x.resolvido);
+      if (sols.length) { $('pf-solicitacoes').innerHTML = sols.map(_htmlSolCard).join(''); }
+      else { solsCard.style.display = 'none'; }
+    }
+    toast('Solicitação desfeita', 'ok');
+  } catch(e) { toast('Erro: ' + e.message, 'erro'); }
 };
 
 window.fecharPanelObs = () => {
@@ -1232,13 +1281,7 @@ function preencherFicha(d) {
   const solsCard = $('pf-sols-card');
   if (sols.length) {
     solsCard.style.display = '';
-    $('pf-solicitacoes').innerHTML = sols.map(x => {
-      const tipo = SOL_TIPOS.find(t => t.id === x.tipo);
-      return `<div class="sol-card">
-        <div class="sol-card-tipo">${tipo?.ico||'📋'} ${tipo?.label||x.tipo}</div>
-        ${x.obs?`<div class="sol-card-obs">${x.obs}</div>`:''}
-      </div>`;
-    }).join('');
+    $('pf-solicitacoes').innerHTML = sols.map(_htmlSolCard).join('');
   } else {
     solsCard.style.display = 'none';
   }
