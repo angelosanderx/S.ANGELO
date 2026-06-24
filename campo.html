@@ -488,21 +488,30 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 <div id="modal-confirm-morador" class="hidden">
   <div class="mcm-box">
     <div class="mcm-icon">⚠️</div>
-    <div class="mcm-aviso">Confirme o nome do morador</div>
-    <div style="font-size:.83rem;color:var(--cinza);margin-bottom:.3rem">O nome cadastrado é:</div>
-    <div class="mcm-nome" id="mcm-nome-morador">—</div>
+    <div class="mcm-aviso">Confirme o nome do morador para a carta</div>
 
-    <label class="mcm-opcao" id="mcm-opt-confirmar" onclick="mcmSelecionar('confirmar')">
-      <input type="radio" name="mcm-opcao" id="mcm-radio-confirmar">
-      <span class="mcm-opcao-txt">✅ Confirmo que o nome está <strong>correto e atualizado</strong></span>
-    </label>
+    <input type="text" id="mcm-input-nome"
+      placeholder="Digite o nome do morador"
+      oninput="mcmAtualizarBtn()"
+      style="width:100%;padding:.8rem 1rem;border:2px solid var(--borda);border-radius:11px;font-size:.95rem;font-family:inherit;color:var(--texto);margin:.9rem 0 .6rem;outline:none"
+      onfocus="this.style.borderColor='var(--azul-med)'"
+      onblur="this.style.borderColor='var(--borda)'">
 
-    <label class="mcm-opcao nao-sei" id="mcm-opt-naosabe" onclick="mcmSelecionar('naosabe')">
-      <input type="radio" name="mcm-opcao" id="mcm-radio-naosabe">
-      <span class="mcm-opcao-txt">🤷 Pode colocar <strong>Sr(a) Morador(a)</strong></span>
-    </label>
+    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem">
+      <div style="flex:1;height:1px;background:var(--borda)"></div>
+      <span style="font-size:.75rem;color:var(--cinza);font-weight:600">ou</span>
+      <div style="flex:1;height:1px;background:var(--borda)"></div>
+    </div>
 
-    <div class="mcm-btns" style="margin-top:.4rem">
+    <button id="mcm-btn-morador" onclick="mcmUsarGenerico()"
+      style="width:100%;padding:.8rem 1rem;border:2px solid var(--borda);border-radius:11px;
+             font-size:.9rem;font-weight:700;font-family:inherit;cursor:pointer;
+             background:#fff;color:var(--cinza);transition:border-color .15s,background .15s,color .15s;
+             margin-bottom:.9rem">
+      🤷 Sr(a) Morador(a)
+    </button>
+
+    <div class="mcm-btns">
       <button class="mcm-btn cancelar" onclick="fecharConfirmMorador()">Cancelar</button>
       <button class="mcm-btn confirmar" id="mcm-btn-confirmar" disabled onclick="mcmConfirmar()">Solicitar carta</button>
     </div>
@@ -1348,43 +1357,56 @@ window.confirmarSolicitar = () => {
   // Cartas exigem confirmação do morador
   if (tipo?.status === 'carta_solicitada') {
     const morador = domAtivo.morador_cnefe || domAtivo.morador || '(sem nome cadastrado)';
-    $('mcm-nome-morador').textContent = morador;
-    $('mcm-check').checked = false;
+    $('mcm-input-nome').value = '';
     $('mcm-btn-confirmar').disabled = true;
+    $('mcm-btn-morador').style.cssText = '';
+    mcmNomeFinal = '';
     $('modal-confirm-morador').classList.remove('hidden');
+    setTimeout(() => $('mcm-input-nome').focus(), 150);
     return;
   }
   _gravarSolicitar();
 };
 
-let mcmOpcaoSel = null; // 'confirmar' | 'naosabe'
+let mcmNomeFinal = '';
 
 window.fecharConfirmMorador = () => {
   $('modal-confirm-morador').classList.add('hidden');
-  mcmOpcaoSel = null;
+  mcmNomeFinal = '';
 };
 
-window.mcmSelecionar = (opcao) => {
-  mcmOpcaoSel = opcao;
-  $('mcm-opt-confirmar').classList.toggle('sel', opcao === 'confirmar');
-  $('mcm-opt-naosabe').classList.toggle('sel', opcao === 'naosabe');
-  $('mcm-radio-confirmar').checked = opcao === 'confirmar';
-  $('mcm-radio-naosabe').checked   = opcao === 'naosabe';
-  $('mcm-btn-confirmar').disabled  = false;
+window.mcmAtualizarBtn = () => {
+  const val = $('mcm-input-nome').value.trim();
+  mcmNomeFinal = val;
+  // deseleciona o botão genérico se está digitando
+  $('mcm-btn-morador').style.borderColor = 'var(--borda)';
+  $('mcm-btn-morador').style.background  = '#fff';
+  $('mcm-btn-morador').style.color       = 'var(--cinza)';
+  $('mcm-btn-confirmar').disabled = !val;
+};
+
+window.mcmUsarGenerico = () => {
+  mcmNomeFinal = 'Sr(a) Morador(a)';
+  $('mcm-input-nome').value = '';
+  $('mcm-btn-morador').style.borderColor = '#f59e0b';
+  $('mcm-btn-morador').style.background  = '#fffbeb';
+  $('mcm-btn-morador').style.color       = '#92400e';
+  $('mcm-btn-confirmar').disabled = false;
 };
 
 window.mcmConfirmar = () => {
   $('modal-confirm-morador').classList.add('hidden');
-  _gravarSolicitar(mcmOpcaoSel === 'naosabe');
-  mcmOpcaoSel = null;
+  _gravarSolicitar(mcmNomeFinal);
+  mcmNomeFinal = '';
 };
 
-async function _gravarSolicitar(usarMoradorGenerico = false) {
+async function _gravarSolicitar(nomeMorador = '') {
   const btn = $('btn-conf-sol');
   btn.disabled = true; btn.textContent = 'Salvando…';
   try {
-    let obs  = $('sol-obs').value.trim();
-    if (usarMoradorGenerico) obs = obs ? `Sr(a) Morador(a) — ${obs}` : 'Sr(a) Morador(a)';
+    const obsDigitada = $('sol-obs').value.trim();
+    let obs = obsDigitada;
+    if (nomeMorador) obs = `Para: ${nomeMorador}${obsDigitada ? ' — ' + obsDigitada : ''}`;
     const tipo = SOL_TIPOS.find(t => t.id === solSel);
     const novaSol = {
       id:              Date.now().toString(36) + Math.random().toString(36).slice(2,6),
