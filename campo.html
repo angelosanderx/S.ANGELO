@@ -58,6 +58,16 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .sc-dist{font-size:.72rem;color:var(--azul-med);margin-top:2px}
 .sc-barra{height:4px;border-radius:2px;background:#e2e8f0;margin-top:6px;overflow:hidden}
 .sc-barra-fill{height:100%;border-radius:2px;background:var(--verde);transition:width .3s}
+.sc-check{position:absolute;top:.75rem;right:.85rem;font-size:1.3rem;line-height:1}
+.setor-card{position:relative}
+.setor-card.concluido{border-color:#bbf7d0;background:#f0fdf4}
+/* WEEK GROUPS */
+.sem-grupo{margin-bottom:.3rem}
+.sem-titulo{font-size:.7rem;font-weight:800;color:var(--cinza);text-transform:uppercase;letter-spacing:.6px;padding:.5rem .65rem .25rem;display:flex;align-items:center;gap:6px}
+.sem-titulo::after{content:'';flex:1;height:1px;background:var(--borda)}
+/* VER TODOS TOGGLE */
+.set-toggle{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:.74rem;font-weight:700;padding:4px 12px;border-radius:12px;cursor:pointer;font-family:inherit;transition:background .12s}
+.set-toggle.ativo{background:rgba(255,255,255,.3)}
 
 /* MAPA */
 #tela-mapa{background:#1a1a2e}
@@ -331,7 +341,10 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   <div class="set-header">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <h2 id="set-titulo">Meus setores</h2>
-      <button onclick="trocarUsuario()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:.75rem;padding:4px 10px;border-radius:12px;cursor:pointer;font-family:inherit">Trocar</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button id="btn-ver-todos" class="set-toggle" onclick="toggleVerTodos()">Ver todos</button>
+        <button onclick="trocarUsuario()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:.75rem;padding:4px 10px;border-radius:12px;cursor:pointer;font-family:inherit">Trocar</button>
+      </div>
     </div>
     <p id="set-sub">Selecione o setor que vai trabalhar hoje</p>
   </div>
@@ -578,6 +591,8 @@ let unsub      = null;   // onSnapshot unsubscribe
 let statusSel  = null;
 let solSel     = null;
 let mySectors  = [];     // [{ upa, localidade, doms[], _dist? }]
+let todosSetores = [];   // setores de todos os entrevistadores (carregado sob demanda)
+let mostrarTodos = false;
 let gpsPos     = null;   // { lat, lng }
 let layers     = { contorno: null, faces: null, doms: null, gps: null };
 const Lp       = _carregarLeaflet();
@@ -817,10 +832,36 @@ function haversineM(lat1,lng1,lat2,lng2) {
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
-function renderListaSetores(pos) {
+function _semanaDo(s) {
+  const freq = {};
+  s.doms.forEach(d => { const k = String(d.semana || '?'); freq[k] = (freq[k]||0)+1; });
+  return Object.entries(freq).sort((a,b)=>b[1]-a[1])[0]?.[0] || '?';
+}
+
+function _htmlSetorCard(s) {
+  const tot  = s.doms.length;
+  const real = s.doms.filter(d => d.status_atual === 'realizada').length;
+  const pend = s.doms.filter(d => ['nao_visitado','ausente','agendado'].includes(d.status_atual||'nao_visitado')).length;
+  const pct  = tot > 0 ? Math.round(real/tot*100) : 0;
+  const concluido = pend === 0;
+  const dist = s._dist != null && s._dist < Infinity
+    ? (s._dist < 1000 ? `📍 ${Math.round(s._dist)}m` : `📍 ${(s._dist/1000).toFixed(1)}km`)
+    : '';
+  const entr = mostrarTodos && s.doms[0]?.entrevistador_nome ? `<div class="sc-dist">👤 ${s.doms[0].entrevistador_nome}</div>` : '';
+  return `<div class="setor-card${concluido?' concluido':''}" onclick="selecionarSetor('${s.upa}')">
+    ${concluido ? `<div class="sc-check">✅</div>` : ''}
+    <div class="sc-code">${s.upa}</div>
+    <div class="sc-loc">${s.localidade || 'Setor sem nome'}</div>
+    <div class="sc-stats">${tot} domicílios · ${real} realizadas${pend>0?` · <strong style="color:var(--vermelho)">${pend} pend.</strong>`:' · <strong style="color:var(--verde)">sem pendências</strong>'}</div>
+    ${entr}${dist ? `<div class="sc-dist">${dist}</div>` : ''}
+    <div class="sc-barra"><div class="sc-barra-fill" style="width:${pct}%"></div></div>
+  </div>`;
+}
+
+function renderListaSetores(pos, setores) {
   mostrarTela('tela-setores');
-  $('set-sub').textContent = usuarioNome || 'Selecione o setor que vai trabalhar hoje';
-  const lista = [...mySectors];
+  $('set-sub').textContent = mostrarTodos ? 'Todos os setores da equipe' : (usuarioNome || 'Selecione o setor que vai trabalhar hoje');
+  const lista = [...(setores || mySectors)];
   if (pos) {
     lista.forEach(s => {
       const valid = s.doms.filter(d => d.latitude_kml && d.longitude_kml);
@@ -831,28 +872,64 @@ function renderListaSetores(pos) {
       const cLng = lngs.reduce((a,b)=>a+b,0)/lngs.length;
       s._dist = haversineM(pos.lat, pos.lng, cLat, cLng);
     });
-    lista.sort((a,b) => (a._dist||Infinity)-(b._dist||Infinity));
   }
-  $('lista-setores').innerHTML = lista.map(s => {
-    const tot  = s.doms.length;
-    const real = s.doms.filter(d => d.status_atual === 'realizada').length;
-    const pct  = tot > 0 ? Math.round(real/tot*100) : 0;
-    const dist = s._dist != null && s._dist < Infinity
-      ? (s._dist < 1000 ? `📍 ${Math.round(s._dist)}m` : `📍 ${(s._dist/1000).toFixed(1)}km`)
-      : '';
-    return `<div class="setor-card" onclick="selecionarSetor('${s.upa}')">
-      <div class="sc-code">${s.upa}</div>
-      <div class="sc-loc">${s.localidade || 'Setor sem nome'}</div>
-      <div class="sc-stats">${tot} domicílios · ${real} realizadas (${pct}%)</div>
-      ${dist ? `<div class="sc-dist">${dist}</div>` : ''}
-      <div class="sc-barra"><div class="sc-barra-fill" style="width:${pct}%"></div></div>
-    </div>`;
+
+  // Group by semana, sort within each group by distance
+  const porSemana = {};
+  lista.forEach(s => {
+    const sem = _semanaDo(s);
+    if (!porSemana[sem]) porSemana[sem] = [];
+    porSemana[sem].push(s);
+  });
+  const semanas = Object.keys(porSemana).sort((a,b) => Number(a)-Number(b)||a.localeCompare(b));
+  semanas.forEach(sem => {
+    porSemana[sem].sort((a,b) => (a._dist||Infinity)-(b._dist||Infinity));
+  });
+
+  $('lista-setores').innerHTML = semanas.map(sem => {
+    const cards = porSemana[sem].map(_htmlSetorCard).join('');
+    const label = sem === '?' ? 'Sem semana definida' : `Semana ${sem}`;
+    const conc  = porSemana[sem].every(s => s.doms.filter(d=>['nao_visitado','ausente','agendado'].includes(d.status_atual||'nao_visitado')).length===0);
+    return `<div class="sem-grupo"><div class="sem-titulo">${label}${conc?' ✅':''}</div>${cards}</div>`;
   }).join('');
 }
 
 window.selecionarSetor = async upa => {
-  const s = mySectors.find(x => x.upa === upa);
+  const s = mySectors.find(x => x.upa === upa) || todosSetores.find(x => x.upa === upa);
   if (s) await abrirSetor(upa, s.doms);
+};
+
+window.toggleVerTodos = async () => {
+  mostrarTodos = !mostrarTodos;
+  const btn = $('btn-ver-todos');
+  btn.textContent = mostrarTodos ? 'Só meus' : 'Ver todos';
+  btn.classList.toggle('ativo', mostrarTodos);
+  $('set-titulo').textContent = mostrarTodos ? 'Todos os setores' : 'Meus setores';
+  if (mostrarTodos && todosSetores.length === 0) {
+    $('lista-setores').innerHTML = '<div class="vazio"><div class="vazio-ico">⏳</div>Carregando todos os setores…</div>';
+    try {
+      const snap = await getDocs(collection(db, 'domicilios'));
+      const todos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const locSnap = await getDocs(collection(db, 'localidades_upa')).catch(() => null);
+      const locs = {};
+      locSnap?.docs.forEach(d => { locs[d.id] = d.data().localidade || ''; });
+      const upaMap = {};
+      todos.forEach(d => {
+        const k = d.upa || d.controle?.slice(0,-1) || '?';
+        if (!upaMap[k]) upaMap[k] = { upa: k, doms: [], localidade: locs[k] || '' };
+        upaMap[k].doms.push(d);
+      });
+      todosSetores = Object.values(upaMap);
+    } catch(e) {
+      toast('Erro ao carregar todos os setores: ' + e.message, 'erro');
+      mostrarTodos = false;
+      btn.textContent = 'Ver todos';
+      btn.classList.remove('ativo');
+      $('set-titulo').textContent = 'Meus setores';
+      return;
+    }
+  }
+  renderListaSetores(gpsPos, mostrarTodos ? todosSetores : mySectors);
 };
 
 window.voltarSetores = () => {
@@ -860,7 +937,12 @@ window.voltarSetores = () => {
   if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
   gpsMarker = null; gpsCircle = null;
   fecharTudo();
-  mostrarTela('tela-setores');
+  // Reset ver-todos state
+  mostrarTodos = false;
+  const btn = $('btn-ver-todos');
+  if (btn) { btn.textContent = 'Ver todos'; btn.classList.remove('ativo'); }
+  $('set-titulo').textContent = 'Meus setores';
+  renderListaSetores(gpsPos, mySectors);
 };
 
 /* ── ABRIR SETOR ──────────────────────────────────────── */
