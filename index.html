@@ -1491,7 +1491,10 @@
             <button class="cron-sem-chip" data-sem="3" onclick="cronSelSemana(3)">S3</button>
             <button class="cron-sem-chip" data-sem="4" onclick="cronSelSemana(4)">S4</button>
           </div>
-          <button onclick="window.print()" style="margin-left:auto;padding:0.25rem 0.7rem;border:1px solid var(--borda);border-radius:6px;background:#fff;cursor:pointer;font-size:0.8rem">🖨️ Imprimir</button>
+          <div style="margin-left:auto;display:flex;gap:0.5rem">
+            <button onclick="cronToggleSetoresMes(event)" style="padding:0.25rem 0.7rem;border:1px solid var(--borda);border-radius:6px;background:#fff;cursor:pointer;font-size:0.8rem">📋 Setores do mês</button>
+            <button onclick="window.print()" style="padding:0.25rem 0.7rem;border:1px solid var(--borda);border-radius:6px;background:#fff;cursor:pointer;font-size:0.8rem">🖨️ Imprimir</button>
+          </div>
         </div>
       </div>
 
@@ -7062,6 +7065,94 @@ function _buildCronSetores(mes, semana) {
     const etapas = [...new Set(setores.map(r=>r.numero_entrevista).filter(Boolean))].sort();
     _cronSetores.push({ upa, label, localidade: (_localidadesCache||{})[upa]||'', etapas });
   }
+}
+
+// ── Cronograma — setores disponíveis no mês (consulta rápida) ──────────────
+
+function _cronSetoresMesPorSemana(mes) {
+  const ctrl4 = c => String(c||'').slice(-4);
+  const porSemana = {};
+  for (let sem = 1; sem <= 4; sem++) {
+    const seen = new Map();
+    (_amCache||[]).filter(r => Number(r.mes) === mes && Number(r.semana) === sem).forEach(r => {
+      const k = `${r.upa||''}|${r.codigo_controle||''}`;
+      if (!seen.has(k)) seen.set(k, r);
+    });
+    const porUpa = new Map();
+    for (const r of seen.values()) {
+      if (!r.upa) continue;
+      if (!porUpa.has(r.upa)) porUpa.set(r.upa, []);
+      porUpa.get(r.upa).push(r);
+    }
+    const lista = [];
+    for (const [upa, setores] of [...porUpa.entries()].sort()) {
+      const upaSuf = ctrl4(upa);
+      const extras = setores.filter(r => ctrl4(r.codigo_controle) !== upaSuf);
+      const label  = extras.length ? `${upa}/${extras.map(r=>ctrl4(r.codigo_controle)).join('/')}` : upa;
+      const etapas = [...new Set(setores.map(r=>r.numero_entrevista).filter(Boolean))].sort();
+      lista.push({ upa, label, localidade: (_localidadesCache||{})[upa]||'', etapas });
+    }
+    porSemana[sem] = lista;
+  }
+  return porSemana;
+}
+
+window.cronToggleSetoresMes = (e) => {
+  e.stopPropagation();
+  const existente = document.getElementById('cron-setores-mes-pop');
+  if (existente) { existente.remove(); document.removeEventListener('mousedown', _cronSetoresMesOutside); return; }
+  if (!_cronMes) return;
+
+  const porSemana = _cronSetoresMesPorSemana(_cronMes);
+  const mesNome = _NOMES_MES[_cronMes] || ('Mês ' + _cronMes);
+  const total = Object.values(porSemana).reduce((n, l) => n + l.length, 0);
+
+  const corpoHtml = total === 0
+    ? '<div style="padding:0.9rem;text-align:center;color:var(--cinza);font-size:0.8rem">Nenhum setor encontrado para este mês.</div>'
+    : [1,2,3,4].map(sem => {
+        const lista = porSemana[sem];
+        if (!lista.length) return '';
+        const itens = lista.map(st => {
+          const etStr = st.etapas.map(et => { const bd=_CRON_BADGE[et]||{bg:'#eee',c:'#333'}; return `<span class="cron-etapa-badge" style="background:${bd.bg};color:${bd.c}">E${et}</span>`; }).join('');
+          return `<div class="cron-pop-check-item" style="cursor:default">
+            <span class="cron-setor-code" style="min-width:30px;flex-shrink:0">${String(st.upa).slice(-4)}</span>
+            ${etStr}
+            <span style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${st.localidade||''}">${st.localidade || st.label || st.upa}</span>
+          </div>`;
+        }).join('');
+        return `<div style="margin-bottom:0.5rem">
+          <div style="font-size:10px;font-weight:700;color:var(--azul);text-transform:uppercase;letter-spacing:0.4px;padding:3px 6px">Semana ${sem} (${lista.length})</div>
+          <div class="cron-pop-check-grid" style="max-height:none">${itens}</div>
+        </div>`;
+      }).join('');
+
+  const pop = document.createElement('div');
+  pop.id = 'cron-setores-mes-pop';
+  pop.className = 'cron-popover';
+  pop.style.width = '300px';
+  pop.innerHTML = `
+    <div class="cron-pop-hdr"><span>📋 Setores — ${mesNome}</span><button onclick="cronToggleSetoresMes(event)">×</button></div>
+    <div class="cron-pop-body">${corpoHtml}</div>`;
+  document.body.appendChild(pop);
+
+  const r = e.currentTarget.getBoundingClientRect();
+  const pw = 300, ph = pop.offsetHeight;
+  let left = r.right - pw, top = r.bottom + 4;
+  if (left < 8) left = 8;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 4);
+  pop.style.left = left + 'px';
+  pop.style.top  = top + 'px';
+
+  setTimeout(() => document.addEventListener('mousedown', _cronSetoresMesOutside), 0);
+};
+
+function _cronSetoresMesOutside(e) {
+  const pop = document.getElementById('cron-setores-mes-pop');
+  if (!pop || pop.contains(e.target)) return;
+  if (e.target.closest && e.target.closest('[onclick*="cronToggleSetoresMes"]')) return;
+  pop.remove();
+  document.removeEventListener('mousedown', _cronSetoresMesOutside);
 }
 
 // ── Cronograma — edição inline ─────────────────────────────────────────────
