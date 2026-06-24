@@ -27,28 +27,22 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .spinner{width:38px;height:38px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .75s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* AUTH */
-#tela-login,#tela-pin{background:var(--azul);align-items:center;justify-content:center;padding:2rem 1.5rem}
-.auth-card{background:#fff;border-radius:18px;padding:2rem 1.5rem;width:100%;max-width:330px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
-.auth-logo{font-size:2.2rem;margin-bottom:.65rem}
-.auth-card h1{font-size:1.2rem;color:var(--azul);font-weight:700;margin-bottom:.2rem}
-.auth-sub{font-size:.78rem;color:var(--cinza);margin-bottom:1.4rem}
-.campo-inp{width:100%;padding:.75rem 1rem;border:1.5px solid var(--borda);border-radius:9px;font-size:1rem;margin-bottom:.7rem;outline:none;font-family:inherit;color:var(--texto)}
-.campo-inp:focus{border-color:var(--azul-med)}
-.btn-primary{width:100%;padding:.85rem;background:var(--azul);color:#fff;border:none;border-radius:9px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .15s}
-.btn-primary:active{opacity:.85}
-.btn-link{background:none;border:none;color:var(--azul-med);font-size:.82rem;cursor:pointer;margin-top:.9rem;font-family:inherit;padding:.4rem}
+/* TELA USUÁRIO */
+#tela-usuario{background:var(--azul);align-items:center;justify-content:center;padding:2rem 1.5rem}
+.usr-card{background:#fff;border-radius:18px;width:100%;max-width:340px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.usr-header{padding:1.4rem 1.25rem .9rem;text-align:center;border-bottom:1px solid var(--borda)}
+.usr-logo{font-size:2rem;margin-bottom:.4rem}
+.usr-header h1{font-size:1.1rem;color:var(--azul);font-weight:700;margin-bottom:.15rem}
+.usr-header p{font-size:.75rem;color:var(--cinza)}
+.usr-lista{max-height:55vh;overflow-y:auto}
+.usr-item{display:flex;align-items:center;gap:.75rem;padding:.8rem 1.25rem;cursor:pointer;border-bottom:1px solid var(--borda);transition:background .12s}
+.usr-item:last-child{border-bottom:none}
+.usr-item:active{background:var(--cinza-claro)}
+.usr-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:800;color:#fff;flex-shrink:0}
+.usr-nome{font-size:.9rem;font-weight:600;color:var(--texto)}
+.usr-role{font-size:.72rem;color:var(--cinza)}
+.btn-link{background:none;border:none;color:var(--azul-med);font-size:.82rem;cursor:pointer;font-family:inherit;padding:.4rem}
 .msg-erro{color:var(--vermelho);font-size:.8rem;margin-top:.5rem;min-height:1.2em}
-
-/* PIN */
-.pin-dots{display:flex;justify-content:center;gap:14px;margin:1.2rem 0 .8rem}
-.pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid #cbd5e1;background:transparent;transition:background .1s,border-color .1s}
-.pin-dot.filled{background:var(--azul);border-color:var(--azul)}
-.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:.4rem}
-.np-btn{background:var(--cinza-claro);border:none;border-radius:9px;height:52px;font-size:1.3rem;font-weight:600;color:var(--texto);cursor:pointer;font-family:inherit;transition:background .1s}
-.np-btn:active{background:#dde3ec}
-.np-btn.apagar{font-size:1rem;color:var(--cinza)}
-.np-btn.vazio{background:transparent;cursor:default}
 
 /* SETOR LIST */
 #tela-setores{background:var(--cinza-claro)}
@@ -210,55 +204,27 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   <p style="color:rgba(255,255,255,.75);font-size:.82rem;margin-top:.5rem">Iniciando…</p>
 </div>
 
-<!-- LOGIN -->
-<div id="tela-login" class="tela hidden">
-  <div class="auth-card">
-    <div class="auth-logo">📋</div>
-    <h1>PNAD-C Campo</h1>
-    <p class="auth-sub">IBGE · Campos dos Goytacazes</p>
-    <input class="campo-inp" type="email" id="login-email" placeholder="E-mail" autocomplete="email">
-    <input class="campo-inp" type="password" id="login-senha" placeholder="Senha" autocomplete="current-password">
-    <button class="btn-primary" id="btn-login" onclick="fazerLogin()">Entrar</button>
-    <p id="login-erro" class="msg-erro"></p>
-  </div>
-</div>
-
-<!-- PIN -->
-<div id="tela-pin" class="tela hidden">
-  <div class="auth-card">
-    <div class="auth-logo">🔑</div>
-    <h1 id="pin-titulo">Seu PIN</h1>
-    <p id="pin-nome" class="auth-sub"></p>
-    <div class="pin-dots">
-      <span class="pin-dot" id="pd0"></span>
-      <span class="pin-dot" id="pd1"></span>
-      <span class="pin-dot" id="pd2"></span>
-      <span class="pin-dot" id="pd3"></span>
+<!-- USUÁRIO -->
+<div id="tela-usuario" class="tela hidden">
+  <div class="usr-card">
+    <div class="usr-header">
+      <div class="usr-logo">📋</div>
+      <h1>PNAD-C Campo</h1>
+      <p>Quem é você?</p>
     </div>
-    <p id="pin-instrucao" style="font-size:.76rem;color:var(--cinza);margin-bottom:.7rem"></p>
-    <div class="numpad">
-      <button class="np-btn" onclick="pinDigito('1')">1</button>
-      <button class="np-btn" onclick="pinDigito('2')">2</button>
-      <button class="np-btn" onclick="pinDigito('3')">3</button>
-      <button class="np-btn" onclick="pinDigito('4')">4</button>
-      <button class="np-btn" onclick="pinDigito('5')">5</button>
-      <button class="np-btn" onclick="pinDigito('6')">6</button>
-      <button class="np-btn" onclick="pinDigito('7')">7</button>
-      <button class="np-btn" onclick="pinDigito('8')">8</button>
-      <button class="np-btn" onclick="pinDigito('9')">9</button>
-      <button class="np-btn vazio"></button>
-      <button class="np-btn" onclick="pinDigito('0')">0</button>
-      <button class="np-btn apagar" onclick="pinApagar()">⌫</button>
+    <div class="usr-lista" id="usr-lista">
+      <div class="vazio" style="padding:1.5rem"><div class="vazio-ico">⏳</div>Carregando…</div>
     </div>
-    <p id="pin-erro" class="msg-erro"></p>
-    <button class="btn-link" onclick="sairConta()">Trocar conta</button>
   </div>
 </div>
 
 <!-- SELEÇÃO DE SETOR -->
 <div id="tela-setores" class="tela hidden">
   <div class="set-header">
-    <h2 id="set-titulo">Meus setores</h2>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <h2 id="set-titulo">Meus setores</h2>
+      <button onclick="trocarUsuario()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:.75rem;padding:4px 10px;border-radius:12px;cursor:pointer;font-family:inherit">Trocar</button>
+    </div>
     <p id="set-sub">Selecione o setor que vai trabalhar hoje</p>
   </div>
   <div id="lista-setores"></div>
@@ -356,7 +322,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 
 <script type="module">
 import { initializeApp }    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+import { getAuth, signInAnonymously, onAuthStateChanged,
          browserLocalPersistence, setPersistence }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, getDoc, getDocs, query,
@@ -377,7 +343,7 @@ const db   = getFirestore(fbApp);
 await setPersistence(auth, browserLocalPersistence);
 
 /* ── ESTADO ───────────────────────────────────────────── */
-let usuario    = null;   // { uid, nome, email, role }
+let usuarioNome = '';    // nome escolhido no picker
 let setorAtual = null;   // código UPA string
 let domicilios = [];     // doms carregados do setor atual
 let domAtivo   = null;   // dom selecionado no mapa
@@ -385,9 +351,6 @@ let mapaInst   = null;
 let gpsWatchId = null;
 let gpsMarker  = null, gpsCircle = null;
 let unsub      = null;   // onSnapshot unsubscribe
-let pinInput   = '';
-let pinMode    = '';     // 'verificar'|'criar'|'confirmar'
-let pinTemp    = '';
 let statusSel  = null;
 let solSel     = null;
 let mySectors  = [];     // [{ upa, localidade, doms[], _dist? }]
@@ -474,7 +437,7 @@ const SOL_TIPOS = [
 const $ = id => document.getElementById(id);
 
 function mostrarTela(id) {
-  ['tela-loading','tela-login','tela-pin','tela-setores','tela-mapa']
+  ['tela-loading','tela-usuario','tela-setores','tela-mapa']
     .forEach(t => $(t).classList.toggle('hidden', t !== id));
 }
 
@@ -488,99 +451,61 @@ function toast(msg, tipo = 'info') {
 }
 
 /* ── AUTH ─────────────────────────────────────────────── */
+// Auth anônima automática — sem email/senha/PIN
 onAuthStateChanged(auth, async user => {
-  if (!user) { mostrarTela('tela-login'); return; }
-  try {
-    const snap = await getDoc(doc(db, 'usuarios', user.uid));
-    usuario = { uid: user.uid, email: user.email, nome: user.email, ...(snap.data() || {}) };
-  } catch(_) {
-    usuario = { uid: user.uid, email: user.email, nome: user.email };
+  if (!user) {
+    await signInAnonymously(auth);
+    return;
   }
-  const pin = localStorage.getItem('campo_pin_' + user.uid);
-  pin ? iniciarVerificarPin() : iniciarCriarPin();
+  const nome = localStorage.getItem('campo_usuario');
+  if (nome) {
+    usuarioNome = nome;
+    await carregarSetores();
+  } else {
+    await mostrarPickerUsuario();
+  }
 });
 
-window.fazerLogin = async () => {
-  const email = $('login-email').value.trim();
-  const senha = $('login-senha').value;
-  $('login-erro').textContent = '';
-  const btn = $('btn-login');
-  btn.disabled = true; btn.textContent = 'Entrando…';
+async function mostrarPickerUsuario() {
+  mostrarTela('tela-usuario');
   try {
-    await signInWithEmailAndPassword(auth, email, senha);
+    const snap = await getDocs(query(collection(db, 'usuarios'), where('role', '==', 'entrevistador')));
+    const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(u => u.nome)
+      .sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+    if (lista.length === 0) {
+      $('usr-lista').innerHTML = '<div class="vazio"><div class="vazio-ico">👥</div>Nenhum entrevistador cadastrado.</div>';
+      return;
+    }
+    $('usr-lista').innerHTML = lista.map(u => {
+      const cor = corEntrevistador(u.nome);
+      const ini = u.nome.trim().split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
+      return `<div class="usr-item" onclick="escolherUsuario('${u.nome.replace(/'/g,"\\'")}')">
+        <div class="usr-avatar" style="background:${cor}">${ini}</div>
+        <div>
+          <div class="usr-nome">${u.nome}</div>
+          <div class="usr-role">Entrevistador</div>
+        </div>
+      </div>`;
+    }).join('');
   } catch(e) {
-    $('login-erro').textContent = e.code === 'auth/invalid-credential'
-      ? 'E-mail ou senha incorretos.' : 'Erro ao entrar. Tente novamente.';
-    btn.disabled = false; btn.textContent = 'Entrar';
-  }
-};
-
-window.sairConta = async () => {
-  if (!confirm('Sair da conta?')) return;
-  if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
-  if (unsub) unsub();
-  await signOut(auth);
-};
-
-/* ── PIN ──────────────────────────────────────────────── */
-function iniciarVerificarPin() {
-  pinMode = 'verificar'; pinInput = '';
-  $('pin-titulo').textContent = 'Digite seu PIN';
-  $('pin-nome').textContent = usuario.nome || usuario.email;
-  $('pin-instrucao').textContent = 'PIN de 4 dígitos';
-  $('pin-erro').textContent = '';
-  atualizarDots(); mostrarTela('tela-pin');
-}
-
-function iniciarCriarPin() {
-  pinMode = 'criar'; pinInput = ''; pinTemp = '';
-  $('pin-titulo').textContent = 'Criar PIN de acesso';
-  $('pin-nome').textContent = usuario.nome || usuario.email;
-  $('pin-instrucao').textContent = 'Escolha um PIN de 4 dígitos';
-  $('pin-erro').textContent = '';
-  atualizarDots(); mostrarTela('tela-pin');
-}
-
-function atualizarDots() {
-  for (let i = 0; i < 4; i++)
-    $(`pd${i}`).classList.toggle('filled', i < pinInput.length);
-}
-
-window.pinDigito = d => {
-  if (pinInput.length >= 4) return;
-  pinInput += d; atualizarDots();
-  if (pinInput.length === 4) setTimeout(processarPin, 120);
-};
-
-window.pinApagar = () => { pinInput = pinInput.slice(0,-1); atualizarDots(); };
-
-async function processarPin() {
-  $('pin-erro').textContent = '';
-  if (pinMode === 'verificar') {
-    const stored = localStorage.getItem('campo_pin_' + usuario.uid);
-    if (pinInput === stored) { await carregarSetores(); }
-    else {
-      $('pin-erro').textContent = 'PIN incorreto. Tente novamente.';
-      pinInput = ''; atualizarDots();
-    }
-  } else if (pinMode === 'criar') {
-    pinTemp = pinInput; pinInput = ''; pinMode = 'confirmar';
-    $('pin-titulo').textContent = 'Confirme o PIN';
-    $('pin-instrucao').textContent = 'Digite o PIN novamente para confirmar';
-    atualizarDots();
-  } else if (pinMode === 'confirmar') {
-    if (pinInput === pinTemp) {
-      localStorage.setItem('campo_pin_' + usuario.uid, pinInput);
-      await carregarSetores();
-    } else {
-      $('pin-erro').textContent = 'PINs não coincidem. Recomeçando.';
-      pinInput = ''; pinTemp = ''; pinMode = 'criar';
-      $('pin-titulo').textContent = 'Criar PIN de acesso';
-      $('pin-instrucao').textContent = 'Escolha um PIN de 4 dígitos';
-      atualizarDots();
-    }
+    $('usr-lista').innerHTML = `<div class="vazio"><div class="vazio-ico">⚠️</div>Erro ao carregar: ${e.message}</div>`;
   }
 }
+
+window.escolherUsuario = async nome => {
+  localStorage.setItem('campo_usuario', nome);
+  usuarioNome = nome;
+  await carregarSetores();
+};
+
+window.trocarUsuario = async () => {
+  localStorage.removeItem('campo_usuario');
+  usuarioNome = '';
+  if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+  if (unsub) { unsub(); unsub = null; }
+  await mostrarPickerUsuario();
+};
 
 /* ── LEAFLET ──────────────────────────────────────────── */
 function _carregarLeaflet() {
@@ -598,8 +523,8 @@ function _carregarLeaflet() {
 async function carregarSetores() {
   mostrarTela('tela-loading');
   try {
-    // Domicílios deste entrevistador com coordenadas
-    const qDom = query(collection(db, 'domicilios'), where('entrevistador_id', '==', usuario.uid));
+    // Domicílios deste entrevistador pelo nome
+    const qDom = query(collection(db, 'domicilios'), where('entrevistador_nome', '==', usuarioNome));
     const snap  = await getDocs(qDom);
     const todos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     const comCoord = todos.filter(d => d.latitude_kml && d.longitude_kml);
@@ -666,6 +591,7 @@ function haversineM(lat1,lng1,lat2,lng2) {
 
 function renderListaSetores(pos) {
   mostrarTela('tela-setores');
+  $('set-sub').textContent = usuarioNome || 'Selecione o setor que vai trabalhar hoje';
   const lista = [...mySectors];
   if (pos) {
     lista.forEach(s => {
@@ -973,7 +899,7 @@ window.confirmarStatus = async () => {
     });
     await addDoc(collection(db, 'visitas'), {
       domicilio_id:      domAtivo.id,
-      entrevistador_id:  usuario.uid,
+      entrevistador_nome: usuarioNome,
       data_visita:       serverTimestamp(),
       status:            statusSel,
       observacao:        obs,
@@ -1021,14 +947,14 @@ window.confirmarSolicitar = async () => {
       tipo:           solSel,
       obs:            obs || null,
       criado_em_ts:   Date.now(),
-      criado_por_nome:usuario.nome || usuario.email,
+      criado_por_nome: usuarioNome,
     };
     const update = { solicitacoes: arrayUnion(novaSol), ultima_visita: serverTimestamp() };
     if (tipo?.status) update.status_atual = tipo.status;
     await updateDoc(doc(db, 'domicilios', domAtivo.id), update);
     await addDoc(collection(db, 'visitas'), {
       domicilio_id:     domAtivo.id,
-      entrevistador_id: usuario.uid,
+      entrevistador_nome: usuarioNome,
       data_visita:      serverTimestamp(),
       status:           tipo?.status || domAtivo.status_atual || 'nao_visitado',
       tipo_solicitacao: solSel,
@@ -1041,7 +967,6 @@ window.confirmarSolicitar = async () => {
 };
 
 /* ── KEYBOARD ─────────────────────────────────────────── */
-$('login-senha').addEventListener('keydown', e => { if(e.key==='Enter') fazerLogin(); });
 document.addEventListener('keydown', e => { if(e.key==='Escape') fecharTudo(); });
 </script>
 </body>
