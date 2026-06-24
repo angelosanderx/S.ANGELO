@@ -202,13 +202,14 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .sol-card-desfazer:active{background:#fed7aa}
 .etapa5-alerta{background:#fef2f2;border:1px solid #fca5a5;border-radius:9px;padding:.6rem .75rem;margin-bottom:.55rem;font-size:.82rem;color:#b91c1c;font-weight:600}
 /* SUPERVISOR ALERT */
-.bs-super-alerta{margin:.1rem 1rem .5rem;background:#fef3c7;border:1px solid #fcd34d;border-left:4px solid #d97706;border-radius:9px;padding:.55rem .75rem;display:none}
-.bs-super-titulo{font-size:.68rem;font-weight:800;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.bs-super-item{font-size:.8rem;color:#78350f;line-height:1.45;padding:1px 0}
-.bs-super-autor{font-size:.65rem;opacity:.7}
-@keyframes pulse-super{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
-#topbar-super-badge{background:#d97706;color:#fff;font-size:.65rem;font-weight:800;min-width:20px;height:20px;border-radius:10px;padding:0 5px;display:none;align-items:center;justify-content:center;flex-shrink:0;cursor:default;white-space:nowrap}
-#topbar-super-badge.show{display:flex}
+.bs-super-alerta{margin:.1rem 1rem .6rem;background:#fffbeb;border:2px solid #f59e0b;border-left:5px solid #d97706;border-radius:11px;padding:.75rem .9rem;display:none;box-shadow:0 2px 10px rgba(217,119,6,.18)}
+.bs-super-titulo{font-size:.78rem;font-weight:900;color:#92400e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.bs-super-item{font-size:.87rem;color:#78350f;line-height:1.5;padding:2px 0;font-weight:500}
+.bs-super-autor{font-size:.7rem;opacity:.7;font-weight:400}
+@keyframes pulse-super{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.35);opacity:.85}}
+@keyframes pulse-badge-glow{0%,100%{box-shadow:0 0 0 0 rgba(217,119,6,.7)}70%{box-shadow:0 0 0 5px rgba(217,119,6,0)}}
+#topbar-super-badge{background:#d97706;color:#fff;font-size:.78rem;font-weight:900;min-width:24px;height:26px;border-radius:13px;padding:0 8px;display:none;align-items:center;justify-content:center;flex-shrink:0;cursor:default;white-space:nowrap;letter-spacing:.2px;box-shadow:0 2px 6px rgba(217,119,6,.4)}
+#topbar-super-badge.show{display:flex;animation:pulse-badge-glow 2s infinite}
 .pf-actions{
   position:absolute;bottom:0;left:0;right:0;
   padding:.65rem .9rem calc(env(safe-area-inset-bottom) + .65rem);
@@ -964,7 +965,7 @@ function renderDoms(L) {
       html: `<div style="position:relative;width:32px;height:32px">
         <div style="width:32px;height:32px;border-radius:50%;background:${fill};border:3px solid ${borda};display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.55);box-shadow:0 2px 6px rgba(0,0,0,.28);font-family:sans-serif">${num}</div>
         ${check ? `<div style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;border-radius:50%;background:${est==='realizada'?'#22c55e':'#f97316'};border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#fff">${check}</div>` : ''}
-        ${temSuperAlert ? `<div style="position:absolute;top:-5px;left:-5px;width:15px;height:15px;border-radius:50%;background:#d97706;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:8px;animation:pulse-super 1.5s infinite">📢</div>` : ''}
+        ${temSuperAlert ? `<div style="position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:#d97706;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:11px;animation:pulse-super 1.5s infinite;box-shadow:0 1px 5px rgba(217,119,6,.55)">📢</div>` : ''}
       </div>`,
       iconSize: [32,32],
       iconAnchor: [16,16],
