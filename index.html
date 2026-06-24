@@ -7160,7 +7160,10 @@ function _cronShowPopover(anchorEl) {
     <div class="cron-pop-field">
       <label class="cron-pop-label">Hora</label>
       <input class="cron-pop-input" type="text" id="pop-hora" placeholder="Ex: 08:00 ou Horário a definir" value="${(s.hora||'').replace(/"/g,'&quot;')}" oninput="_cronPopState.hora=this.value">
-      <button type="button" class="cron-pop-add" style="margin-top:4px" onclick="cronPopSetHoraLivre()">Horário a definir</button>
+      <div style="display:flex;gap:4px;margin-top:4px">
+        <button type="button" class="cron-pop-add" style="margin-top:0;flex:1" onclick="cronPopSetHoraLivre()">Horário a definir</button>
+        <button type="button" class="cron-pop-add" style="margin-top:0;flex:0 0 auto;color:var(--vermelho);border-color:var(--vermelho)" onclick="cronPopLimparHora()">Limpar</button>
+      </div>
     </div>`;
 
   const setoresHtml = isNameEdit ? '' : `
@@ -7326,6 +7329,13 @@ window.cronPopSetHoraLivre = () => {
   _cronPopState.hora = 'Horário a definir';
   const el = document.getElementById('pop-hora');
   if (el) el.value = _cronPopState.hora;
+};
+
+window.cronPopLimparHora = () => {
+  if (!_cronPopState) return;
+  _cronPopState.hora = '';
+  const el = document.getElementById('pop-hora');
+  if (el) el.value = '';
 };
 
 window.cronPopAddEntrevLivre = () => {
