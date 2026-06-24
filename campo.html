@@ -864,7 +864,7 @@ function _semanaDo(s) {
 function _htmlSetorCard(s) {
   const tot  = s.doms.length;
   const real = s.doms.filter(d => d.status_atual === 'realizada').length;
-  const pend = s.doms.filter(d => ['nao_visitado','ausente','agendado'].includes(d.status_atual||'nao_visitado')).length;
+  const pend = s.doms.filter(d => ['nao_visitado','ausente','agendado','carta_solicitada','supervisao'].includes(d.status_atual||'nao_visitado')).length;
   const pct  = tot > 0 ? Math.round(real/tot*100) : 0;
   const concluido = pend === 0;
   const dist = s._dist != null && s._dist < Infinity
@@ -912,7 +912,7 @@ function renderListaSetores(pos, setores) {
   $('lista-setores').innerHTML = semanas.map(sem => {
     const cards = porSemana[sem].map(_htmlSetorCard).join('');
     const label = sem === '?' ? 'Sem semana definida' : `Semana ${sem}`;
-    const conc  = porSemana[sem].every(s => s.doms.filter(d=>['nao_visitado','ausente','agendado'].includes(d.status_atual||'nao_visitado')).length===0);
+    const conc  = porSemana[sem].every(s => s.doms.filter(d=>['nao_visitado','ausente','agendado','carta_solicitada','supervisao'].includes(d.status_atual||'nao_visitado')).length===0);
     return `<div class="sem-grupo"><div class="sem-titulo">${label}${conc?' ✅':''}</div>${cards}</div>`;
   }).join('');
 }
@@ -973,7 +973,7 @@ window.switchTab = tab => {
 };
 
 function renderPendencias(setores) {
-  const PEND = ['nao_visitado','ausente','agendado'];
+  const PEND = ['nao_visitado','ausente','agendado','carta_solicitada','supervisao'];
   const doms = (setores || mySectors).flatMap(s => s.doms.filter(d => PEND.includes(d.status_atual||'nao_visitado')));
   const el = $('lista-pendencias');
   if (!doms.length) {
@@ -1185,7 +1185,7 @@ function renderDoms(L) {
 function atualizarStats() {
   const tot  = domicilios.length;
   const real = domicilios.filter(d => d.status_atual === 'realizada').length;
-  const pend = domicilios.filter(d => ['nao_visitado','ausente','agendado'].includes(d.status_atual||'nao_visitado')).length;
+  const pend = domicilios.filter(d => ['nao_visitado','ausente','agendado','carta_solicitada','supervisao'].includes(d.status_atual||'nao_visitado')).length;
   $('topbar-stats').textContent = `${real}/${tot} · ${pend} pend.`;
   const superCnt = domicilios.filter(d =>
     (d.solicitacoes||[]).some(x => !x.resolvido && x.criado_por_nome && x.criado_por_nome !== usuarioNome)
