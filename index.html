@@ -1612,6 +1612,18 @@
             🧹 Limpar todas as solicitações
           </button>
           <div id="solicitacoes-status" style="margin-top:0.85rem;font-size:0.85rem"></div>
+
+          <hr class="divisor-secao" style="margin:1.5rem 0">
+
+          <p style="font-size:0.85rem;color:var(--cinza-escuro);margin-bottom:0.75rem">
+            <strong>Apagar todos os avisos.</strong> Remove permanentemente <em>todos</em> os
+            comunicados da supervisão (coleção <code>avisos</code>), inclusive o histórico
+            exibido no app de campo. Use para apagar avisos de teste antes de começar o uso real.
+          </p>
+          <button class="btn-acao" style="background:var(--vermelho)" onclick="apagarTodosAvisos()">
+            🧹 Apagar todos os avisos
+          </button>
+          <div id="avisos-limpeza-status" style="margin-top:0.85rem;font-size:0.85rem"></div>
         </div>
       </div>
 
@@ -8061,6 +8073,40 @@ window.limparTodasSolicitacoes = async () => {
     statusDiv.innerHTML = `<div style="color:var(--verde);font-weight:700">✅ ${total} domicílio(s) limpos.</div>`;
     mostrarToast(`${total} solicitação(ões) removida(s)`, 'sucesso');
     await carregarDomicilios();
+  } catch(e) {
+    console.error(e);
+    statusDiv.innerHTML = '<div style="color:var(--vermelho);font-weight:600">❌ Erro. Veja o console.</div>';
+  }
+};
+
+window.apagarTodosAvisos = async () => {
+  if (perfilLogado.perfil !== 'administrador') {
+    mostrarToast('Apenas administradores podem executar esta limpeza', 'erro'); return;
+  }
+  const statusDiv = document.getElementById('avisos-limpeza-status');
+  if (!confirm('Isso vai apagar PERMANENTEMENTE todos os avisos publicados, inclusive o histórico no app de campo. Continuar?')) return;
+
+  statusDiv.innerHTML = '<div style="color:var(--cinza)">⏳ Processando...</div>';
+  try {
+    const snap = await getDocs(collection(db, 'avisos'));
+    const BATCH_SIZE = 400;
+    let lote = writeBatch(db);
+    let ops = 0, total = 0;
+
+    for (const d of snap.docs) {
+      lote.delete(d.ref);
+      ops++; total++;
+      if (ops === BATCH_SIZE) {
+        await lote.commit();
+        lote = writeBatch(db);
+        ops = 0;
+      }
+    }
+    if (ops > 0) await lote.commit();
+
+    statusDiv.innerHTML = `<div style="color:var(--verde);font-weight:700">✅ ${total} aviso(s) apagado(s).</div>`;
+    mostrarToast(`${total} aviso(s) apagado(s)`, 'sucesso');
+    carregarAvisos();
   } catch(e) {
     console.error(e);
     statusDiv.innerHTML = '<div style="color:var(--vermelho);font-weight:600">❌ Erro. Veja o console.</div>';
