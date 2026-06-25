@@ -2021,6 +2021,15 @@
           <label>Setor</label>
           <select id="dom-setor"><option value="">Selecione...</option></select>
         </div>
+        <div class="form-grupo">
+          <label>Semana</label>
+          <select id="dom-semana">
+            <option value="1">Semana 1</option>
+            <option value="2">Semana 2</option>
+            <option value="3">Semana 3</option>
+            <option value="4">Semana 4</option>
+          </select>
+        </div>
         <div class="form-grupo full">
           <label>Entrevistador</label>
           <select id="dom-entrevistador"><option value="">Selecione...</option></select>
@@ -2830,16 +2839,16 @@ async function iniciarApp() {
   precarregarLeaflet();
 
   await carregarDomicilios();
-  carregarDashboard();
-  carregarVisitas();
+  carregarDashboard().catch(console.error);
+  carregarVisitas().catch(console.error);
   popularFiltrosSetores();
-  carregarSetores();
-  carregarAmostraMestra();
-  carregarUsuarios();
-  carregarAvisos();
-  carregarTentativas();
+  carregarSetores().catch(console.error);
+  carregarAmostraMestra().catch(console.error);
+  carregarUsuarios().catch(console.error);
+  carregarAvisos().catch(console.error);
+  carregarTentativas().catch(console.error);
   iniciarChat();
-  carregarUltimaAtualizacao();
+  carregarUltimaAtualizacao().catch(console.error);
 }
 
 // ── NAVEGAÇÃO ──
@@ -2952,7 +2961,7 @@ async function carregarDashboard() {
       parseInt(d.semana) <= semanaAtual && STATUS_PENDENTES.includes(d.status_atual || 'nao_visitado')
     ).length;
     const recusas = docs.filter(d => d.status_atual === 'recusa').length;
-    const etapa5 = docs.filter(d => d.visita_etapa === '5').length;
+    const etapa5 = docs.filter(d => String(d.visita_etapa) === '5').length;
 
     document.getElementById('stat-total').textContent = docs.length;
     document.getElementById('stat-realizadas').textContent = realizadas;
@@ -3122,10 +3131,6 @@ function _domFiltradosSemUpaSetor() {
     if (q && !(d.endereco||'').toLowerCase().includes(q) && !(d.morador||'').toLowerCase().includes(q)) return false;
     return true;
   });
-}
-
-function preencherFiltrosUpa() {
-  _atualizarDropdownsUpaSetor();
 }
 
 function _atualizarDropdownsUpaSetor() {
@@ -4705,7 +4710,8 @@ async function _renderControlePendencias() {
   const obsMap = {};
   try {
     await Promise.all(entrevistadores.map(async nome => {
-      const docId = `${trimestre}_${semKey}_${nome}`;
+      // Sanitiza '/' do nome — doc IDs do Firestore não podem conter essa barra.
+      const docId = `${trimestre}_${semKey}_${nome}`.replace(/\//g, '_');
       const snap = await getDoc(doc(db, 'pendencias_obs', docId));
       if (snap.exists()) obsMap[nome] = snap.data().texto || '';
     }));
@@ -4724,7 +4730,7 @@ async function _renderControlePendencias() {
     somaPend += pendentes;
     const pct = total > 0 ? (pendentes / total * 100).toFixed(2).replace('.', ',') : '0,00';
     const cor = corPct(pendentes, total);
-    const docId = `${trimestre}_${semKey}_${nome}`;
+    const docId = `${trimestre}_${semKey}_${nome}`.replace(/\//g, '_');
     return `<tr>
       <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8">${esc(nome)}</td>
       <td style="padding:6px 10px;border-bottom:0.5px solid #EEEDE8;text-align:center">${total}</td>
@@ -5205,7 +5211,7 @@ ${paginas}
 };
 
 // Helper compartilhado: monta uma <tr> de domicílio. ns = namespace de IDs ('' para tabela principal, 'pd-' para painel dashboard)
-function _badgeEntrevistador(nome, nomeManual = null) {
+function _badgeEntrevistador(nome) {
   if (!nome) return '<span style="color:var(--cinza);font-style:italic;font-size:0.78rem">—</span>';
   const c = corEntrevistador(nome);
   const primeiro = toTitleCase(nome.split(' ')[0]);
@@ -5215,7 +5221,7 @@ function _badgeEntrevistador(nome, nomeManual = null) {
 function _montarLinhaDOM(d, ns = '') {
   const setor = d.controle ? d.controle.slice(0,-1) : (d.upa || '-');
   const nomeEntr = d.entrevistador_nome
-    ? _badgeEntrevistador(d.entrevistador_nome, d.entrevistador_nome_manual || null)
+    ? _badgeEntrevistador(d.entrevistador_nome)
     : (d.entrevistador_id ? '...' : '<span style="color:var(--cinza);font-style:italic">—</span>');
   const _esp = (d.historico_especies || []).slice().sort((a,b) => parseInt(a.entrevista)-parseInt(b.entrevista));
   const _eta = parseInt(d.visita_etapa || 0);
@@ -6013,36 +6019,59 @@ window.atribuirSelecionados = async () => {
   const novoId = isRemover ? null : valorSelecionado;
   const novoNome = isRemover ? null : nomeSelecionado;
 
-  try {
-    for (const id of selecionados) {
-      await updateDoc(doc(db, 'domicilios', id), {
+  // Atribuição em massa via writeBatch (em lotes de até 400, limite do Firestore)
+  // garante atomicidade por lote e permite reportar exatamente quais domicílios
+  // falharam, em vez de updateDoc sequencial onde uma falha no meio deixa parte
+  // já persistida e parte não, com um erro genérico sem indicar quais IDs.
+  const BATCH_SIZE = 400;
+  const idsComFalha = [];
+  let aplicados = 0;
+  for (let c = 0; c < selecionados.length; c += BATCH_SIZE) {
+    const chunk = selecionados.slice(c, c + BATCH_SIZE);
+    const lote = writeBatch(db);
+    chunk.forEach(id => {
+      lote.update(doc(db, 'domicilios', id), {
         entrevistador_id: novoId,
         entrevistador_nome: novoNome,
         entrevistador_nome_manual: novoNome
       });
+    });
+    try {
+      await lote.commit();
+      chunk.forEach(id => {
+        // Atualiza localmente no array
+        const dom = todosdomicilios.find(d => d.id === id);
+        if (dom) { dom.entrevistador_id = novoId; dom.entrevistador_nome = novoNome; dom.entrevistador_nome_manual = novoNome; }
 
-      // Atualiza localmente no array
-      const dom = todosdomicilios.find(d => d.id === id);
-      if (dom) { dom.entrevistador_id = novoId; dom.entrevistador_nome = novoNome; dom.entrevistador_nome_manual = novoNome; }
-
-      // Atualiza visual da linha na Coluna 5 (sem asterisco — acabou de ser atribuído manualmente)
-      const cel = document.querySelector(`#row-${id} td:nth-child(5)`);
-      if (cel) {
-        cel.innerHTML = isRemover
-          ? '<span style="color:var(--cinza);font-style:italic;font-size:0.78rem">Não atribuído</span>'
-          : _badgeEntrevistador(novoNome, novoNome);
-      }
+        // Atualiza visual da linha na Coluna 5 (sem asterisco — acabou de ser atribuído manualmente)
+        const cel = document.querySelector(`#row-${id} td:nth-child(5)`);
+        if (cel) {
+          cel.innerHTML = isRemover
+            ? '<span style="color:var(--cinza);font-style:italic;font-size:0.78rem">Não atribuído</span>'
+            : _badgeEntrevistador(novoNome);
+        }
+      });
+      aplicados += chunk.length;
+    } catch(e) {
+      console.error('Falha ao atribuir lote', chunk, e);
+      idsComFalha.push(...chunk);
     }
-    desmarcarTodos();
-    select.value = ''; // Reseta o select para o padrão
-    mostrarToast(isRemover ? selecionados.length + ' domicílio(s) desvinculado(s)' : selecionados.length + ' domicílio(s) atribuídos a ' + novoNome, 'sucesso');
-    preencherFiltroEntrevistador();
-  } catch(e) { mostrarToast('Erro ao atualizar', 'erro'); console.error(e); }
+  }
+
+  desmarcarTodos();
+  select.value = ''; // Reseta o select para o padrão
+  if (idsComFalha.length === 0) {
+    mostrarToast(isRemover ? aplicados + ' domicílio(s) desvinculado(s)' : aplicados + ' domicílio(s) atribuídos a ' + novoNome, 'sucesso');
+  } else {
+    mostrarToast(`${aplicados} aplicado(s), ${idsComFalha.length} falharam: ${idsComFalha.slice(0,5).join(', ')}${idsComFalha.length>5?'…':''}`, 'erro');
+  }
+  preencherFiltroEntrevistador();
 };
 
 window.abrirModalDomicilio = async () => {
   document.getElementById('dom-endereco').value = '';
   document.getElementById('dom-seq').value = '';
+  document.getElementById('dom-semana').value = localStorage.getItem('pnad_semana_atual') || '1';
   await preencherSelectSetores('dom-setor');
   await preencherSelectEntrevistadores('dom-entrevistador');
   abrirModal('modal-domicilio');
@@ -6054,15 +6083,24 @@ window.salvarDomicilio = async () => {
   try {
     const setorIdEscolhido = document.getElementById('dom-setor').value;
     let periodoDomicilio = periodoAtual !== 'todos' ? periodoAtual : PERIODO_PADRAO;
+    let upaDomicilio = '';
     if (setorIdEscolhido) {
       try {
         const setorSnap = await getDoc(doc(db, 'setores', setorIdEscolhido));
-        if (setorSnap.exists() && setorSnap.data().periodo) periodoDomicilio = setorSnap.data().periodo;
-      } catch(eSetor) { /* mantém o fallback acima */ }
+        if (setorSnap.exists()) {
+          if (setorSnap.data().periodo) periodoDomicilio = setorSnap.data().periodo;
+          upaDomicilio = setorSnap.data().codigo || '';
+        }
+      } catch(eSetor) { /* mantém os fallbacks acima */ }
     }
+    const numeroSequencial = document.getElementById('dom-seq').value.trim();
     await addDoc(collection(db, 'domicilios'), {
       endereco,
-      numero_sequencial: document.getElementById('dom-seq').value.trim(),
+      numero_sequencial: numeroSequencial,
+      domicilio_num: numeroSequencial,
+      upa: upaDomicilio,
+      semana: document.getElementById('dom-semana').value || '1',
+      visita_etapa: '1',
       setor_id: setorIdEscolhido,
       entrevistador_id: document.getElementById('dom-entrevistador').value,
       status_atual: 'nao_visitado',
@@ -7393,8 +7431,10 @@ window.cronDeleteDia = async (dia) => {
   const label = `${_DIAS_ABR[dt.getDay()]} ${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
   if (!confirm(`Excluir o dia ${label} e todas as atividades dele?\nEsta ação não pode ser desfeita.`)) return;
 
+  // Opera sobre uma cópia profunda — só promove a _cronLinhas depois que o
+  // setDoc confirmar sucesso, evitando estado local corrompido se a gravação falhar.
   const novasLinhas = [];
-  _cronLinhas.forEach(ln => {
+  JSON.parse(JSON.stringify(_cronLinhas)).forEach(ln => {
     const startD = ln.data || '';
     if (!startD) { novasLinhas.push(ln); return; }
     const endD = (ln.data_fim && ln.data_fim > startD) ? ln.data_fim : startD;
@@ -7419,10 +7459,10 @@ window.cronDeleteDia = async (dia) => {
       novasLinhas.push(antes, depois);
     }
   });
-  _cronLinhas = novasLinhas;
 
   try {
-    await setDoc(doc(db, 'cronograma', `${_cronMes}_${_cronSemana}`), { linhas: _cronLinhas });
+    await setDoc(doc(db, 'cronograma', `${_cronMes}_${_cronSemana}`), { linhas: novasLinhas });
+    _cronLinhas = novasLinhas;
     _buildCronSetores(_cronMes, _cronSemana);
     document.getElementById('cron-tabela-wrap').innerHTML = _buildCronGrid();
   } catch(e) {
@@ -7436,22 +7476,26 @@ window.cronDeleteEquipe = async () => {
   const label = s.nomes.length ? s.nomes.join(', ') : 'esta equipe';
   if (!confirm(`Excluir ${label} e todas as suas missões desta semana?\nEsta ação não pode ser desfeita.`)) return;
 
+  // Opera sobre uma cópia profunda — só promove a _cronLinhas depois que o
+  // setDoc confirmar sucesso, evitando estado local corrompido se a gravação falhar.
+  const novasLinhas = JSON.parse(JSON.stringify(_cronLinhas));
   const byLine = new Map();
   s.missions.forEach(({liIdx, eqIdx}) => {
     if (!byLine.has(liIdx)) byLine.set(liIdx, []);
     byLine.get(liIdx).push(eqIdx);
   });
   byLine.forEach((eqIdxs, liIdx) => {
-    const ln = _cronLinhas[liIdx];
+    const ln = novasLinhas[liIdx];
     if (!ln) return;
     eqIdxs.sort((a,b) => b-a).forEach(eqIdx => ln.equipes.splice(eqIdx, 1));
   });
-  _cronLinhas = _cronLinhas.filter(ln => ln.equipes && ln.equipes.length);
+  const linhasFiltradas = novasLinhas.filter(ln => ln.equipes && ln.equipes.length);
 
   const btn = document.querySelector('.cron-pop-del-equipe');
   if (btn) { btn.textContent = 'Excluindo…'; btn.disabled = true; }
   try {
-    await setDoc(doc(db, 'cronograma', `${_cronMes}_${_cronSemana}`), { linhas: _cronLinhas });
+    await setDoc(doc(db, 'cronograma', `${_cronMes}_${_cronSemana}`), { linhas: linhasFiltradas });
+    _cronLinhas = linhasFiltradas;
     _buildCronSetores(_cronMes, _cronSemana);
     cronClosePopover();
     document.getElementById('cron-tabela-wrap').innerHTML = _buildCronGrid();
@@ -7542,6 +7586,11 @@ window.cronSavePopover = async () => {
   const isNameEdit = s.dia === '' && s.gk !== '';
   if (!s.dia && !isNameEdit) { mostrarToast('Escolha uma data', 'aviso'); return; }
 
+  // Opera sobre uma cópia profunda — só promove a _cronLinhas depois que o
+  // setDoc confirmar sucesso, evitando estado local corrompido se a gravação falhar.
+  const linhasTrabalho = JSON.parse(JSON.stringify(_cronLinhas));
+  let linhasFinais = linhasTrabalho;
+
   const entrevsStr = s.nomes.join(', ');
   const upas  = s.upas.filter(Boolean);
   const locs  = upas.map(u => (_localidadesCache||{})[u] || _cronSetores.find(st=>st.upa===u)?.localidade || '');
@@ -7554,7 +7603,7 @@ window.cronSavePopover = async () => {
 
   if (isNameEdit) {
     s.missions.forEach(({liIdx, eqIdx}) => {
-      const eq = _cronLinhas[liIdx]?.equipes?.[eqIdx];
+      const eq = linhasTrabalho[liIdx]?.equipes?.[eqIdx];
       if (eq) eq.entrevistadores = entrevsStr;
     });
   } else {
@@ -7568,7 +7617,7 @@ window.cronSavePopover = async () => {
     const conhecidas = new Set(s.missions.map(m => `${m.liIdx}-${m.eqIdx}`));
     const todasMissoes = new Map();
     s.missions.forEach(m => todasMissoes.set(`${m.liIdx}-${m.eqIdx}`, m));
-    _cronLinhas.forEach((ln, liIdx) => {
+    linhasTrabalho.forEach((ln, liIdx) => {
       const startD = ln.data || '';
       if (!startD) return;
       const endD = (ln.data_fim && ln.data_fim > startD) ? ln.data_fim : startD;
@@ -7584,7 +7633,7 @@ window.cronSavePopover = async () => {
     missoes.forEach(({liIdx, eqIdx}) => {
       const key = `${liIdx}-${eqIdx}`;
       if (conhecidas.has(key)) return;
-      const eqExtra = _cronLinhas[liIdx]?.equipes?.[eqIdx];
+      const eqExtra = linhasTrabalho[liIdx]?.equipes?.[eqIdx];
       if (!eqExtra) return;
       (eqExtra.upas || []).forEach((u, i) => {
         if (!u || upas.includes(u)) return;
@@ -7597,7 +7646,7 @@ window.cronSavePopover = async () => {
 
     if (missoes.length) {
       const {liIdx, eqIdx} = missoes[0];
-      const ln = _cronLinhas[liIdx];
+      const ln = linhasTrabalho[liIdx];
       if (ln) {
         ln.data = s.dia;
         ln.hora = s.hora;
@@ -7611,22 +7660,23 @@ window.cronSavePopover = async () => {
         byLine.get(liIdx).push(eqIdx);
       });
       byLine.forEach((eqIdxs, li) => {
-        const l = _cronLinhas[li];
+        const l = linhasTrabalho[li];
         if (!l) return;
         eqIdxs.sort((a,b) => b-a).forEach(eqIdx => l.equipes.splice(eqIdx, 1));
       });
-      _cronLinhas = _cronLinhas.filter(l => l.equipes && l.equipes.length);
+      linhasFinais = linhasTrabalho.filter(l => l.equipes && l.equipes.length);
     } else {
       const newLn = { data: s.dia, hora: s.hora, equipes: [{ entrevistadores: entrevsStr, upas, localidades: locs, tipos }] };
       if (s.data_fim && s.data_fim > s.dia) newLn.data_fim = s.data_fim;
-      _cronLinhas.push(newLn);
+      linhasTrabalho.push(newLn);
     }
   }
 
   const btn = document.querySelector('.cron-pop-save');
   if (btn) { btn.textContent = 'Salvando…'; btn.disabled = true; }
   try {
-    await setDoc(doc(db, 'cronograma', `${_cronMes}_${_cronSemana}`), { linhas: _cronLinhas });
+    await setDoc(doc(db, 'cronograma', `${_cronMes}_${_cronSemana}`), { linhas: linhasFinais });
+    _cronLinhas = linhasFinais;
     _buildCronSetores(_cronMes, _cronSemana);
     cronClosePopover();
     document.getElementById('cron-tabela-wrap').innerHTML = _buildCronGrid();
@@ -7893,21 +7943,26 @@ window.limparEntrevistadorHistorico = async () => {
 
     statusDiv.innerHTML = `<div class="loader">Limpando 0 / ${candidatos.length} domicílios...</div>`;
     let ok = 0, erros = 0;
+    const BATCH_SIZE = 400;
 
-    for (let i = 0; i < candidatos.length; i++) {
-      const docSnap = candidatos[i];
-      const histLimpo = (docSnap.data().historico_especies || []).map(h => ({
-        ...h,
-        entrevistador: 'Não identificado'
-      }));
+    for (let i = 0; i < candidatos.length; i += BATCH_SIZE) {
+      const chunk = candidatos.slice(i, i + BATCH_SIZE);
+      const lote = writeBatch(db);
+      chunk.forEach(docSnap => {
+        const histLimpo = (docSnap.data().historico_especies || []).map(h => ({
+          ...h,
+          entrevistador: 'Não identificado'
+        }));
+        lote.update(doc(db, 'domicilios', docSnap.id), { historico_especies: histLimpo });
+      });
       try {
-        await updateDoc(doc(db, 'domicilios', docSnap.id), { historico_especies: histLimpo });
-        ok++;
+        await lote.commit();
+        ok += chunk.length;
       } catch (e) {
-        erros++;
-        console.error('Erro ao limpar domicílio', docSnap.id, e);
+        erros += chunk.length;
+        console.error('Erro ao limpar lote', chunk.map(d => d.id), e);
       }
-      statusDiv.innerHTML = `<div class="loader">Limpando ${i + 1} / ${candidatos.length} domicílios...</div>`;
+      statusDiv.innerHTML = `<div class="loader">Limpando ${Math.min(i + BATCH_SIZE, candidatos.length)} / ${candidatos.length} domicílios...</div>`;
     }
 
     statusDiv.innerHTML = `<div style="color:var(--verde);font-weight:700">✅ Concluído! ${ok} domicílio(s) limpos${erros > 0 ? `, ${erros} erro(s)` : ''}.</div>`;
@@ -7974,13 +8029,17 @@ window.sincronizarStatusHistorico = async () => {
 
     statusDiv.innerHTML = `<span style="color:var(--azul)">🔄 Corrigindo ${updates.length} domicílio(s)…</span>`;
 
-    for (const u of updates) {
+    const BATCH_SIZE = 400;
+    for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+      const chunk = updates.slice(i, i + BATCH_SIZE);
+      const lote = writeBatch(db);
+      chunk.forEach(u => lote.update(u.ref, { status_atual: u.statusEsperado }));
       try {
-        await updateDoc(u.ref, { status_atual: u.statusEsperado });
-        corrigidos++;
+        await lote.commit();
+        corrigidos += chunk.length;
       } catch(e) {
-        console.error('Erro ao atualizar', u.id, e);
-        erros++;
+        console.error('Erro ao atualizar lote', chunk.map(u => u.id), e);
+        erros += chunk.length;
       }
     }
 
@@ -8217,13 +8276,17 @@ window.removerDuplicadosSemPeriodo = async () => {
     // 1) Migra os campos relevantes para os destinos antes de remover qualquer coisa
     statusDiv.innerHTML = `<div class="loader">Migrando dados (coordenadas, histórico) para ${totalMigracoes} domicílio(s)...</div>`;
     let migradosOk = 0, migradosErro = 0;
-    for (const m of migracoes) {
+    const BATCH_SIZE = 400;
+    for (let i = 0; i < migracoes.length; i += BATCH_SIZE) {
+      const chunk = migracoes.slice(i, i + BATCH_SIZE);
+      const lote = writeBatch(db);
+      chunk.forEach(m => lote.update(doc(db, 'domicilios', m.destinoId), m.campos));
       try {
-        await updateDoc(doc(db, 'domicilios', m.destinoId), m.campos);
-        migradosOk++;
+        await lote.commit();
+        migradosOk += chunk.length;
       } catch (e) {
-        migradosErro++;
-        console.error('Erro ao migrar campos para', m.destinoId, e);
+        migradosErro += chunk.length;
+        console.error('Erro ao migrar campos para lote', chunk.map(m => m.destinoId), e);
       }
     }
 
@@ -8231,16 +8294,18 @@ window.removerDuplicadosSemPeriodo = async () => {
     statusDiv.innerHTML = `<div class="loader">Removendo 0 / ${paraRemover.length} domicílios...</div>`;
     let ok = 0, erros = 0;
 
-    for (let i = 0; i < paraRemover.length; i++) {
-      const d = paraRemover[i];
+    for (let i = 0; i < paraRemover.length; i += BATCH_SIZE) {
+      const chunk = paraRemover.slice(i, i + BATCH_SIZE);
+      const lote = writeBatch(db);
+      chunk.forEach(d => lote.delete(doc(db, 'domicilios', d.id)));
       try {
-        await deleteDoc(doc(db, 'domicilios', d.id));
-        ok++;
+        await lote.commit();
+        ok += chunk.length;
       } catch (e) {
-        erros++;
-        console.error('Erro ao remover domicílio', d.id, e);
+        erros += chunk.length;
+        console.error('Erro ao remover lote', chunk.map(d => d.id), e);
       }
-      statusDiv.innerHTML = `<div class="loader">Removendo ${i + 1} / ${paraRemover.length} domicílios...</div>`;
+      statusDiv.innerHTML = `<div class="loader">Removendo ${Math.min(i + BATCH_SIZE, paraRemover.length)} / ${paraRemover.length} domicílios...</div>`;
     }
 
     statusDiv.innerHTML = `<div style="color:var(--verde);font-weight:700">✅ Concluído! ${migradosOk} domicílio(s) receberam dados migrados${migradosErro > 0 ? ` (${migradosErro} erro(s) na migração)` : ''}. ${ok} domicílio(s) duplicado(s) removido(s)${erros > 0 ? `, ${erros} erro(s)` : ''}.</div>`;
@@ -8927,8 +8992,9 @@ window.importarKML = (input) => {
     document.getElementById('kml-status').textContent = `⏳ Salvando coordenadas no banco...`;
     document.getElementById('kml-status').style.color = 'var(--cinza)';
 
-    // Salva coordenadas no Firestore para cada domicílio
+    // Salva coordenadas no Firestore para cada domicílio (em lotes via writeBatch)
     let salvos = 0, erros = 0, naoEncontrados = 0;
+    const atualizacoes = [];
     for (const [setor, doms] of Object.entries(kmlDados)) {
       for (const d of doms) {
         if (!d.lat || !d.lng) continue;
@@ -8938,22 +9004,36 @@ window.importarKML = (input) => {
           (td.domicilio_num === d.dom || td.numero_sequencial === d.dom)
         );
         if (domObj) {
-          try {
-            await updateDoc(doc(db, 'domicilios', domObj.id), {
+          atualizacoes.push({
+            domObj,
+            dados: {
               latitude_kml: String(d.lat),
               longitude_kml: String(d.lng),
               logradouro_kml: d.logradouro || '',
               numero_kml: d.numero || '',
               complemento_kml: d.complemento || '',
-            });
-            // Atualiza também na memória
-            domObj.latitude_kml = String(d.lat);
-            domObj.longitude_kml = String(d.lng);
-            salvos++;
-          } catch(err) { erros++; }
+            },
+          });
         } else {
           naoEncontrados++;
         }
+      }
+    }
+    const BATCH_SIZE = 400;
+    for (let i = 0; i < atualizacoes.length; i += BATCH_SIZE) {
+      const chunk = atualizacoes.slice(i, i + BATCH_SIZE);
+      const lote = writeBatch(db);
+      chunk.forEach(({domObj, dados}) => lote.update(doc(db, 'domicilios', domObj.id), dados));
+      try {
+        await lote.commit();
+        chunk.forEach(({domObj, dados}) => {
+          domObj.latitude_kml = dados.latitude_kml;
+          domObj.longitude_kml = dados.longitude_kml;
+        });
+        salvos += chunk.length;
+      } catch(err) {
+        erros += chunk.length;
+        console.error('[KML] Falha ao salvar lote de coordenadas', chunk.map(c => c.domObj.id), err);
       }
     }
 
@@ -9178,6 +9258,7 @@ window.salvarEnderecoSetor = (input, setor) => {
       mostrarToast('Erro ao salvar: ' + err.message, 'erro');
     }
   };
+  reader.onerror = () => mostrarToast(`Erro ao ler o arquivo "${file.name}"`, 'erro');
   reader.readAsText(file, 'UTF-8');
 };
 
@@ -9254,6 +9335,7 @@ window.importarEnderecoCompleto = (input) => {
       }
     } catch(err) { console.error(err); mostrarToast('Erro: ' + err.message, 'erro'); }
   };
+  reader.onerror = () => mostrarToast(`Erro ao ler o arquivo "${file.name}"`, 'erro');
   reader.readAsText(file, 'UTF-8');
 };
 
@@ -9297,15 +9379,6 @@ window.carregarRoteiroSetor = async (setor, domAtual) => {
   }
 };
 
-
-function renderizarRoteiroKML(doms, domAtual, setor) {
-  // Usa apenas os domicílios do KML (sem lista completa)
-  const cor = corEntrevistador(domAtual.entrevistador_nome || '');
-  renderizarMapaRoteiro([domAtual], [], [], setor, cor);
-  
-  document.getElementById('roteiro-lista').innerHTML =
-    '<div class="vazio" style="padding:1rem"><div class="icone-vazio">📋</div>Importe o Endereço Completo do setor para ver os 3 anteriores e 3 posteriores.</div>';
-}
 
 function renderizarRoteiro(lista, domAtual, setor) {
   const domNum = parseInt(domAtual.domicilio_num || domAtual.numero_sequencial);
@@ -9449,7 +9522,7 @@ window.atribuirEntrevistadorMapa = async (domId) => {
     preencherFiltroEntrevistador();
     // Atualiza a linha da lista de domicílios, se estiver visível (sem asterisco — atribuição manual)
     const cel = document.querySelector(`#row-${domId} td:nth-child(5)`);
-    if (cel) cel.innerHTML = novoNome ? _badgeEntrevistador(novoNome, novoNome) : '<span style="color:var(--cinza);font-style:italic;font-size:0.78rem">Não atribuído</span>';
+    if (cel) cel.innerHTML = novoNome ? _badgeEntrevistador(novoNome) : '<span style="color:var(--cinza);font-style:italic;font-size:0.78rem">Não atribuído</span>';
     // Recarrega a ficha (e o roteiro/mapa) para refletir a nova cor do pin
     if (typeof window.abrirFicha === 'function' && domicilioAtualId) window.abrirFicha(domicilioAtualId);
   } catch(e) {
@@ -9494,7 +9567,7 @@ window.atribuirMultiplosMapa = async () => {
       const info = _mapaMarkers[domId];
       if (info) info.cor = corEntrevistador(novoNome);
       const cel = document.querySelector(`#row-${domId} td:nth-child(5)`);
-      if (cel) cel.innerHTML = _badgeEntrevistador(novoNome, novoNome);
+      if (cel) cel.innerHTML = _badgeEntrevistador(novoNome);
     });
     mostrarToast(`${ids.length} domicílio(s) atribuídos a ${novoNome}`, 'sucesso');
     preencherFiltroEntrevistador();
@@ -10042,6 +10115,15 @@ window.sigcVoltar = () => {
   document.getElementById('sigc-footer-2').style.display = 'none';
 };
 
+// Nomes de pessoa extraídos do texto do SIGC não devem conter ':' nem sequências
+// longas de dígitos — se o rótulo da linha colidir com outro campo (ex.: telefone,
+// data), o valor capturado por extrairCampo pode vir contaminado. Descarta nesse caso
+// em vez de gravar um nome de supervisor/entrevistador visivelmente errado.
+function _sigcNomeValido(v) {
+  if (!v) return '';
+  if (/:/.test(v) || /\d{4,}/.test(v)) return '';
+  return v;
+}
 function extrairCampo(texto, label) {
   const linhas = texto.split('\n');
   for (const linha of linhas) {
@@ -10066,8 +10148,8 @@ window.processarSIGC = () => {
     tipo:           extrairCampo(texto, 'Tipo da Entrevista'),
     data:           extrairCampo(texto, 'Data da Entrevista (Início e Término)'),
     telefone:       extrairCampo(texto, 'Telefone(s)'),
-    supervisor:     extrairCampo(texto, 'Supervisor'),
-    entrevistador:  extrairCampo(texto, 'Entrevistador'),
+    supervisor:     _sigcNomeValido(extrairCampo(texto, 'Supervisor')),
+    entrevistador:  _sigcNomeValido(extrairCampo(texto, 'Entrevistador')),
     ultima_posicao: extrairCampo(texto, 'Última Posição'),
     observacao:     extrairCampo(texto, 'Observação'),
     controle:       extrairCampo(texto, 'Controle'),
@@ -10347,8 +10429,8 @@ window.processarCentralSIGC = async () => {
       tipo:           extrairCampo(texto, 'Tipo da Entrevista'),
       data:           extrairCampo(texto, 'Data da Entrevista (Início e Término)'),
       telefone:       extrairCampo(texto, 'Telefone(s)'),
-      supervisor:     extrairCampo(texto, 'Supervisor'),
-      entrevistador:  extrairCampo(texto, 'Entrevistador'),
+      supervisor:     _sigcNomeValido(extrairCampo(texto, 'Supervisor')),
+      entrevistador:  _sigcNomeValido(extrairCampo(texto, 'Entrevistador')),
       ultima_posicao: extrairCampo(texto, 'Última Posição'),
       observacao:     extrairCampo(texto, 'Observação'),
     };
@@ -10977,7 +11059,8 @@ window.cnefeEditarLocalidade = (td, setor, docIdAtual) => {
       // Persiste em localidades_upa para aparecer em todos os meses da Amostra Mestra
       if (!_localidadesCache) _localidadesCache = {};
       _localidadesCache[setor] = val;
-      setDoc(doc(db, 'localidades_upa', setor), { localidade: val }, { merge: true }).catch(() => {});
+      setDoc(doc(db, 'localidades_upa', setor), { localidade: val }, { merge: true })
+        .catch(e2 => console.warn('Falha ao espelhar localidade em localidades_upa', setor, e2));
       if (input.parentNode) input.replaceWith(novaSpan(val));
     } catch(e) { mostrarToast('Erro: '+e.message, 'erro'); if (input.parentNode) input.replaceWith(novaSpan(atual)); }
   };
@@ -11100,6 +11183,7 @@ window.importarIndicadoresGerenciais = (input) => {
       carregarCnefeSetores();
     } catch(err) { console.error(err); mostrarToast('Erro: ' + err.message, 'erro'); }
   };
+  reader.onerror = () => mostrarToast(`Erro ao ler o arquivo "${file.name}"`, 'erro');
   reader.readAsText(file, 'UTF-8');
 };
 
@@ -11431,12 +11515,16 @@ async function _cnefeUploadCSV(setor, texto) {
     });
   }
   if (!batch.length) throw new Error('Nenhum endereço encontrado');
+  // Insere os novos endereços ANTES de apagar os antigos: se a inserção falhar no
+  // meio (rede, etc.), o setor fica no máximo com dados duplicados/antigos ainda
+  // presentes — nunca com endereços perdidos. snapOld é capturado antes da
+  // inserção para não incluir os novos docs recém-criados na exclusão seguinte.
   const snapOld = await getDocs(query(collection(db, 'cnefe_enderecos'), where('setor', '==', setor)));
-  for (let i = 0; i < snapOld.docs.length; i += 400) {
-    const b = writeBatch(db); snapOld.docs.slice(i, i+400).forEach(d => b.delete(d.ref)); await b.commit();
-  }
   for (let i = 0; i < batch.length; i += 400) {
     const b = writeBatch(db); batch.slice(i, i+400).forEach(r => b.set(doc(collection(db, 'cnefe_enderecos')), r)); await b.commit();
+  }
+  for (let i = 0; i < snapOld.docs.length; i += 400) {
+    const b = writeBatch(db); snapOld.docs.slice(i, i+400).forEach(d => b.delete(d.ref)); await b.commit();
   }
   _cnefeEnderecoCache[setor] = null;
   // Persiste flag tem_csv
@@ -11507,6 +11595,7 @@ window.importarCnefeCSVDireto = (input) => {
       renderCnefeSetores();
     } catch(err) { mostrarToast('Erro: ' + err.message, 'erro'); }
   };
+  reader.onerror = () => mostrarToast(`Erro ao ler o arquivo "${file.name}"`, 'erro');
   reader.readAsText(file, 'UTF-8');
 };
 
@@ -11556,6 +11645,7 @@ window.importarCnefeCSV = (input) => {
       carregarCnefeListagem(setor);
     } catch(err) { mostrarToast('Erro: ' + err.message, 'erro'); }
   };
+  reader.onerror = () => mostrarToast(`Erro ao ler o arquivo "${file.name}"`, 'erro');
   reader.readAsText(file, 'UTF-8');
 };
 
