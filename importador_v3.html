@@ -723,6 +723,8 @@ function processarDados() {
       entrevistador_nome: entrevistadorNome,
       entrevistador_id: '',
       tentativas_count: tentativasList.length,
+      tentativas_count_pres: tentativasList.filter(t => !/telefone/i.test(t['Origem'] || '')).length,
+      tentativas_count_tel: tentativasList.filter(t => /telefone/i.test(t['Origem'] || '')).length,
       tentativas: tentativasList.map(t => ({
         data: t['Data Hora Capturada'] || t['Data Hora Inserida'] || '',
         tipo: t['Tipo de Entrevista'] || '',
@@ -991,8 +993,10 @@ async function importarFirestore() {
     const tentativasCarregadas = Object.keys(dados.tentativas).length > 0;
     if (tentativasCarregadas) {
       // entrevistador_nome excluído: nome definido manualmente no sistema tem precedência
-      fields.tentativas_count = toInt(d.tentativas_count);
-      maskFields.push('tentativas_count');
+      fields.tentativas_count      = toInt(d.tentativas_count);
+      fields.tentativas_count_pres = toInt(d.tentativas_count_pres);
+      fields.tentativas_count_tel  = toInt(d.tentativas_count_tel);
+      maskFields.push('tentativas_count', 'tentativas_count_pres', 'tentativas_count_tel');
     }
     const _especiesMesclado = _mesclarEspecies(d.historico_especies, _existingHistorico[docId] || []);
     if (_especiesMesclado.length > 0) { fields.historico_especies = toArr(_especiesMesclado); maskFields.push('historico_especies'); }

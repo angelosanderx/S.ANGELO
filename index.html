@@ -4644,8 +4644,9 @@ window.copiarPendenciasWhatsApp = (tableId) => {
 
   // Tabela comparativa em monospace (``` no WhatsApp)
   const _ctr = (str, w) => { str = String(str); const p = Math.max(0, w - str.length); return ' '.repeat(Math.floor(p/2)) + str + ' '.repeat(Math.ceil(p/2)); };
+  const _pNome = nome => nome ? nome.split(' ')[0] : nome; // primeiro nome
   // +3 para reservar espaço do prefixo "✅ " / "⬜ " (emoji visual 2 + espaço 1)
-  const colNome = Math.max(16, ...todosGrupos.map(g => g.nome.length + 3));
+  const colNome = Math.max(16, ...todosGrupos.map(g => _pNome(g.nome).length + 3));
   const H_PCT = '% Porc. Pendentes';
   const cTot = 7, cPend = 7, cPct = H_PCT.length;
   const sepW = colNome + 2 + cTot + 2 + cPend + 2 + cPct;
@@ -4659,7 +4660,7 @@ window.copiarPendenciasWhatsApp = (tableId) => {
     const pct = tot > 0 ? Math.round(g.doms.length / tot * 100) : 0;
     const pfx = g.doms.length === 0 ? '✅ ' : '⬜ ';
     tabelaLinhas.push(
-      (pfx + g.nome).padEnd(colNome) + '  ' +
+      (pfx + _pNome(g.nome)).padEnd(colNome) + '  ' +
       _ctr(tot, cTot) + '  ' +
       _ctr(g.doms.length, cPend) + '  ' +
       _ctr(pct + '%', cPct)
@@ -4695,8 +4696,8 @@ window.copiarPendenciasWhatsApp = (tableId) => {
         const etapa  = d.visita_etapa || '?';
         const status = STATUS_LABEL[d.status_atual] || d.status_atual || '?';
         const tents  = (d.tentativas_recentes || []).filter(t => t.origem);
-        const nTel   = tents.filter(t => /telefone/i.test(t.origem||'')).length;
-        const nPres  = tents.length - nTel;
+        const nPres  = d.tentativas_count_pres != null ? d.tentativas_count_pres : tents.filter(t => !/telefone/i.test(t.origem||'')).length;
+        const nTel   = d.tentativas_count_tel  != null ? d.tentativas_count_tel  : tents.filter(t => /telefone/i.test(t.origem||'')).length;
         const telStr = nTel === 0 ? `*0 tel.*` : `${nTel} tel.`;
         const obs    = ` · (Tentativas: ${nPres} pres. - ${telStr})`;
         linhas.push(`${cod} · Etapa ${etapa}ª · ${status}${obs}`);
@@ -5531,9 +5532,16 @@ function _montarLinhaDOM(d, ns = '') {
     </tr>`;
 }
 
+window.toggleTentativasRow = (id) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+};
+
 function _montarTentativasSubrow(d) {
   const tents = (d.tentativas_recentes || []).filter(t => t.origem);
   const temTel = tents.some(t => /telefone/i.test(t.origem || ''));
+  const uid = d.id.replace(/[^a-z0-9]/gi, '_');
 
   const fmtData = (str) => {
     if (!str) return '';
@@ -5560,16 +5568,23 @@ function _montarTentativasSubrow(d) {
     }).join(' ');
   }
 
-  const aviso = !temTel
+  const avisoHtml = !temTel
     ? `<span style="display:inline-flex;align-items:center;background:var(--vermelho-claro);border:1px solid var(--vermelho);border-radius:12px;padding:1px 7px;font-size:0.72rem;font-weight:700;color:var(--vermelho)" title="Sem tentativa por telefone">📵 s/tel.</span>`
     : '';
+
+  const nTotal = d.tentativas_count != null ? d.tentativas_count : tents.length;
 
   return `<tr style="background:#f8fafc;border-bottom:2px solid var(--borda)">
     <td colspan="7" style="padding:0.22rem 0.6rem 0.28rem 2.2rem">
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.35rem">
-        <span style="font-size:0.65rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.3px">Tentativas:</span>
+        <button onclick="toggleTentativasRow('tent-${uid}')"
+          style="font-size:0.65rem;font-weight:700;color:var(--azul);background:var(--azul-claro);border:1px solid var(--azul-medio);border-radius:8px;padding:1px 7px;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:0.3px">
+          🔍 Tentativas (${nTotal})
+        </button>
+        ${avisoHtml}
+      </div>
+      <div id="tent-${uid}" style="display:none;flex-wrap:wrap;align-items:center;gap:0.35rem;margin-top:3px">
         ${chipsHtml}
-        ${aviso}
       </div>
     </td>
   </tr>`;
