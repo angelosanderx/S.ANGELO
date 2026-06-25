@@ -1370,6 +1370,17 @@
 
     <div class="pagina" id="pag-visitas">
       <div class="titulo-pagina">📋 Solicitações</div>
+
+      <div class="card-tabela" style="margin-bottom:0.75rem">
+        <div class="card-tabela-header">
+          <h3>Solicitações</h3>
+          <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.82rem;cursor:pointer;white-space:nowrap">
+            <input type="checkbox" id="sol-painel-so-ativas" checked onchange="renderizarPainelSolicitacoes()"> Mostrar só ativas
+          </label>
+        </div>
+        <div id="painel-solicitacoes"><div class="loader">Carregando...</div></div>
+      </div>
+
       <div class="card-tabela">
         <div class="card-tabela-header">
           <h3>Últimas visitas registradas</h3>
@@ -3156,6 +3167,7 @@ async function carregarDomicilios() {
     filtrarDomicilios();
     renderizarMapaSetores();
     _atualizarContadorSolicitacoes();
+    renderizarPainelSolicitacoes();
     _carregarIndicadoresMoradores(); // background — não bloqueia a tela
   } catch(e) {
     console.error(e);
@@ -6756,12 +6768,110 @@ window.atualizarEtapaSolicitacao = async (domId, solId, etapa) => {
     if (typeof domicilioAtualId !== 'undefined' && domicilioAtualId === domId)
       renderizarHistoricoSolicitacoesFicha(domId);
     _atualizarContadorSolicitacoes();
+    renderizarPainelSolicitacoes();
+    renderizarMapaSetores();
     mostrarToast(`Solicitação marcada como "${ETAPA_SOL[etapa]?.label || etapa}"`, 'sucesso');
   } catch(e) {
     mostrarToast('Erro ao atualizar etapa da solicitação', 'erro');
     console.error(e);
   }
 };
+
+// Remove definitivamente uma solicitação do domicílio (diferente de "resolver": aqui ela some da lista).
+window.excluirSolicitacaoDefinitivo = async (domId, solId) => {
+  if (!['supervisor', 'administrador'].includes(perfilLogado?.perfil)) return;
+  if (!confirm('Excluir esta solicitação definitivamente? Essa ação não pode ser desfeita.')) return;
+  const domAtual = todosdomicilios.find(d => d.id === domId);
+  if (!domAtual) return;
+  const novasSols = (domAtual.solicitacoes || []).filter(s => s.id !== solId);
+  const ativas = novasSols.filter(s => !s.resolvido);
+  const novoStatus = ativas.length > 0
+    ? calcularStatusSolicitacoes(novasSols, domAtual.status_base)
+    : (domAtual.status_base || 'nao_visitado');
+  try {
+    await updateDoc(doc(db, 'domicilios', domId), {
+      solicitacoes: novasSols,
+      status_atual: novoStatus,
+      tipo_solicitacao: ativas.length > 0 ? ativas[ativas.length - 1].tipo : null,
+    });
+    domAtual.solicitacoes = novasSols;
+    domAtual.status_atual = novoStatus;
+    renderizarSolicitacoesExistentes(domId);
+    if (typeof domicilioAtualId !== 'undefined' && domicilioAtualId === domId)
+      renderizarHistoricoSolicitacoesFicha(domId);
+    _atualizarContadorSolicitacoes();
+    renderizarPainelSolicitacoes();
+    renderizarMapaSetores();
+    mostrarToast('Solicitação excluída', 'sucesso');
+  } catch(e) {
+    mostrarToast('Erro ao excluir solicitação', 'erro');
+    console.error(e);
+  }
+};
+
+// Painel central da página "Solicitações": lista todas as solicitações (de todos os domicílios)
+// e permite ao supervisor/administrador avançar a etapa ou excluir cada uma.
+function renderizarPainelSolicitacoes() {
+  const div = document.getElementById('painel-solicitacoes');
+  if (!div) return;
+  const soAtivas = document.getElementById('sol-painel-so-ativas')?.checked ?? true;
+  const podeGerirEtapa = ['supervisor', 'administrador'].includes(perfilLogado?.perfil);
+
+  let linhas = [];
+  todosdomicilios.forEach(d => {
+    (d.solicitacoes || []).forEach(s => {
+      if (soAtivas && s.resolvido) return;
+      linhas.push({ dom: d, sol: s });
+    });
+  });
+  linhas.sort((a, b) => (b.sol.criado_em_ts || 0) - (a.sol.criado_em_ts || 0));
+
+  if (linhas.length === 0) {
+    div.innerHTML = `<div class="vazio" style="padding:1.25rem"><div class="icone-vazio">📋</div>Nenhuma solicitação ${soAtivas ? 'ativa' : ''} encontrada.</div>`;
+    return;
+  }
+
+  div.innerHTML = linhas.map(({ dom, sol }) => {
+    const ativa = !sol.resolvido;
+    const etapa = sol.etapa || 'pendente';
+    const etapaInfo = ETAPA_SOL[etapa] || ETAPA_SOL.pendente;
+    const dataCriacao = sol.criado_em_ts ? new Date(sol.criado_em_ts).toLocaleDateString('pt-BR') : '—';
+    const etapaBadge = ativa
+      ? `<span style="font-size:0.68rem;font-weight:700;color:${etapaInfo.cor};background:${etapaInfo.bg};border-radius:8px;padding:1px 7px">${etapaInfo.label}</span>`
+      : `<span class="badge badge-cinza" style="font-size:0.68rem">Resolvida</span>`;
+    const botoesEtapa = (ativa && podeGerirEtapa)
+      ? ['aceita', 'em_andamento', 'pronta'].map(et => `
+          <button onclick="atualizarEtapaSolicitacao('${dom.id}','${sol.id}','${et}')"
+            style="font-size:0.7rem;font-weight:600;border-radius:5px;padding:2px 7px;cursor:pointer;
+              border:1.5px solid ${etapa === et ? ETAPA_SOL[et].cor : 'var(--borda)'};
+              background:${etapa === et ? ETAPA_SOL[et].bg : '#fff'};
+              color:${etapa === et ? ETAPA_SOL[et].cor : 'var(--cinza)'}">${ETAPA_SOL[et].label}</button>
+        `).join('')
+      : '';
+    const btnResolver = (ativa)
+      ? `<button onclick="excluirSolicitar('${dom.id}','${sol.id}')" title="Marcar como resolvida"
+          style="background:var(--verde);color:#fff;border:none;border-radius:4px;padding:0.2rem 0.55rem;cursor:pointer;font-size:0.78rem;font-weight:700">✓</button>`
+      : '';
+    const btnExcluir = podeGerirEtapa
+      ? `<button onclick="excluirSolicitacaoDefinitivo('${dom.id}','${sol.id}')" title="Excluir definitivamente"
+          style="background:var(--vermelho);color:#fff;border:none;border-radius:4px;padding:0.2rem 0.55rem;cursor:pointer;font-size:0.78rem;font-weight:700">🗑️</button>`
+      : '';
+    return `<div style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.6rem 0.85rem;border-radius:8px;margin-bottom:0.5rem;
+        background:${ativa ? 'var(--azul-claro)' : 'var(--cinza-claro)'};border:1px solid ${ativa ? 'var(--azul-medio)' : 'var(--borda)'}">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+          <span style="font-size:0.85rem;font-weight:700">${SOL_LABELS[sol.tipo] || sol.tipo}</span>
+          ${etapaBadge}
+          <span style="font-size:0.72rem;color:var(--cinza);margin-left:auto;white-space:nowrap">${dataCriacao}${sol.criado_por_nome ? ' · ' + esc(sol.criado_por_nome) : ''}</span>
+        </div>
+        <div style="font-size:0.78rem;color:var(--cinza);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 ${esc(dom.endereco || '—')}</div>
+        ${sol.obs ? `<div style="font-size:0.78rem;color:var(--cinza);margin-top:2px">${esc(sol.obs)}</div>` : ''}
+        ${botoesEtapa ? `<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">${botoesEtapa}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0">${btnResolver}${btnExcluir}</div>
+    </div>`;
+  }).join('');
+}
 
 function renderizarHistoricoSolicitacoesFicha(domId) {
   const div = document.getElementById('historico-solicitacoes-ficha');
