@@ -459,6 +459,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .ficha-card-num{font-weight:800;color:var(--texto);font-size:.92rem}
 .ficha-card-end{font-size:.84rem;color:var(--texto);margin-bottom:2px}
 .ficha-card-meta{font-size:.72rem;color:var(--cinza);margin-bottom:4px}
+.ficha-secao-titulo{font-size:.62rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.4px;margin:.6rem 0 .3rem}
 .ficha-divisor{border-top:1px dashed var(--borda);margin:0 0 .5rem}
 .ficha-vazio{text-align:center;padding:2.5rem 1rem;color:var(--cinza);font-size:.85rem}
 .fichas-offline-banner{background:#fef3c7;color:#92400e;font-size:.72rem;text-align:center;padding:.45rem;border-radius:6px;margin-bottom:.6rem;font-weight:600}
@@ -2367,6 +2368,70 @@ function _agruparFichas(doms) {
   }));
 }
 
+function _htmlMoradoresFicha(d) {
+  if (d._moradores === undefined) return '<div class="pf-loading">Carregando moradores…</div>';
+  if (d._moradores === 'erro') return '<div class="pf-loading" style="color:var(--vermelho)">Erro ao carregar moradores.</div>';
+  if (!d._moradores.length) return '<div class="pf-loading">Nenhum morador cadastrado.</div>';
+  return d._moradores.map(m => {
+    const nasc = m.nascimento ? m.nascimento.split('-').reverse().join('/') : '';
+    const det  = [m.sexo, m.idade != null ? m.idade + ' anos' : nasc, m.condicao].filter(Boolean).join(' · ');
+    return `<div class="mor-row">
+      <span class="mor-cod">${m.codigo || '—'}</span>
+      <span class="mor-nome">${m.nome || '—'}</span>
+      ${det ? `<span class="mor-det">${det}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function _htmlRoteiroFicha(d) {
+  if (d._roteiro === undefined) return '<div class="pf-loading">Carregando roteiro…</div>';
+  if (d._roteiro === 'erro') return '<div class="pf-loading" style="color:var(--vermelho)">Erro ao carregar roteiro.</div>';
+  if (d._roteiro === 'nao-importado') return '<div class="pf-loading">Roteiro não importado para este setor.</div>';
+  if (d._roteiro === 'nao-encontrado') return '<div class="pf-loading">Domicílio não encontrado no roteiro.</div>';
+  return d._roteiro.map(item => `<div class="rot-row${item._alvo ? ' alvo' : ''}">
+    <span class="rot-seq">${item.seq_visita}</span>
+    <span class="rot-end">
+      ${item._alvo ? '<strong style="color:var(--azul-med)">🎯 </strong>' : (item._antes ? '← ' : '→ ')}${item.endereco || '—'}
+      ${item.complemento ? `<br><span class="rot-mor">${item.complemento}</span>` : ''}
+      ${item.morador ? `<br><span class="rot-mor">👤 ${item.morador}</span>` : ''}
+    </span>
+  </div>`).join('');
+}
+
+async function _carregarExtrasFichas(doms) {
+  await Promise.all(doms.map(async d => {
+    try {
+      const snap = await getDocs(collection(db, 'domicilios', d.id, 'moradores'));
+      d._moradores = snap.docs.map(x => x.data()).sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''));
+    } catch(e) {
+      d._moradores = 'erro';
+    }
+  }));
+
+  const setores = [...new Set(doms.map(_setorDeDom))];
+  const roteiroPorSetor = {};
+  await Promise.all(setores.map(async setor => {
+    try {
+      const snap = await getDoc(doc(db, 'enderecos_setor', setor));
+      roteiroPorSetor[setor] = snap.exists() ? (snap.data().registros || []) : 'nao-importado';
+    } catch(e) {
+      roteiroPorSetor[setor] = 'erro';
+    }
+  }));
+
+  doms.forEach(d => {
+    const lista = roteiroPorSetor[_setorDeDom(d)];
+    if (typeof lista === 'string') { d._roteiro = lista; return; }
+    const domNum = parseInt(d.domicilio_num || d.numero_sequencial);
+    let idx = lista.findIndex(x => x.dom !== '' && parseInt(x.dom) === domNum);
+    if (idx < 0) idx = lista.findIndex(x => parseInt(x.seq_visita) === domNum);
+    if (idx < 0) { d._roteiro = 'nao-encontrado'; return; }
+    const start = Math.max(0, idx - 3);
+    const end   = Math.min(lista.length, idx + 4);
+    d._roteiro = lista.slice(start, end).map((item, i) => ({ ...item, _alvo: (start + i) === idx, _antes: (start + i) < idx }));
+  });
+}
+
 function _htmlFichaCard(d) {
   const s = d.status_atual || 'nao_visitado';
   const especies  = (d.historico_especies  || []).slice().sort((a, b) => parseInt(a.entrevista) - parseInt(b.entrevista));
@@ -2404,9 +2469,13 @@ function _htmlFichaCard(d) {
       <span class="ficha-card-num">Dom. ${d.domicilio_num || d.numero_sequencial || '?'}</span>
       <span class="etapa-badge" style="background:${corS(s)}22;color:${corS(s)}">${lblS(s)}</span>
     </div>
+    <div class="ficha-secao-titulo" style="margin-top:0">👥 Moradores PNAD</div>
+    ${_htmlMoradoresFicha(d)}
     <div class="ficha-card-end">${d.endereco || d.logradouro_kml || '—'}${d.complemento ? ' — ' + d.complemento : ''}</div>
     <div class="ficha-card-meta">Controle ${d.controle || '—'} · Sem. ${d.semana || '?'} · Etapa ${d.visita_etapa || '?'}${(d.morador_cnefe || d.morador) ? ' · ' + (d.morador_cnefe || d.morador) : ''}</div>
     ${histHtml}${solsHtml}
+    <div class="ficha-secao-titulo">🛣️ Roteiro de campo</div>
+    ${_htmlRoteiroFicha(d)}
   </div>`;
 }
 
@@ -2478,9 +2547,14 @@ window.abrirFichas = () => {
 
   _fichasDomsAtuais = doms;
   _renderFichasAtual();
+  if (_fichasUsandoCache || !doms.length) return;
 
-  // Mantém o cache offline sempre atualizado quando há dados frescos (online)
-  if (!_fichasUsandoCache && doms.length) _salvarFichasOffline(doms, false);
+  // Busca moradores PNAD e roteiro de campo (1 leitura por domicílio + 1 por setor)
+  // e só então salva o cache offline, já com esses dados embutidos.
+  _carregarExtrasFichas(doms).then(() => {
+    _renderFichasAtual();
+    _salvarFichasOffline(doms, false);
+  });
 };
 
 window.toggleFiltroPendentesFichas = () => {
