@@ -526,7 +526,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <div style="display:flex;gap:6px;align-items:center">
         <button class="set-toggle" onclick="abrirFichas()">📋 Fichas</button>
         <button class="set-toggle" onclick="abrirMapaGeral()">🗺️ Mapa geral</button>
-        <button onclick="location.reload(true)" title="Forçar atualização do aplicativo" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:.75rem;padding:4px 10px;border-radius:12px;cursor:pointer;font-family:inherit">🔄</button>
+        <button onclick="(async()=>{if('serviceWorker' in navigator){const rs=await navigator.serviceWorker.getRegistrations();for(const r of rs)await r.unregister();}location.reload();})()" title="Forçar atualização do aplicativo" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:.75rem;padding:4px 10px;border-radius:12px;cursor:pointer;font-family:inherit">🔄</button>
         <button onclick="trocarUsuario()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:.75rem;padding:4px 10px;border-radius:12px;cursor:pointer;font-family:inherit">Trocar</button>
       </div>
     </div>
