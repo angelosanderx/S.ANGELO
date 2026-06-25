@@ -176,13 +176,6 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 #fab-filtro-entr:active{transform:scale(.9)}
 #fab-filtro-entr.ativo{background:var(--azul-med);color:#fff}
 
-#panel-filtro-entr{
-  position:absolute;bottom:0;left:0;right:0;z-index:920;
-  background:#fff;border-radius:18px 18px 0 0;
-  box-shadow:0 -4px 24px rgba(0,0,0,.18);
-  max-height:70vh;display:flex;flex-direction:column;
-}
-#filtro-entr-lista{overflow-y:auto;padding:0 1.1rem;flex:1}
 
 #fab-nav{
   position:absolute;bottom:calc(env(safe-area-inset-bottom) + 14px);left:12px;z-index:700;
@@ -648,22 +641,6 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <button onclick="limparMapaOffline()" style="width:100%;border:1px solid var(--borda);border-radius:8px;background:#fff;color:var(--cinza);font-size:.74rem;padding:.4rem;cursor:pointer;font-family:inherit">🗑️ Limpar mapa offline</button>
   </div>
 
-  <!-- Painel: filtro por entrevistador -->
-  <div id="panel-filtro-entr" class="hidden">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.1rem .5rem">
-      <span style="font-size:.95rem;font-weight:800;color:var(--texto)">Filtrar por entrevistador</span>
-      <button onclick="fecharPanelFiltroEntr()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--cinza);line-height:1;padding:2px">✕</button>
-    </div>
-    <div style="padding:0 1.1rem .5rem;display:flex;gap:7px">
-      <button onclick="selecionarTodosFiltroEntr()" style="flex:1;border:1.5px solid var(--borda);border-radius:8px;background:#fff;font-size:.78rem;font-weight:700;padding:.35rem;cursor:pointer;font-family:inherit;color:var(--cinza)">Todos</button>
-      <button onclick="limparFiltroEntr()" style="flex:1;border:1.5px solid var(--vermelho);border-radius:8px;background:#fff;font-size:.78rem;font-weight:700;padding:.35rem;cursor:pointer;font-family:inherit;color:var(--vermelho)">Limpar</button>
-    </div>
-    <div id="filtro-entr-lista"></div>
-    <div style="padding:.75rem 1.1rem;padding-bottom:calc(env(safe-area-inset-bottom) + .75rem)">
-      <button onclick="fecharPanelFiltroEntr()" style="width:100%;background:var(--azul-med);color:#fff;border:none;border-radius:12px;padding:.75rem;font-size:.9rem;font-weight:800;cursor:pointer;font-family:inherit">Aplicar</button>
-    </div>
-  </div>
-
   <!-- Legenda -->
   <div id="legenda">
     <div id="legenda-entr"></div>
@@ -676,6 +653,22 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 
 <!-- OVERLAY -->
 <div id="overlay" onclick="fecharTudo()"></div>
+
+<!-- PAINEL: filtro por entrevistador (supervisor/admin) -->
+<div id="panel-filtro-entr" class="hidden" style="position:fixed;bottom:0;left:0;right:0;z-index:920;background:#fff;border-radius:18px 18px 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.18);max-height:70vh;display:flex;flex-direction:column">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.1rem .5rem">
+    <span style="font-size:.95rem;font-weight:800;color:var(--texto)">Filtrar por entrevistador</span>
+    <button onclick="fecharPanelFiltroEntr()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--cinza);line-height:1;padding:2px">✕</button>
+  </div>
+  <div style="padding:0 1.1rem .5rem;display:flex;gap:7px">
+    <button onclick="selecionarTodosFiltroEntr()" style="flex:1;border:1.5px solid var(--borda);border-radius:8px;background:#fff;font-size:.78rem;font-weight:700;padding:.35rem;cursor:pointer;font-family:inherit;color:var(--cinza)">Todos</button>
+    <button onclick="limparFiltroEntr()" style="flex:1;border:1.5px solid var(--vermelho);border-radius:8px;background:#fff;font-size:.78rem;font-weight:700;padding:.35rem;cursor:pointer;font-family:inherit;color:var(--vermelho)">Limpar</button>
+  </div>
+  <div id="filtro-entr-lista" style="overflow-y:auto;padding:0 1.1rem;flex:1"></div>
+  <div style="padding:.75rem 1.1rem;padding-bottom:calc(env(safe-area-inset-bottom) + .75rem)">
+    <button onclick="fecharPanelFiltroEntr()" style="width:100%;background:var(--azul-med);color:#fff;border:none;border-radius:12px;padding:.75rem;font-size:.9rem;font-weight:800;cursor:pointer;font-family:inherit">Aplicar</button>
+  </div>
+</div>
 
 <!-- BOTTOM SHEET: click no marcador -->
 <div id="bottom-sheet">
