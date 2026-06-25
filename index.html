@@ -3550,8 +3550,16 @@ function _atualizarDropdownsUM() {
     selPos.value = posicoes.includes(posAtual) ? posAtual : '';
   }
 
-  // Entrevistador
-  const entrevistadores = [...new Set(todosdomicilios.map(d => d.entrevistador_nome).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  // Entrevistador — deduplica por chave canônica
+  const _nomesMapUm = new Map();
+  todosdomicilios.forEach(d => {
+    if (!d.entrevistador_nome) return;
+    const registrado = (entrevistadoresCache||[]).find(u => nomesCorrespondem(u.nome, d.entrevistador_nome));
+    const canonical = toTitleCase(registrado ? registrado.nome : d.entrevistador_nome);
+    const key = _chaveNomeGlobal(canonical);
+    if (key && !_nomesMapUm.has(key)) _nomesMapUm.set(key, canonical);
+  });
+  const entrevistadores = [..._nomesMapUm.values()].sort((a,b) => a.localeCompare(b));
   const selEntr = document.getElementById('um-entrevistador');
   if (selEntr) {
     selEntr.innerHTML = '<option value="">Todos os entrevistadores (' + entrevistadores.length + ')</option>';
@@ -9307,15 +9315,25 @@ function normalizarNomeGlobal(s) {
     .replace(/\s+/g, ' ');
 }
 
+// Chave canônica: primeiro nome + primeiro sobrenome não-partícula
+const _PARTICULAS_NOME = new Set(['de','da','do','dos','das','e','di','von','van']);
+function _chaveNomeGlobal(s) {
+  if (!s) return '';
+  const partes = normalizarNomeGlobal(s).split(' ').filter(p => p.length > 1 && !_PARTICULAS_NOME.has(p));
+  return partes.slice(0, 2).join(' ');
+}
+
 function nomesCorrespondem(nomeCadastrado, nomeImportado) {
   const cadastrado = normalizarNomeGlobal(nomeCadastrado);
   const importado = normalizarNomeGlobal(nomeImportado);
   if (!cadastrado || !importado) return false;
   if (cadastrado === importado) return true;
-  const palavrasCadastro = cadastrado.split(' ').filter(p => p.length > 1); // ignora iniciais soltas
+  // Chave canônica — resolve maiúsculas e nomes com partes extras/truncadas
+  const cc = _chaveNomeGlobal(nomeCadastrado), ci = _chaveNomeGlobal(nomeImportado);
+  if (cc && cc === ci) return true;
+  const palavrasCadastro = cadastrado.split(' ').filter(p => p.length > 1);
   if (palavrasCadastro.length === 0) return false;
   const palavrasImportado = importado.split(' ');
-  // Verifica palavra inteira (não substring) para evitar "Ana" matchando "Joana"
   return palavrasCadastro.every(p => palavrasImportado.includes(p));
 }
 

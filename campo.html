@@ -993,8 +993,21 @@ const CORES_ENTREVISTADORES = {
 function _normNome(nome) {
   return (nome || '').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ');
 }
+// Chave canônica: primeiro nome + primeiro sobrenome não-partícula (ignora maiúsculas e nome completo vs. abreviado)
+const _PARTICULAS = new Set(['DE','DA','DO','DOS','DAS','E','DI','VON','VAN']);
+function _chaveNome(nome) {
+  if (!nome) return '';
+  const partes = _normNome(nome).split(' ').filter(p => p.length > 1 && !_PARTICULAS.has(p));
+  return partes.slice(0, 2).join(' ');
+}
+function _nomeDisplay(chave) {
+  return chave.split(' ').map(p => p[0] + p.slice(1).toLowerCase()).join(' ');
+}
 function mesmoNome(a, b) {
-  return !!a && !!b && _normNome(a) === _normNome(b);
+  if (!a || !b) return false;
+  if (_normNome(a) === _normNome(b)) return true;
+  const ca = _chaveNome(a), cb = _chaveNome(b);
+  return !!ca && ca === cb;
 }
 function corEntrevistador(nome) {
   if (!nome) return '#94A3B8';
@@ -2180,7 +2193,14 @@ window.toggleFiltroMeusPendentes = () => {
 
 /* ── FILTRO POR ENTREVISTADOR (supervisor) ──────────────── */
 function _entrevistadoresNoMapa() {
-  return [...new Set(domicilios.map(d => d.entrevistador_nome).filter(Boolean))].sort();
+  // Deduplica por chave canônica (primeiro nome + primeiro sobrenome)
+  const mapa = new Map(); // chave → display em title case
+  domicilios.forEach(d => {
+    if (!d.entrevistador_nome) return;
+    const chave = _chaveNome(d.entrevistador_nome);
+    if (chave && !mapa.has(chave)) mapa.set(chave, _nomeDisplay(chave));
+  });
+  return [...mapa.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([chave, display]) => ({ chave, display }));
 }
 
 function _renderListaFiltroEntr() {
@@ -2191,13 +2211,13 @@ function _renderListaFiltroEntr() {
     lista.innerHTML = '<div style="padding:1rem;color:var(--cinza);font-size:.84rem">Nenhum entrevistador encontrado.</div>';
     return;
   }
-  lista.innerHTML = entrs.map(nome => `
+  lista.innerHTML = entrs.map(({ chave, display }) => `
     <label style="display:flex;align-items:center;gap:10px;padding:.6rem 0;border-bottom:1px solid var(--borda);cursor:pointer">
-      <input type="checkbox" ${filtroEntrevistadores.has(nome)?'checked':''} onchange="toggleFiltroEntr('${nome.replace(/'/g,"\\'")}',this.checked)"
+      <input type="checkbox" ${filtroEntrevistadores.has(chave)?'checked':''} onchange="toggleFiltroEntr('${chave.replace(/'/g,"\\'")}',this.checked)"
         style="width:18px;height:18px;cursor:pointer;accent-color:var(--azul-med);flex-shrink:0">
       <span style="display:flex;align-items:center;gap:8px">
-        <span style="width:11px;height:11px;border-radius:50%;background:${corEntrevistador(nome)};flex-shrink:0;border:1px solid rgba(0,0,0,.12)"></span>
-        <span style="font-size:.88rem;font-weight:600;color:var(--texto)">${nome}</span>
+        <span style="width:11px;height:11px;border-radius:50%;background:${corEntrevistador(chave)};flex-shrink:0;border:1px solid rgba(0,0,0,.12)"></span>
+        <span style="font-size:.88rem;font-weight:600;color:var(--texto)">${display}</span>
       </span>
     </label>`).join('');
 }
@@ -2225,7 +2245,7 @@ window.limparFiltroEntr = () => {
 };
 
 window.selecionarTodosFiltroEntr = () => {
-  _entrevistadoresNoMapa().forEach(n => filtroEntrevistadores.add(n));
+  _entrevistadoresNoMapa().forEach(e => filtroEntrevistadores.add(e.chave));
   _renderListaFiltroEntr();
 };
 
@@ -2247,7 +2267,7 @@ function renderDoms(L) {
   domicilios
     .filter(d => d.latitude_kml && d.longitude_kml)
     .filter(d => !filtroMeusPendentes || ehMeuPendente(d))
-    .filter(d => !filtroEntrevistadores.size || filtroEntrevistadores.has(d.entrevistador_nome||''))
+    .filter(d => !filtroEntrevistadores.size || filtroEntrevistadores.has(_chaveNome(d.entrevistador_nome||'')))
     .forEach(d => {
     const lat = parseFloat(d.latitude_kml), lng = parseFloat(d.longitude_kml);
     if (isNaN(lat)||isNaN(lng)) return;
