@@ -166,6 +166,24 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 #fab-filtro-pend:active{transform:scale(.9)}
 #fab-filtro-pend.ativo{background:var(--vermelho);color:#fff}
 
+#fab-filtro-entr{
+  position:absolute;bottom:calc(env(safe-area-inset-bottom) + 204px);right:12px;z-index:700;
+  width:46px;height:46px;border-radius:50%;background:#fff;color:var(--texto);
+  box-shadow:0 2px 10px rgba(0,0,0,.22);
+  display:none;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;
+  transition:transform .1s,background .15s,color .15s;
+}
+#fab-filtro-entr:active{transform:scale(.9)}
+#fab-filtro-entr.ativo{background:var(--azul-med);color:#fff}
+
+#panel-filtro-entr{
+  position:absolute;bottom:0;left:0;right:0;z-index:920;
+  background:#fff;border-radius:18px 18px 0 0;
+  box-shadow:0 -4px 24px rgba(0,0,0,.18);
+  max-height:70vh;display:flex;flex-direction:column;
+}
+#filtro-entr-lista{overflow-y:auto;padding:0 1.1rem;flex:1}
+
 #fab-nav{
   position:absolute;bottom:calc(env(safe-area-inset-bottom) + 14px);left:12px;z-index:700;
   height:46px;border-radius:23px;background:var(--azul);color:#fff;
@@ -606,6 +624,9 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   </div>
   <div id="mapa"></div>
 
+  <!-- FAB: filtrar por entrevistador (supervisor/admin) -->
+  <div id="fab-filtro-entr" onclick="abrirPanelFiltroEntr()" title="Filtrar por entrevistador">👥</div>
+
   <!-- FAB: filtrar só meus pendentes -->
   <div id="fab-filtro-pend" onclick="toggleFiltroMeusPendentes()" title="Mostrar só meus pendentes">📌</div>
 
@@ -625,6 +646,22 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div id="offline-status" style="font-size:.72rem;color:var(--cinza);margin-bottom:7px">Mapa offline: —</div>
     <button id="btn-baixar-mapa" onclick="baixarMapaOffline()" style="width:100%;border:none;border-radius:8px;background:var(--azul-med);color:#fff;font-size:.78rem;font-weight:700;padding:.5rem;cursor:pointer;font-family:inherit;margin-bottom:6px">📥 Baixar mapa offline</button>
     <button onclick="limparMapaOffline()" style="width:100%;border:1px solid var(--borda);border-radius:8px;background:#fff;color:var(--cinza);font-size:.74rem;padding:.4rem;cursor:pointer;font-family:inherit">🗑️ Limpar mapa offline</button>
+  </div>
+
+  <!-- Painel: filtro por entrevistador -->
+  <div id="panel-filtro-entr" class="hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.1rem .5rem">
+      <span style="font-size:.95rem;font-weight:800;color:var(--texto)">Filtrar por entrevistador</span>
+      <button onclick="fecharPanelFiltroEntr()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--cinza);line-height:1;padding:2px">✕</button>
+    </div>
+    <div style="padding:0 1.1rem .5rem;display:flex;gap:7px">
+      <button onclick="selecionarTodosFiltroEntr()" style="flex:1;border:1.5px solid var(--borda);border-radius:8px;background:#fff;font-size:.78rem;font-weight:700;padding:.35rem;cursor:pointer;font-family:inherit;color:var(--cinza)">Todos</button>
+      <button onclick="limparFiltroEntr()" style="flex:1;border:1.5px solid var(--vermelho);border-radius:8px;background:#fff;font-size:.78rem;font-weight:700;padding:.35rem;cursor:pointer;font-family:inherit;color:var(--vermelho)">Limpar</button>
+    </div>
+    <div id="filtro-entr-lista"></div>
+    <div style="padding:.75rem 1.1rem;padding-bottom:calc(env(safe-area-inset-bottom) + .75rem)">
+      <button onclick="fecharPanelFiltroEntr()" style="width:100%;background:var(--azul-med);color:#fff;border:none;border-radius:12px;padding:.75rem;font-size:.9rem;font-weight:800;cursor:pointer;font-family:inherit">Aplicar</button>
+    </div>
   </div>
 
   <!-- Legenda -->
@@ -925,6 +962,7 @@ let _avisoAtivo  = null;
 let gpsPos     = null;   // { lat, lng }
 let layers     = { contorno: null, faces: null, doms: null, gps: null };
 let filtroMeusPendentes = false; // mostra no mapa só os pontos pendentes do entrevistador logado
+let filtroEntrevistadores = new Set(); // supervisor: nomes selecionados; vazio = todos
 const Lp       = _carregarLeaflet();
 _carregarLeafletOffline(); // pré-carrega em segundo plano (a própria função espera o Leaflet primeiro)
 
@@ -1813,6 +1851,9 @@ window.abrirMapaGeral = async () => {
   const vistaCompleta = ['supervisor','administrador'].includes(usuarioPerfil);
   $('topbar-setor').textContent = 'Mapa geral';
   $('topbar-localidade').textContent = vistaCompleta ? 'Todos os entrevistadores — todos os setores' : (usuarioNome + ' — todos os setores');
+  filtroEntrevistadores.clear();
+  const fabEntr = $('fab-filtro-entr');
+  if (fabEntr) { fabEntr.style.display = vistaCompleta ? 'flex' : 'none'; fabEntr.classList.remove('ativo'); }
   fecharTudo();
   const L = await Lp;
   if (mapaInst) { try { mapaInst.remove(); } catch(_){} mapaInst = null; }
@@ -2048,6 +2089,10 @@ async function abrirSetor(upa, domsIniciais) {
   mostrarTela('tela-mapa');
   $('topbar-setor').textContent = upa;
   $('topbar-localidade').textContent = mySectors.find(s=>s.upa===upa)?.localidade || `UPA ${upa}`;
+  filtroEntrevistadores.clear();
+  const fabEntrSetor = $('fab-filtro-entr');
+  const vistaCompletaSetor = ['supervisor','administrador'].includes(usuarioPerfil);
+  if (fabEntrSetor) { fabEntrSetor.style.display = vistaCompletaSetor ? 'flex' : 'none'; fabEntrSetor.classList.remove('ativo'); }
   fecharTudo();
 
   const L = await Lp;
@@ -2133,6 +2178,65 @@ window.toggleFiltroMeusPendentes = () => {
   if (window.L) renderDoms(window.L);
 };
 
+/* ── FILTRO POR ENTREVISTADOR (supervisor) ──────────────── */
+function _entrevistadoresNoMapa() {
+  return [...new Set(domicilios.map(d => d.entrevistador_nome).filter(Boolean))].sort();
+}
+
+function _renderListaFiltroEntr() {
+  const lista = $('filtro-entr-lista');
+  if (!lista) return;
+  const entrs = _entrevistadoresNoMapa();
+  if (!entrs.length) {
+    lista.innerHTML = '<div style="padding:1rem;color:var(--cinza);font-size:.84rem">Nenhum entrevistador encontrado.</div>';
+    return;
+  }
+  lista.innerHTML = entrs.map(nome => `
+    <label style="display:flex;align-items:center;gap:10px;padding:.6rem 0;border-bottom:1px solid var(--borda);cursor:pointer">
+      <input type="checkbox" ${filtroEntrevistadores.has(nome)?'checked':''} onchange="toggleFiltroEntr('${nome.replace(/'/g,"\\'")}',this.checked)"
+        style="width:18px;height:18px;cursor:pointer;accent-color:var(--azul-med);flex-shrink:0">
+      <span style="display:flex;align-items:center;gap:8px">
+        <span style="width:11px;height:11px;border-radius:50%;background:${corEntrevistador(nome)};flex-shrink:0;border:1px solid rgba(0,0,0,.12)"></span>
+        <span style="font-size:.88rem;font-weight:600;color:var(--texto)">${nome}</span>
+      </span>
+    </label>`).join('');
+}
+
+window.abrirPanelFiltroEntr = () => {
+  _renderListaFiltroEntr();
+  $('panel-filtro-entr').classList.remove('hidden');
+  $('overlay').classList.add('show');
+};
+
+window.fecharPanelFiltroEntr = () => {
+  $('panel-filtro-entr').classList.add('hidden');
+  $('overlay').classList.remove('show');
+  if (window.L) renderDoms(window.L);
+  _atualizarBadgeFabEntr();
+};
+
+window.toggleFiltroEntr = (nome, checked) => {
+  checked ? filtroEntrevistadores.add(nome) : filtroEntrevistadores.delete(nome);
+};
+
+window.limparFiltroEntr = () => {
+  filtroEntrevistadores.clear();
+  _renderListaFiltroEntr();
+};
+
+window.selecionarTodosFiltroEntr = () => {
+  _entrevistadoresNoMapa().forEach(n => filtroEntrevistadores.add(n));
+  _renderListaFiltroEntr();
+};
+
+function _atualizarBadgeFabEntr() {
+  const fab = $('fab-filtro-entr');
+  if (!fab) return;
+  const n = filtroEntrevistadores.size;
+  fab.classList.toggle('ativo', n > 0);
+  fab.title = n ? `Filtro ativo: ${n} entrevistador(es)` : 'Filtrar por entrevistador';
+}
+
 function renderDoms(L) {
   if (!mapaInst) return;
   if (!layers.doms) layers.doms = L.layerGroup([]);
@@ -2140,7 +2244,11 @@ function renderDoms(L) {
 
   const entrsVisiveis = new Map(); // nome → cor
 
-  domicilios.filter(d => d.latitude_kml && d.longitude_kml).filter(d => !filtroMeusPendentes || ehMeuPendente(d)).forEach(d => {
+  domicilios
+    .filter(d => d.latitude_kml && d.longitude_kml)
+    .filter(d => !filtroMeusPendentes || ehMeuPendente(d))
+    .filter(d => !filtroEntrevistadores.size || filtroEntrevistadores.has(d.entrevistador_nome||''))
+    .forEach(d => {
     const lat = parseFloat(d.latitude_kml), lng = parseFloat(d.longitude_kml);
     if (isNaN(lat)||isNaN(lng)) return;
     const nome = d.entrevistador_nome || '';
@@ -2823,6 +2931,7 @@ window.fecharTudo = () => {
   $('panel-status').classList.add('hidden');
   $('panel-solicitar').classList.add('hidden');
   $('layer-panel').classList.add('hidden');
+  $('panel-filtro-entr').classList.add('hidden');
   $('overlay').classList.remove('show');
   $('fab-nav').classList.remove('visivel');
   domAtivo = null;
