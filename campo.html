@@ -131,6 +131,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 }
 .tb-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:8px;font-size:1.15rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .1s}
 .tb-btn:active{background:rgba(255,255,255,.3)}
+.tb-btn.ativo{background:var(--vermelho)}
 #topbar-info{flex:1;min-width:0;line-height:1.25}
 #topbar-setor{font-size:.68rem;color:rgba(255,255,255,.65);display:block;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #topbar-localidade{font-size:.88rem;color:#fff;font-weight:700;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -544,6 +545,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <span class="fichas-topbar-titulo">Fichas dos domicílios</span>
       <span id="fichas-topbar-sub">—</span>
     </div>
+    <button class="tb-btn" id="btn-fichas-pend" onclick="toggleFiltroPendentesFichas()" title="Mostrar só pendentes">📌</button>
     <button class="tb-btn" onclick="baixarFichasOffline()" title="Baixar para uso offline">📥</button>
     <button class="tb-btn" onclick="window.print()" title="Imprimir / Salvar PDF">🖨️</button>
   </div>
@@ -2328,6 +2330,8 @@ window.fecharFicha = () => {
 /* ── FICHAS DOS DOMICÍLIOS (folha corrida por semana/setor, com cache offline) ── */
 let _fichasUsandoCache = false;
 let _fichasCacheData = null;
+let _fichasSoPendentes = false;
+let _fichasDomsAtuais = [];
 
 function _setorDeDom(d) {
   return d.upa || (d.controle ? d.controle.slice(0,-1) : '') || '?';
@@ -2407,7 +2411,9 @@ function _htmlFichaCard(d) {
 function _renderFichas(grupos) {
   const el = $('fichas-conteudo');
   if (!grupos.length) {
-    el.innerHTML = '<div class="ficha-vazio">📋<br>Nenhum domicílio encontrado para gerar fichas.</div>';
+    el.innerHTML = _fichasSoPendentes
+      ? '<div class="ficha-vazio">✅<br>Nenhum domicílio pendente — tudo certo por aqui!</div>'
+      : '<div class="ficha-vazio">📋<br>Nenhum domicílio encontrado para gerar fichas.</div>';
     return;
   }
   let html = '';
@@ -2443,6 +2449,14 @@ function _salvarFichasOffline(doms, mostrarFeedback) {
   }
 }
 
+function _renderFichasAtual() {
+  const doms = _fichasSoPendentes ? _fichasDomsAtuais.filter(ehMeuPendente) : _fichasDomsAtuais;
+  $('fichas-topbar-sub').textContent = doms.length
+    ? `${doms.length} ${_fichasSoPendentes ? 'pendente(s)' : 'domicílio(s)'}`
+    : '—';
+  _renderFichas(_agruparFichas(doms));
+}
+
 window.abrirFichas = () => {
   mostrarTela('tela-fichas');
   let doms = _meusDomsParaFichas();
@@ -2460,11 +2474,17 @@ window.abrirFichas = () => {
     } catch(e) { /* ignora cache corrompido */ }
   }
 
-  $('fichas-topbar-sub').textContent = doms.length ? `${doms.length} domicílio(s)` : '—';
-  _renderFichas(_agruparFichas(doms));
+  _fichasDomsAtuais = doms;
+  _renderFichasAtual();
 
   // Mantém o cache offline sempre atualizado quando há dados frescos (online)
   if (!_fichasUsandoCache && doms.length) _salvarFichasOffline(doms, false);
+};
+
+window.toggleFiltroPendentesFichas = () => {
+  _fichasSoPendentes = !_fichasSoPendentes;
+  $('btn-fichas-pend').classList.toggle('ativo', _fichasSoPendentes);
+  _renderFichasAtual();
 };
 
 window.baixarFichasOffline = () => {
