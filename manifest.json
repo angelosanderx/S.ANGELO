@@ -1,0 +1,27 @@
+{
+  "name": "PNAD-C Campo",
+  "short_name": "PNAD-C Campo",
+  "description": "Aplicativo de campo dos entrevistadores da PNAD Contínua — Campos/RJ",
+  "start_url": "/campo.html",
+  "scope": "/campo.html",
+  "id": "/campo.html",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#1e3a5f",
+  "theme_color": "#1e3a5f",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "icon-campo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-campo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
