@@ -9322,7 +9322,7 @@ const _PARTICULAS_NOME = new Set(['de','da','do','dos','das','e','di','von','van
 function _chaveNomeGlobal(s) {
   if (!s) return '';
   const partes = normalizarNomeGlobal(s).split(' ').filter(p => p.length > 1 && !_PARTICULAS_NOME.has(p));
-  return partes.slice(0, 2).join(' ');
+  return partes.slice(0, 1).join(' ');
 }
 
 function nomesCorrespondem(nomeCadastrado, nomeImportado) {

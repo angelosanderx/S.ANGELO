@@ -991,7 +991,7 @@ const _PARTICULAS = new Set(['DE','DA','DO','DOS','DAS','E','DI','VON','VAN']);
 function _chaveNome(nome) {
   if (!nome) return '';
   const partes = _normNome(nome).split(' ').filter(p => p.length > 1 && !_PARTICULAS.has(p));
-  return partes.slice(0, 2).join(' ');
+  return partes.slice(0, 1).join(' ');
 }
 function _nomeDisplay(chave) {
   return chave.split(' ').map(p => p[0] + p.slice(1).toLowerCase()).join(' ');
