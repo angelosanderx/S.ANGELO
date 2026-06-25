@@ -2255,7 +2255,7 @@ function renderDoms(L) {
   if (!layers.doms) layers.doms = L.layerGroup([]);
   layers.doms.clearLayers();
 
-  const entrsVisiveis = new Map(); // nome → cor
+  const entrsVisiveis = new Map(); // chave canônica → {display, cor}
 
   domicilios
     .filter(d => d.latitude_kml && d.longitude_kml)
@@ -2266,7 +2266,7 @@ function renderDoms(L) {
     if (isNaN(lat)||isNaN(lng)) return;
     const nome = d.entrevistador_nome || '';
     const fill = corEntrevistador(nome);
-    if (nome) entrsVisiveis.set(nome, fill);
+    if (nome) { const ck = _chaveNome(nome); if (ck) entrsVisiveis.set(ck, { display: _nomeDisplay(ck), cor: fill }); }
     const num       = d.domicilio_num || '?';
     const est       = estadoDom(d.status_atual);
     const temSolAtiva = (d.solicitacoes||[]).some(x => !x.resolvido);
@@ -2309,8 +2309,8 @@ function renderDoms(L) {
   // Legenda dinâmica por entrevistador
   const el = $('legenda-entr');
   if (el) {
-    el.innerHTML = [...entrsVisiveis.entries()].map(([nome, cor]) =>
-      `<div class="leg-item"><span class="leg-dot" style="background:${cor}"></span>${nome.split(' ')[0]}</div>`
+    el.innerHTML = [...entrsVisiveis.values()].map(({display, cor}) =>
+      `<div class="leg-item"><span class="leg-dot" style="background:${cor}"></span>${display.split(' ')[0]}</div>`
     ).join('') || '<div class="leg-item" style="color:var(--cinza)">Sem atribuição</div>';
   }
 }

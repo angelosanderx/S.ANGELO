@@ -5852,7 +5852,8 @@ function renderizarPaginaPendencias() {
       if (!d.entrevistador_nome) return;
       const registrado = (entrevistadoresCache||[]).find(u => nomesCorrespondem(u.nome, d.entrevistador_nome));
       const canonical = toTitleCase(registrado ? registrado.nome : d.entrevistador_nome);
-      if (!nomesMapPend.has(canonical.toLowerCase())) nomesMapPend.set(canonical.toLowerCase(), canonical);
+      const keyPend = _chaveNomeGlobal(canonical) || canonical.toLowerCase();
+      if (!nomesMapPend.has(keyPend)) nomesMapPend.set(keyPend, canonical);
     });
     const entrs = [...nomesMapPend.values()].sort();
     ddEntr.innerHTML = entrs.map(nome =>
@@ -9084,7 +9085,8 @@ async function carregarTentativas() {
       if (!t.entrevistador_nome) return;
       const registrado = (entrevistadoresCache||[]).find(u => nomesCorrespondem(u.nome, t.entrevistador_nome));
       const canonical = toTitleCase(registrado ? registrado.nome : t.entrevistador_nome);
-      if (!nomesMapTent.has(canonical.toLowerCase())) nomesMapTent.set(canonical.toLowerCase(), canonical);
+      const keyTent = _chaveNomeGlobal(canonical) || canonical.toLowerCase();
+      if (!nomesMapTent.has(keyTent)) nomesMapTent.set(keyTent, canonical);
     });
     const entrevistadores = [...nomesMapTent.values()].sort();
     const sel = document.getElementById('tent-filtro-entrevistador');
