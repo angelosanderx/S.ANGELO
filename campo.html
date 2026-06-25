@@ -808,26 +808,29 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div class="mcm-icon">⚠️</div>
     <div class="mcm-aviso">Confirme o nome do morador para a carta</div>
 
-    <input type="text" id="mcm-input-nome"
-      placeholder="Digite o nome do morador"
-      oninput="mcmAtualizarBtn()"
-      style="width:100%;padding:.8rem 1rem;border:2px solid var(--borda);border-radius:11px;font-size:.95rem;font-family:inherit;color:var(--texto);margin:.9rem 0 .6rem;outline:none"
-      onfocus="this.style.borderColor='var(--azul-med)'"
-      onblur="this.style.borderColor='var(--borda)'">
-
-    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem">
-      <div style="flex:1;height:1px;background:var(--borda)"></div>
-      <span style="font-size:.75rem;color:var(--cinza);font-weight:600">ou</span>
-      <div style="flex:1;height:1px;background:var(--borda)"></div>
-    </div>
+    <!-- Botões dinâmicos: CNEFE + PNAD (populados via JS) -->
+    <div id="mcm-btns-dinamicos"></div>
 
     <button id="mcm-btn-morador" onclick="mcmUsarGenerico()"
       style="width:100%;padding:.8rem 1rem;border:2px solid var(--borda);border-radius:11px;
              font-size:.9rem;font-weight:700;font-family:inherit;cursor:pointer;
              background:#fff;color:var(--cinza);transition:border-color .15s,background .15s,color .15s;
-             margin-bottom:.9rem">
+             margin-bottom:.6rem">
       🤷 Sr(a) Morador(a)
     </button>
+
+    <div style="display:flex;align-items:center;gap:.6rem;margin:.2rem 0 .75rem">
+      <div style="flex:1;height:1px;background:var(--borda)"></div>
+      <span style="font-size:.75rem;color:var(--cinza);font-weight:600">ou escreva</span>
+      <div style="flex:1;height:1px;background:var(--borda)"></div>
+    </div>
+
+    <input type="text" id="mcm-input-nome"
+      placeholder="Digite o nome do morador"
+      oninput="mcmAtualizarBtn()"
+      style="width:100%;padding:.8rem 1rem;border:2px solid var(--borda);border-radius:11px;font-size:.95rem;font-family:inherit;color:var(--texto);margin-bottom:.9rem;outline:none"
+      onfocus="this.style.borderColor='var(--azul-med)'"
+      onblur="this.style.borderColor='var(--borda)'">
 
     <div class="mcm-btns">
       <button class="mcm-btn cancelar" onclick="fecharConfirmMorador()">Cancelar</button>
@@ -3045,11 +3048,20 @@ window.confirmarSolicitar = () => {
   const tipo = SOL_TIPOS.find(t => t.id === solSel);
   // Cartas exigem confirmação do morador
   if (tipo?.status === 'carta_solicitada') {
-    const morador = domAtivo.morador_cnefe || domAtivo.morador || '(sem nome cadastrado)';
     $('mcm-input-nome').value = '';
     $('mcm-btn-confirmar').disabled = true;
     $('mcm-btn-morador').style.cssText = '';
     mcmNomeFinal = '';
+    // Popula botões dinâmicos (CNEFE + até 2 moradores PNAD)
+    const btnsEl = $('mcm-btns-dinamicos');
+    btnsEl.innerHTML = '';
+    if (domAtivo.morador_cnefe) {
+      btnsEl.appendChild(_mcmBtnDinamico(domAtivo.morador_cnefe, 'CNEFE', 'mcm-din-0'));
+    }
+    const pnadMors = Array.isArray(domAtivo._moradores) ? domAtivo._moradores : [];
+    pnadMors.slice(0, 2).forEach((m, i) => {
+      if (m.nome) btnsEl.appendChild(_mcmBtnDinamico(m.nome, 'PNAD', `mcm-din-${i + 1}`));
+    });
     $('modal-confirm-morador').classList.remove('hidden');
     setTimeout(() => $('mcm-input-nome').focus(), 150);
     return;
@@ -3059,6 +3071,36 @@ window.confirmarSolicitar = () => {
 
 let mcmNomeFinal = '';
 
+function _mcmBtnDinamico(nome, fonte, id) {
+  const btn = document.createElement('button');
+  btn.id = id;
+  btn.dataset.mcmDin = '1';
+  btn.style.cssText = 'display:block;width:100%;padding:.8rem 1rem;border:2px solid var(--borda);border-radius:11px;font-size:.9rem;font-weight:700;font-family:inherit;cursor:pointer;background:#fff;color:var(--texto);transition:border-color .15s,background .15s,color .15s;margin-bottom:.6rem;text-align:left';
+  btn.innerHTML = `👤 ${nome} <span style="font-size:.72rem;font-weight:500;color:var(--cinza);float:right;line-height:1.5">${fonte}</span>`;
+  btn.addEventListener('click', () => mcmSelecionarDinamico(nome, id));
+  return btn;
+}
+
+window.mcmSelecionarDinamico = (nome, id) => {
+  mcmNomeFinal = nome;
+  $('mcm-input-nome').value = '';
+  document.querySelectorAll('[data-mcm-din]').forEach(b => {
+    b.style.borderColor = 'var(--borda)';
+    b.style.background  = '#fff';
+    b.style.color       = 'var(--texto)';
+  });
+  const btn = document.getElementById(id);
+  if (btn) {
+    btn.style.borderColor = 'var(--azul-med)';
+    btn.style.background  = '#eff6ff';
+    btn.style.color       = '#1d4ed8';
+  }
+  $('mcm-btn-morador').style.borderColor = 'var(--borda)';
+  $('mcm-btn-morador').style.background  = '#fff';
+  $('mcm-btn-morador').style.color       = 'var(--cinza)';
+  $('mcm-btn-confirmar').disabled = false;
+};
+
 window.fecharConfirmMorador = () => {
   $('modal-confirm-morador').classList.add('hidden');
   mcmNomeFinal = '';
@@ -3067,7 +3109,11 @@ window.fecharConfirmMorador = () => {
 window.mcmAtualizarBtn = () => {
   const val = $('mcm-input-nome').value.trim();
   mcmNomeFinal = val;
-  // deseleciona o botão genérico se está digitando
+  document.querySelectorAll('[data-mcm-din]').forEach(b => {
+    b.style.borderColor = 'var(--borda)';
+    b.style.background  = '#fff';
+    b.style.color       = 'var(--texto)';
+  });
   $('mcm-btn-morador').style.borderColor = 'var(--borda)';
   $('mcm-btn-morador').style.background  = '#fff';
   $('mcm-btn-morador').style.color       = 'var(--cinza)';
@@ -3077,6 +3123,11 @@ window.mcmAtualizarBtn = () => {
 window.mcmUsarGenerico = () => {
   mcmNomeFinal = 'Sr(a) Morador(a)';
   $('mcm-input-nome').value = '';
+  document.querySelectorAll('[data-mcm-din]').forEach(b => {
+    b.style.borderColor = 'var(--borda)';
+    b.style.background  = '#fff';
+    b.style.color       = 'var(--texto)';
+  });
   $('mcm-btn-morador').style.borderColor = '#f59e0b';
   $('mcm-btn-morador').style.background  = '#fffbeb';
   $('mcm-btn-morador').style.color       = '#92400e';
