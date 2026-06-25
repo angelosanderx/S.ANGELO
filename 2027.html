@@ -1083,6 +1083,15 @@
   .ta-table tr:last-child td { border-bottom: none; }
   .ta-table tr.concluida td { opacity: .5; }
   .ta-tipo-badge { display: inline-block; padding: .1rem .4rem; border-radius: 3px; font-size: .67rem; font-weight: 700; color: #fff; white-space: nowrap; }
+  .ta-tipo-select { display: inline-block; padding: .1rem .4rem; border-radius: 3px; font-size: .67rem; font-weight: 700; color: #fff; white-space: nowrap; border: none; cursor: pointer; appearance: none; -webkit-appearance: none; font-family: inherit; }
+  .ta-tipo-select option { color: #000; }
+  .ta-aula-input { font-size: .75rem; color: var(--text-muted); background: transparent; border: none; border-bottom: 1px dashed var(--border); padding: 0 0 1px; font-family: inherit; min-width: 140px; }
+  .ta-aula-input:focus { outline: none; border-bottom-color: var(--azul); color: var(--text); }
+  .import-instrucoes { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: .9rem 1.1rem; font-size: .8rem; color: var(--text-muted); display: flex; flex-direction: column; gap: .5rem; }
+  .import-instrucoes pre { background: var(--bg-base); border: 1px solid var(--border); border-radius: 7px; padding: .6rem .75rem; font-size: .76rem; color: var(--text); overflow-x: auto; white-space: pre-wrap; }
+  .import-linha { font-size: .82rem; padding: .5rem .75rem; border-radius: 7px; margin-bottom: .4rem; border: 1px solid var(--border); }
+  .import-linha.ok { background: rgba(34,197,94,.08); border-color: rgba(34,197,94,.3); color: #22c55e; }
+  .import-linha.erro { background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.3); color: #f87171; }
   .btn-add-sem { background: transparent; border: 1px solid var(--border); color: var(--text-muted); font-size: .68rem; padding: .15rem .4rem; border-radius: 4px; cursor: pointer; transition: all .15s; white-space: nowrap; }
   .btn-add-sem:hover { border-color: var(--azul); color: var(--azul); background: rgba(59,130,246,.08); }
 
@@ -1223,6 +1232,11 @@
     </div>
     <div class="nav-item" onclick="irPara('mapa-aulas', this)">
       <span class="nav-icon">📋</span> Mapa de Aulas
+    </div>
+
+    <div class="nav-section">Ferramentas</div>
+    <div class="nav-item" onclick="irPara('importacao', this)">
+      <span class="nav-icon">📥</span> Central de Importação
     </div>
   </nav>
 
@@ -1493,6 +1507,35 @@
     <div id="mapa-aulas-conteudo"></div>
   </div>
 
+  <!-- ════════════════════════════
+       CENTRAL DE IMPORTAÇÃO
+  ════════════════════════════ -->
+  <div class="pagina" id="pag-importacao">
+    <div class="hero">
+      <h1>📥 Central de Importação</h1>
+      <p>Cole o texto de apoio ou o link do caderno de questões com o cabeçalho indicando a matéria e a aula — o sistema identifica e preenche o bloco correspondente automaticamente.</p>
+    </div>
+
+    <div class="import-instrucoes">
+      <strong>Formato esperado</strong> (pode colar várias entradas de uma vez, uma após a outra):
+      <pre>Texto de apoio - Direito Administrativo Aula 03
+&lt;texto de apoio aqui...&gt;
+
+Caderno de questões - Português Aula 02 Parte 1/2
+&lt;link ou texto do caderno...&gt;</pre>
+      <span style="font-size:.75rem;color:var(--text-muted)">O bloco precisa já existir no Roteiro de Estudo (Plano de Estudo → Roteiro de Estudo → "+ Adicionar bloco") com a mesma matéria e aula escritas no cabeçalho.</span>
+    </div>
+
+    <label class="ta-apoio-label" for="import-textarea" style="margin-top:1rem">Cole o texto aqui</label>
+    <textarea id="import-textarea" class="ta-apoio-textarea" style="min-height:260px" placeholder="Texto de apoio - Direito Administrativo Aula 03&#10;..."></textarea>
+    <div style="display:flex;gap:.5rem;margin-top:.75rem">
+      <button class="btn btn-primary" onclick="processarImportacao()">Processar importação</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('import-textarea').value=''; document.getElementById('import-resultado').innerHTML='';">Limpar</button>
+    </div>
+
+    <div id="import-resultado" style="margin-top:1.25rem"></div>
+  </div>
+
 </div>
 </main>
 
@@ -1759,7 +1802,7 @@ function erroCarregamento(ids, err) {
 }
 
 // ── navegação ──
-const TITULOS = { dashboard: 'Dashboard', disciplinas: 'Disciplinas e Tarefas', cronometro: 'Cronômetro', trilhas: 'Trilhas de Estudo', 'mapa-aulas': 'Mapa de Aulas', plano: 'Plano de Estudo' };
+const TITULOS = { dashboard: 'Dashboard', disciplinas: 'Disciplinas e Tarefas', cronometro: 'Cronômetro', trilhas: 'Trilhas de Estudo', 'mapa-aulas': 'Mapa de Aulas', plano: 'Plano de Estudo', importacao: 'Central de Importação' };
 window.irPara = (pag, navEl) => {
   document.querySelectorAll('.pagina').forEach(p => p.classList.remove('ativa'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('ativo'));
@@ -1777,6 +1820,7 @@ window.irPara = (pag, navEl) => {
   if (pag === 'trilhas') carregarTrilhas();
   if (pag === 'mapa-aulas') carregarMapaAulas();
   if (pag === 'plano') { if (!_planoSemanaCarregado) carregarPlanoSemana(); }
+  if (pag === 'importacao') { if (!_trilhaAulasCarregada) carregarTrilhaAulas(); }
 };
 window.toggleSidebar = () => {
   document.getElementById('sidebar').classList.toggle('aberta');
@@ -2963,8 +3007,10 @@ function _corDisc(nome) {
   if (n.includes('discursiva')) return '#ef4444';
   return '#64748b';
 }
-const TIPO_LABEL = { TEORIA:'Teoria', QUESTOES_PDF:'Questões PDF', REVISAO:'Revisão', MAPA_MENTAL:'Mapa Mental', CADERNO_TEC:'Caderno TEC', PROVA:'Prova', Discursiva:'Discursiva', Outro:'Outro' };
-const TIPO_COR = { TEORIA:'#3b82f6', QUESTOES_PDF:'#f97316', REVISAO:'#22c55e', MAPA_MENTAL:'#a855f7', CADERNO_TEC:'#06b6d4', PROVA:'#ef4444', Discursiva:'#ec4899', Outro:'#64748b' };
+const TIPO_LABEL = { TEORIA:'Teoria', QUESTOES_PDF:'Questões PDF', REVISAO:'Revisão', QUESTOES_SITE:'Questões Site', MAPA_MENTAL:'Mapa Mental', CADERNO_TEC:'Caderno TEC', PROVA:'Prova', Discursiva:'Discursiva', Outro:'Outro' };
+const TIPO_COR = { TEORIA:'#3b82f6', QUESTOES_PDF:'#f97316', REVISAO:'#22c55e', QUESTOES_SITE:'#eab308', MAPA_MENTAL:'#a855f7', CADERNO_TEC:'#06b6d4', PROVA:'#ef4444', Discursiva:'#ec4899', Outro:'#64748b' };
+// Tipos selecionáveis no bloco #1 (totalmente editável) de cada matéria
+const TIPOS_PRIMEIRO_BLOCO = ['TEORIA', 'QUESTOES_PDF', 'REVISAO', 'QUESTOES_SITE'];
 
 // ── State ──
 let planoSemanaCache = {};
@@ -3483,29 +3529,105 @@ window.abrirDetalheTrilha = (discId) => {
     <div class="ta-detalhe-titulo">${esc(discNome)}</div>
     ${link ? `<a class="tarefa-link" href="${esc(link)}" target="_blank" rel="noopener" style="font-size:.8rem;margin-left:auto">↗ Abrir curso</a>` : ''}
   </div>`;
-  for (const t of docs) {
+  docs.forEach((t, idx) => {
     const tc = TIPO_COR[t.tipo] || '#64748b';
     const tl = TIPO_LABEL[t.tipo] || t.tipo;
     const apoio = esc(t.texto_apoio || '');
+    const caderno = esc(t.caderno_questoes || '');
+    const cadernoLink = /^https?:\/\//i.test((t.caderno_questoes || '').trim())
+      ? `<a class="tarefa-link" href="${esc(t.caderno_questoes.trim())}" target="_blank" rel="noopener" style="font-size:.75rem;display:inline-block;margin-bottom:.3rem">↗ Abrir link do caderno</a>`
+      : '';
+    const primeiro = idx === 0 || t.personalizado === true;
+    const cabecalhoTipo = primeiro
+      ? `<select class="ta-tipo-select" style="background:${tc}" onchange="alterarTipoTrilha('${t.id}',this)">
+          ${TIPOS_PRIMEIRO_BLOCO.map(tp => `<option value="${tp}" ${t.tipo === tp ? 'selected' : ''}>${TIPO_LABEL[tp]}</option>`).join('')}
+        </select>`
+      : `<span class="ta-tipo-badge" style="background:${tc}">${tl}</span>`;
+    const cabecalhoAula = primeiro
+      ? `<input type="text" class="ta-aula-input" placeholder="Ex.: Aula 07 · Parte 1/2" value="${esc(t.aula)}${t.parte ? ' · ' + esc(t.parte) : ''}" oninput="agendarCabecalhoTrilha('${t.id}',this.value)">`
+      : `<span style="font-size:.75rem;color:var(--text-muted)">${esc(t.aula)}${t.parte ? ' · ' + esc(t.parte) : ''}</span>`;
     html += `<div class="ta-tarefa-bloco ${t.concluida ? 'concluida' : ''}" id="ta-bloco-${t.id}">
       <div class="ta-tarefa-meta">
         <span class="ta-tarefa-num">#${t.num_tarefa}</span>
-        <span class="ta-tipo-badge" style="background:${tc}">${tl}</span>
-        <span style="font-size:.75rem;color:var(--text-muted)">${esc(t.aula)}${t.parte ? ' · ' + esc(t.parte) : ''}</span>
+        ${cabecalhoTipo}
+        ${cabecalhoAula}
       </div>
       <div class="ta-tarefa-desc">${esc(t.descricao)}</div>
       <div class="ta-apoio-label">Texto de apoio</div>
       <textarea class="ta-apoio-textarea" id="ta-apoio-${t.id}" placeholder="Anotações, resumo, pontos importantes..."
         oninput="agendarTextoApoio('${t.id}',this.value)">${apoio}</textarea>
+      <div class="ta-apoio-label" style="margin-top:.6rem">Caderno de questões</div>
+      ${cadernoLink}
+      <textarea class="ta-apoio-textarea" id="ta-caderno-${t.id}" placeholder="Link ou texto do caderno de questões..."
+        oninput="agendarCadernoQuestoes('${t.id}',this.value)">${caderno}</textarea>
       <div class="ta-tarefa-acoes">
         <input type="checkbox" ${t.concluida ? 'checked' : ''} onchange="toggleTrilhaAula('${t.id}',this.checked)" title="Marcar como concluída">
         <span style="font-size:.75rem;color:var(--text-muted)">Concluída</span>
         <button class="btn-add-sem" onclick="abrirDrawer('${_discSlug(t.disciplinaNome)}_${String(t.num_tarefa).padStart(2,'0')}', ${JSON.stringify({descricao:t.descricao,tipo:t.tipo,disciplinaNome:t.disciplinaNome,num_tarefa:t.num_tarefa}).replace(/"/g,'&quot;')})">📖 Detalhes</button>
         <button class="btn-add-sem" onclick="adicionarTAAsemana('${t.id}')" style="margin-left:auto">+ Semana</button>
+        <button class="btn-add-sem" onclick="apagarBlocoTrilha('${t.id}')" style="color:#f87171;border-color:rgba(239,68,68,.4)" title="Apagar bloco">🗑️ Apagar</button>
       </div>
     </div>`;
-  }
+  });
+  html += `<button class="btn btn-ghost" style="margin-top:.5rem" onclick="adicionarBlocoTrilha('${discId}')">+ Adicionar bloco</button>`;
   el.innerHTML = html;
+};
+
+window.adicionarBlocoTrilha = async (discId) => {
+  const docs = Object.values(trilhaAulasCache).filter(d => d.disciplinaId === discId).sort((a,b) => a.num_tarefa - b.num_tarefa);
+  if (!docs.length) return;
+  const ultimo = docs[docs.length - 1];
+  const novoNum = ultimo.num_tarefa + 1;
+  const novoId = `${discId}_t${String(novoNum).padStart(3,'0')}`;
+  const novaTarefa = {
+    disciplinaId: discId, disciplinaNome: ultimo.disciplinaNome,
+    num_tarefa: novoNum, tipo: 'TEORIA', aula: '', parte: null,
+    descricao: '', link: ultimo.link || '', concluida: false, data_conclusao: null,
+    texto_apoio: '', caderno_questoes: '', personalizado: true,
+  };
+  try {
+    await setDoc(doc(db, 'concurso_trilha_aulas', novoId), novaTarefa);
+    trilhaAulasCache[novoId] = { id: novoId, ...novaTarefa };
+    abrirDetalheTrilha(discId);
+  } catch (e) { console.error(e); mostrarToast('Erro ao adicionar bloco', 'erro'); }
+};
+
+window.apagarBlocoTrilha = async (id) => {
+  const t = trilhaAulasCache[id];
+  if (!t) return;
+  const rotulo = `#${t.num_tarefa}${t.aula ? ' ' + t.aula : ''}${t.parte ? ' · ' + t.parte : ''}`;
+  if (!confirm(`Apagar o bloco ${rotulo}? Essa ação não pode ser desfeita.`)) return;
+  const discId = t.disciplinaId;
+  try {
+    await deleteDoc(doc(db, 'concurso_trilha_aulas', id));
+    delete trilhaAulasCache[id];
+    const restantes = Object.values(trilhaAulasCache).filter(d => d.disciplinaId === discId);
+    if (restantes.length) abrirDetalheTrilha(discId);
+    else renderizarTrilhaAulas();
+    mostrarToast('Bloco apagado', 'sucesso');
+  } catch (e) { console.error(e); mostrarToast('Erro ao apagar bloco', 'erro'); }
+};
+
+window.alterarTipoTrilha = async (id, selectEl) => {
+  const novoTipo = selectEl.value;
+  if (!trilhaAulasCache[id]) return;
+  trilhaAulasCache[id].tipo = novoTipo;
+  selectEl.style.background = TIPO_COR[novoTipo] || '#64748b';
+  try { await updateDoc(doc(db, 'concurso_trilha_aulas', id), { tipo: novoTipo }); }
+  catch (e) { console.error(e); mostrarToast('Erro ao salvar tipo', 'erro'); }
+};
+
+window.agendarCabecalhoTrilha = (id, valor) => {
+  clearTimeout(_planoDebounce['cabecalho_' + id]);
+  _planoDebounce['cabecalho_' + id] = setTimeout(() => salvarCabecalhoTrilha(id, valor), 1000);
+};
+window.salvarCabecalhoTrilha = async (id, valor) => {
+  clearTimeout(_planoDebounce['cabecalho_' + id]);
+  if (!trilhaAulasCache[id]) return;
+  trilhaAulasCache[id].aula = valor;
+  trilhaAulasCache[id].parte = null;
+  try { await updateDoc(doc(db, 'concurso_trilha_aulas', id), { aula: valor, parte: null }); }
+  catch (e) { console.error(e); mostrarToast('Erro ao salvar', 'erro'); }
 };
 
 window.agendarTextoApoio = (id, valor) => {
@@ -3518,6 +3640,18 @@ window.salvarTextoApoio = async (id, valor) => {
   trilhaAulasCache[id].texto_apoio = valor;
   try { await updateDoc(doc(db, 'concurso_trilha_aulas', id), { texto_apoio: valor }); }
   catch (e) { console.error(e); mostrarToast('Erro ao salvar texto', 'erro'); }
+};
+
+window.agendarCadernoQuestoes = (id, valor) => {
+  clearTimeout(_planoDebounce['caderno_' + id]);
+  _planoDebounce['caderno_' + id] = setTimeout(() => salvarCadernoQuestoes(id, valor), 1000);
+};
+window.salvarCadernoQuestoes = async (id, valor) => {
+  clearTimeout(_planoDebounce['caderno_' + id]);
+  if (!trilhaAulasCache[id]) return;
+  trilhaAulasCache[id].caderno_questoes = valor;
+  try { await updateDoc(doc(db, 'concurso_trilha_aulas', id), { caderno_questoes: valor }); }
+  catch (e) { console.error(e); mostrarToast('Erro ao salvar caderno de questões', 'erro'); }
 };
 
 window.toggleTrilhaAula = async (id, concluida) => {
@@ -3547,6 +3681,123 @@ window.adicionarTAAsemana = async (id) => {
     tipo: t.tipo, descricao: t.descricao, link: t.link || '',
     estimativa_min: est[t.tipo] || 60, prioridade: 'Média',
   });
+};
+
+// ══════════════════════════════════════════
+//  CENTRAL DE IMPORTAÇÃO
+//  Cola texto/links com cabeçalho "Texto de apoio - Matéria Aula X" ou
+//  "Caderno de questões - Matéria Aula X" e localiza o bloco correspondente
+//  na trilha (concurso_trilha_aulas) para preencher o campo certo.
+// ══════════════════════════════════════════
+function _normTextoImport(s) {
+  return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+const IMPORT_HEADER_RE = /^(texto de apoio|caderno de quest(?:o|õ)es)\s*[-–:]?\s*(.+)$/i;
+
+// Quebra o texto colado em blocos { tipo: 'apoio'|'caderno', cabecalho, corpo }
+function _parseBlocosImportacao(texto) {
+  const linhas = texto.split('\n');
+  const blocos = [];
+  let atual = null;
+  for (const linha of linhas) {
+    const m = linha.match(IMPORT_HEADER_RE);
+    if (m) {
+      if (atual) blocos.push(atual);
+      atual = { tipoRaw: m[1], cabecalho: m[2].trim(), corpoLinhas: [] };
+    } else if (atual) {
+      atual.corpoLinhas.push(linha);
+    }
+  }
+  if (atual) blocos.push(atual);
+  return blocos.map(b => ({
+    tipo: _normTextoImport(b.tipoRaw).startsWith('texto de apoio') ? 'apoio' : 'caderno',
+    cabecalho: b.cabecalho,
+    corpo: b.corpoLinhas.join('\n').trim(),
+  })).filter(b => b.corpo);
+}
+
+// Extrai { materia, aulaNum, parte } de algo como "Direito Administrativo Aula 03 Parte 1/2"
+function _parseCabecalhoImportacao(cabecalho) {
+  const m = cabecalho.match(/^(.+?)\s+aula\s+(\d+)\s*(?:[-–·,]?\s*parte\s*([\w/]+))?\s*$/i);
+  if (!m) return null;
+  return { materia: m[1].trim(), aulaNum: parseInt(m[2], 10), parte: m[3] ? m[3].trim() : null };
+}
+
+// Extrai { num, parte } de um texto livre de aula já salvo (ex.: "Aula 03 · Parte 1/2")
+function _extrairAulaNumParte(textoAula) {
+  const numM = (textoAula || '').match(/(\d+)/);
+  const parteM = (textoAula || '').match(/parte\s*([\w/]+)/i);
+  return { num: numM ? parseInt(numM[1], 10) : null, parte: parteM ? parteM[1] : null };
+}
+
+// Localiza a tarefa da trilha que casa com matéria + aula (+ parte, se houver).
+// Retorna a tarefa encontrada, ou { ambiguo: true, candidatos } se não conseguir decidir.
+function _encontrarTarefaImport(materiaTxt, aulaNum, parteTxt) {
+  const materiaNorm = _normTextoImport(materiaTxt);
+  const candidatos = Object.values(trilhaAulasCache).filter(t => {
+    const discNorm = _normTextoImport(t.disciplinaNome);
+    if (!(discNorm.includes(materiaNorm) || materiaNorm.includes(discNorm))) return false;
+    const { num } = _extrairAulaNumParte(`${t.aula || ''} ${t.parte || ''}`);
+    return num === aulaNum;
+  });
+  if (candidatos.length === 1) return candidatos[0];
+  if (candidatos.length === 0) return null;
+  if (!parteTxt) return { ambiguo: true, candidatos };
+  const parteNormAlvo = _normTextoImport(parteTxt).replace(/\s+/g, '');
+  const filtrados = candidatos.filter(t => {
+    const { parte } = _extrairAulaNumParte(`${t.aula || ''} ${t.parte || ''}`);
+    return parte && _normTextoImport(parte).replace(/\s+/g, '') === parteNormAlvo;
+  });
+  if (filtrados.length === 1) return filtrados[0];
+  return { ambiguo: true, candidatos: filtrados.length ? filtrados : candidatos };
+}
+
+window.processarImportacao = async () => {
+  const textoEl = document.getElementById('import-textarea');
+  const resultEl = document.getElementById('import-resultado');
+  const texto = textoEl.value;
+  if (!texto.trim()) { resultEl.innerHTML = '<div class="vazio">Cole algum texto para importar.</div>'; return; }
+
+  if (!_trilhaAulasCarregada) await carregarTrilhaAulas();
+
+  const blocos = _parseBlocosImportacao(texto);
+  if (!blocos.length) {
+    resultEl.innerHTML = '<div class="import-linha erro">⚠️ Nenhum cabeçalho reconhecido. Use o formato "Texto de apoio - Matéria Aula X" ou "Caderno de questões - Matéria Aula X".</div>';
+    return;
+  }
+
+  resultEl.innerHTML = '<div class="loader">Processando...</div>';
+  const linhas = [];
+  for (const b of blocos) {
+    const cab = _parseCabecalhoImportacao(b.cabecalho);
+    const rotuloTipo = b.tipo === 'apoio' ? 'Texto de apoio' : 'Caderno de questões';
+    if (!cab) {
+      linhas.push(`<div class="import-linha erro">⚠️ Não entendi o cabeçalho "${esc(b.cabecalho)}". Use "...Matéria Aula X".</div>`);
+      continue;
+    }
+    const achado = _encontrarTarefaImport(cab.materia, cab.aulaNum, cab.parte);
+    if (!achado) {
+      linhas.push(`<div class="import-linha erro">⚠️ Não encontrei "${esc(cab.materia)}" Aula ${cab.aulaNum}${cab.parte ? ' Parte ' + esc(cab.parte) : ''}. Crie o bloco no Roteiro de Estudo antes de importar.</div>`);
+      continue;
+    }
+    if (achado.ambiguo) {
+      const opcoes = achado.candidatos.map(c => `${c.disciplinaNome} #${c.num_tarefa} (${c.aula}${c.parte ? ' · ' + c.parte : ''})`).join(', ');
+      linhas.push(`<div class="import-linha erro">⚠️ "${esc(cab.materia)}" Aula ${cab.aulaNum} é ambíguo entre: ${esc(opcoes)}. Inclua "Parte X" no cabeçalho para diferenciar.</div>`);
+      continue;
+    }
+    const campo = b.tipo === 'apoio' ? 'texto_apoio' : 'caderno_questoes';
+    try {
+      await updateDoc(doc(db, 'concurso_trilha_aulas', achado.id), { [campo]: b.corpo });
+      trilhaAulasCache[achado.id][campo] = b.corpo;
+      linhas.push(`<div class="import-linha ok">✅ ${rotuloTipo} salvo em ${esc(achado.disciplinaNome)} #${achado.num_tarefa} (${esc(achado.aula)}${achado.parte ? ' · ' + esc(achado.parte) : ''})</div>`);
+    } catch (e) {
+      console.error(e);
+      linhas.push(`<div class="import-linha erro">⚠️ Erro ao salvar "${esc(cab.materia)}" Aula ${cab.aulaNum}: ${esc(e.message)}</div>`);
+    }
+  }
+  resultEl.innerHTML = linhas.join('');
+  if (linhas.some(l => l.includes('import-linha ok'))) mostrarToast('Importação concluída', 'sucesso');
 };
 
 // ══════════════════════════════════════════
