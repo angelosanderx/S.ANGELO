@@ -421,6 +421,49 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   .cron-day-mobile-hdr{display:block;font-weight:600;color:#888;margin-bottom:3px}
   .cron-grid-hd{display:none!important}
 }
+
+/* FICHAS DOS DOMICÍLIOS */
+#tela-fichas{background:var(--cinza-claro)}
+.fichas-topbar{
+  flex-shrink:0;background:var(--azul);
+  padding:calc(env(safe-area-inset-top) + .45rem) .7rem .45rem;
+  display:flex;align-items:center;gap:.5rem;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);
+}
+.fichas-topbar-info{flex:1;min-width:0;line-height:1.25}
+.fichas-topbar-titulo{font-size:.88rem;color:#fff;font-weight:700;display:block}
+#fichas-topbar-sub{font-size:.68rem;color:rgba(255,255,255,.75);display:block}
+#fichas-conteudo{flex:1;overflow-y:auto;padding:.7rem}
+.fichas-semana-header{
+  background:var(--azul);color:#fff;font-weight:800;font-size:.85rem;
+  padding:.5rem .8rem;border-radius:8px;margin:1rem 0 .6rem;
+}
+.fichas-semana-header:first-child{margin-top:0}
+.fichas-setor-header{
+  background:#dbeafe;color:var(--azul);font-weight:700;font-size:.78rem;
+  padding:.4rem .7rem;border-radius:6px;margin:.7rem 0 .5rem;
+  display:flex;justify-content:space-between;gap:.5rem;
+}
+.ficha-card{
+  background:#fff;border-radius:11px;padding:.8rem .9rem;margin-bottom:.5rem;
+  box-shadow:0 1px 4px rgba(0,0,0,.07);border-left:4px solid var(--azul-med);
+}
+.ficha-card-head{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;margin-bottom:.3rem}
+.ficha-card-num{font-weight:800;color:var(--texto);font-size:.92rem}
+.ficha-card-end{font-size:.84rem;color:var(--texto);margin-bottom:2px}
+.ficha-card-meta{font-size:.72rem;color:var(--cinza);margin-bottom:4px}
+.ficha-divisor{border-top:1px dashed var(--borda);margin:0 0 .5rem}
+.ficha-vazio{text-align:center;padding:2.5rem 1rem;color:var(--cinza);font-size:.85rem}
+.fichas-offline-banner{background:#fef3c7;color:#92400e;font-size:.72rem;text-align:center;padding:.45rem;border-radius:6px;margin-bottom:.6rem;font-weight:600}
+
+@media print {
+  #tela-fichas{position:static!important;display:block!important}
+  .fichas-topbar, .fichas-offline-banner{display:none!important}
+  #fichas-conteudo{overflow:visible!important;height:auto!important;padding:0}
+  .fichas-semana-header{page-break-before:always}
+  .fichas-semana-header:first-child{page-break-before:auto}
+  .ficha-card{page-break-inside:avoid;box-shadow:none;border:1px solid #ccc}
+}
 </style>
 </head>
 <body>
@@ -451,6 +494,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div style="display:flex;align-items:center;justify-content:space-between">
       <h2 id="set-titulo">Meus setores</h2>
       <div style="display:flex;gap:6px;align-items:center">
+        <button class="set-toggle" onclick="abrirFichas()">📋 Fichas</button>
         <button class="set-toggle" onclick="abrirMapaGeral()">🗺️ Mapa geral</button>
         <button onclick="trocarUsuario()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:.75rem;padding:4px 10px;border-radius:12px;cursor:pointer;font-family:inherit">Trocar</button>
       </div>
@@ -485,6 +529,20 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div id="cron-tabela-wrap"></div>
   </div>
   <div id="campo-ultima-atualizacao" style="text-align:center;font-size:11px;color:#888780;font-style:italic;padding:.4rem 0 calc(env(safe-area-inset-bottom) + .4rem);background:#fff;border-top:1px solid var(--borda);flex-shrink:0"></div>
+</div>
+
+<!-- FICHAS DOS DOMICÍLIOS -->
+<div id="tela-fichas" class="tela hidden">
+  <div class="fichas-topbar">
+    <button class="tb-btn" onclick="voltarSetores()" title="Voltar">‹</button>
+    <div class="fichas-topbar-info">
+      <span class="fichas-topbar-titulo">Fichas dos domicílios</span>
+      <span id="fichas-topbar-sub">—</span>
+    </div>
+    <button class="tb-btn" onclick="baixarFichasOffline()" title="Baixar para uso offline">📥</button>
+    <button class="tb-btn" onclick="window.print()" title="Imprimir / Salvar PDF">🖨️</button>
+  </div>
+  <div id="fichas-conteudo"></div>
 </div>
 
 <!-- POPUP: novo aviso da supervisão -->
@@ -1099,7 +1157,7 @@ const SOL_TIPOS = [
 const $ = id => document.getElementById(id);
 
 function mostrarTela(id) {
-  ['tela-loading','tela-usuario','tela-setores','tela-mapa']
+  ['tela-loading','tela-usuario','tela-setores','tela-mapa','tela-fichas']
     .forEach(t => $(t).classList.toggle('hidden', t !== id));
 }
 
@@ -2259,6 +2317,154 @@ window.fecharFicha = () => {
   $('panel-status').classList.add('hidden');
   $('panel-solicitar').classList.add('hidden');
   $('overlay').classList.remove('show');
+};
+
+/* ── FICHAS DOS DOMICÍLIOS (folha corrida por semana/setor, com cache offline) ── */
+let _fichasUsandoCache = false;
+let _fichasCacheData = null;
+
+function _setorDeDom(d) {
+  return d.upa || (d.controle ? d.controle.slice(0,-1) : '') || '?';
+}
+
+function _agruparFichas(doms) {
+  const porSemana = {};
+  doms.forEach(d => {
+    const sem = String(d.semana || '?');
+    const setor = _setorDeDom(d);
+    if (!porSemana[sem]) porSemana[sem] = {};
+    if (!porSemana[sem][setor]) porSemana[sem][setor] = [];
+    porSemana[sem][setor].push(d);
+  });
+  const semanas = Object.keys(porSemana).sort((a, b) => {
+    const na = parseInt(a), nb = parseInt(b);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    if (!isNaN(na)) return -1;
+    if (!isNaN(nb)) return 1;
+    return a.localeCompare(b);
+  });
+  return semanas.map(sem => ({
+    semana: sem,
+    setores: Object.keys(porSemana[sem]).sort((a, b) => a.localeCompare(b, undefined, {numeric: true})).map(setor => ({
+      setor,
+      localidade: mySectors.find(s => s.upa === setor)?.localidade || '',
+      doms: porSemana[sem][setor].slice().sort((a, b) =>
+        (parseInt(a.domicilio_num || a.numero_sequencial) || 0) - (parseInt(b.domicilio_num || b.numero_sequencial) || 0)
+      ),
+    })),
+  }));
+}
+
+function _htmlFichaCard(d) {
+  const s = d.status_atual || 'nao_visitado';
+  const especies  = (d.historico_especies  || []).slice().sort((a, b) => parseInt(a.entrevista) - parseInt(b.entrevista));
+  const telefones = d.historico_telefones || [];
+  const telMap = {};
+  telefones.forEach(t => { telMap[String(t.entrevista)] = t; });
+  const etapas = [...new Set([...especies.map(h => String(h.entrevista)), ...telefones.map(t => String(t.entrevista))])]
+    .sort((a, b) => parseInt(a) - parseInt(b));
+
+  const histHtml = etapas.map(etapa => {
+    const esp = especies.find(h => String(h.entrevista) === etapa);
+    const tel = telMap[etapa];
+    const resultado = esp?.resultado || '—';
+    const mesAno    = esp?.mes_ano   || '';
+    const entr      = esp?.entrevistador || '';
+    const telefone  = tel?.telefone  || '';
+    const obs       = tel?.observacao || '';
+    return `<div class="etapa-card">
+      <div class="etapa-num">${etapa}ª entrevista${mesAno ? ' · ' + mesAno : ''}</div>
+      <div><span class="etapa-badge" style="background:${corS(s)}22;color:${corS(s)}">${resultado}</span></div>
+      ${entr     ? `<div class="etapa-detalhe">👤 ${entr}</div>`     : ''}
+      ${telefone ? `<div class="etapa-detalhe">📞 ${telefone}</div>` : ''}
+      ${obs      ? `<div class="etapa-detalhe">💬 ${obs}</div>`      : ''}
+    </div>`;
+  }).join('');
+
+  const solsAtivas = (d.solicitacoes || []).filter(x => !x.resolvido);
+  const solsHtml = solsAtivas.map(x => {
+    const tipo = SOL_TIPOS.find(t => t.id === x.tipo);
+    return `<div class="etapa-detalhe">📢 ${tipo ? tipo.label : x.tipo}${x.obs ? ': ' + x.obs : ''}</div>`;
+  }).join('');
+
+  return `<div class="ficha-card">
+    <div class="ficha-card-head">
+      <span class="ficha-card-num">Dom. ${d.domicilio_num || d.numero_sequencial || '?'}</span>
+      <span class="etapa-badge" style="background:${corS(s)}22;color:${corS(s)}">${lblS(s)}</span>
+    </div>
+    <div class="ficha-card-end">${d.endereco || d.logradouro_kml || '—'}${d.complemento ? ' — ' + d.complemento : ''}</div>
+    <div class="ficha-card-meta">Controle ${d.controle || '—'} · Sem. ${d.semana || '?'} · Etapa ${d.visita_etapa || '?'}${(d.morador_cnefe || d.morador) ? ' · ' + (d.morador_cnefe || d.morador) : ''}</div>
+    ${histHtml}${solsHtml}
+  </div>`;
+}
+
+function _renderFichas(grupos) {
+  const el = $('fichas-conteudo');
+  if (!grupos.length) {
+    el.innerHTML = '<div class="ficha-vazio">📋<br>Nenhum domicílio encontrado para gerar fichas.</div>';
+    return;
+  }
+  let html = '';
+  if (_fichasUsandoCache) {
+    const quando = _fichasCacheData?.salvoEm ? new Date(_fichasCacheData.salvoEm).toLocaleString('pt-BR') : '';
+    html += `<div class="fichas-offline-banner">📥 Exibindo dados salvos offline${quando ? ' em ' + quando : ''}</div>`;
+  }
+  grupos.forEach(g => {
+    html += `<div class="fichas-semana-header">Semana ${g.semana}</div>`;
+    g.setores.forEach(st => {
+      html += `<div class="fichas-setor-header"><span>Setor ${st.setor}${st.localidade ? ' — ' + st.localidade : ''}</span><span>${st.doms.length} domicílio(s)</span></div>`;
+      html += st.doms.map(_htmlFichaCard).join('<div class="ficha-divisor"></div>');
+    });
+  });
+  el.innerHTML = html;
+}
+
+function _meusDomsParaFichas() {
+  return mySectors.flatMap(s => s.doms).filter(d => mesmoNome(d.entrevistador_nome, usuarioNome));
+}
+
+function _salvarFichasOffline(doms, mostrarFeedback) {
+  try {
+    localStorage.setItem('campo_fichas_offline', JSON.stringify({
+      usuario: usuarioNome,
+      salvoEm: Date.now(),
+      doms,
+    }));
+    if (mostrarFeedback) toast(`${doms.length} ficha(s) salvas para uso offline`, 'ok');
+  } catch(e) {
+    console.error('Falha ao salvar fichas offline', e);
+    if (mostrarFeedback) toast('Erro ao salvar para offline (armazenamento cheio?)', 'erro');
+  }
+}
+
+window.abrirFichas = () => {
+  mostrarTela('tela-fichas');
+  let doms = _meusDomsParaFichas();
+  _fichasUsandoCache = false;
+  _fichasCacheData = null;
+
+  if (!doms.length) {
+    try {
+      const cache = JSON.parse(localStorage.getItem('campo_fichas_offline') || 'null');
+      if (cache && cache.usuario === usuarioNome && cache.doms?.length) {
+        doms = cache.doms;
+        _fichasUsandoCache = true;
+        _fichasCacheData = cache;
+      }
+    } catch(e) { /* ignora cache corrompido */ }
+  }
+
+  $('fichas-topbar-sub').textContent = doms.length ? `${doms.length} domicílio(s)` : '—';
+  _renderFichas(_agruparFichas(doms));
+
+  // Mantém o cache offline sempre atualizado quando há dados frescos (online)
+  if (!_fichasUsandoCache && doms.length) _salvarFichasOffline(doms, false);
+};
+
+window.baixarFichasOffline = () => {
+  const doms = _meusDomsParaFichas();
+  if (!doms.length) { toast('Nenhuma ficha para salvar', 'erro'); return; }
+  _salvarFichasOffline(doms, true);
 };
 
 window.fecharTudo = () => {
