@@ -411,6 +411,11 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .cron-setor-code{font-family:monospace;font-size:9px;color:#666;flex-shrink:0;white-space:nowrap}
 .cron-setor-nome{font-size:10px;font-weight:700;min-width:0;flex:1;white-space:normal;overflow-wrap:break-word;line-height:1.25}
 .cron-day-mobile-hdr{display:none}
+/* Card de missão com intervalo de datas (span>1 colunas) — centraliza o conteúdo
+   em vez de deixá-lo colado à esquerda, sob o primeiro dia do intervalo. */
+.cron-card-spanned .cron-card-hdr,
+.cron-card-spanned .cron-setor-item{justify-content:center}
+.cron-card-spanned .cron-setor-nome{flex:0 1 auto;text-align:center}
 
 @media (max-width:600px){
   .cron-grid{display:block!important}
@@ -1103,7 +1108,8 @@ function _buildCronGridReadOnly() {
         });
 
       const spanStyle = span > 1 ? `grid-column:span ${span};` : '';
-      return `<div class="cron-card" style="${spanStyle}background:${pal.bg};border-left:1px solid ${pal.borda}55"><div class="cron-day-mobile-hdr">${dayLabel}</div>${inner}</div>`;
+      const spanClass = span > 1 ? ' cron-card-spanned' : '';
+      return `<div class="cron-card${spanClass}" style="${spanStyle}background:${pal.bg};border-left:1px solid ${pal.borda}55"><div class="cron-day-mobile-hdr">${dayLabel}</div>${inner}</div>`;
     }).join('');
 
     if (!firstGroup) groupsHtml += '<div class="cron-group-sep"></div>';

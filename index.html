@@ -769,6 +769,11 @@
   .cron-setor-code { font-family:monospace;font-size:9px;color:#666;flex-shrink:0;white-space:nowrap; }
   .cron-setor-nome { font-size:10px;font-weight:700;min-width:0;flex:1;white-space:normal;overflow-wrap:break-word;line-height:1.25; }
   .cron-day-mobile-hdr { display:none; }
+  /* Card de missão com intervalo de datas (span>1 colunas) — centraliza o conteúdo
+     em vez de deixá-lo colado à esquerda, sob o primeiro dia do intervalo. */
+  .cron-card-spanned .cron-card-hdr,
+  .cron-card-spanned .cron-setor-item { justify-content:center; }
+  .cron-card-spanned .cron-setor-nome { flex:0 1 auto;text-align:center; }
   /* ── Cronograma — popover de edição ── */
   .cron-popover { position:fixed;background:#fff;border:1px solid var(--borda);border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.18);z-index:2000;width:280px;max-height:90vh;overflow-y:auto;font-size:12px; }
   .cron-pop-hdr { display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--azul);color:#fff;font-weight:700;font-size:11px;border-radius:7px 7px 0 0;position:sticky;top:0;z-index:1; }
@@ -7005,7 +7010,8 @@ function _buildCronGrid() {
         });
 
       const spanStyle = span > 1 ? `grid-column:span ${span};` : '';
-      return `<div class="cron-card" style="${spanStyle}background:${pal.bg};border-left:1px solid ${pal.borda}55" data-gk="${gkAttr}" data-dia="${dAttr}" onclick="cronOpenCell(this)"><div class="cron-day-mobile-hdr">${dayLabel}</div>${inner}</div>`;
+      const spanClass = span > 1 ? ' cron-card-spanned' : '';
+      return `<div class="cron-card${spanClass}" style="${spanStyle}background:${pal.bg};border-left:1px solid ${pal.borda}55" data-gk="${gkAttr}" data-dia="${dAttr}" onclick="cronOpenCell(this)"><div class="cron-day-mobile-hdr">${dayLabel}</div>${inner}</div>`;
     }).join('');
 
     if (!firstGroup) groupsHtml += '<div class="cron-group-sep"></div>';
