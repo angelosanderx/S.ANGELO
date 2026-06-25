@@ -2923,6 +2923,7 @@ window.irPara = (pag) => {
   event.currentTarget.classList.add('ativo');
   fecharSidebar();
   if (pag === 'pendencias') renderizarPaginaPendencias();
+  if (pag === 'visitas') renderizarPainelSolicitacoes();
   // Força recálculo do mapa de setores quando a página fica visível
   if (pag === 'cronograma') carregarCronograma();
   if (pag === 'setores') {
@@ -6838,18 +6839,29 @@ function renderizarPainelSolicitacoes() {
   if (!div) return;
   const soAtivas = document.getElementById('sol-painel-so-ativas')?.checked ?? true;
   const podeGerirEtapa = ['supervisor', 'administrador'].includes(perfilLogado?.perfil);
+  const ehEntrevistador = perfilLogado?.perfil === 'entrevistador';
+  const meuUid  = usuarioLogado?.uid;
+  const meuNome = perfilLogado?.nome || '';
+
+  // Atualiza título do painel conforme perfil
+  const tituloEl = div.closest('.card-tabela')?.querySelector('.card-tabela-header h3');
+  if (tituloEl) tituloEl.textContent = ehEntrevistador ? 'Minhas Solicitações' : 'Solicitações';
 
   let linhas = [];
   todosdomicilios.forEach(d => {
     (d.solicitacoes || []).forEach(s => {
       if (soAtivas && s.resolvido) return;
+      if (ehEntrevistador) {
+        const minha = s.criado_por_uid ? s.criado_por_uid === meuUid : nomesCorrespondem(s.criado_por_nome || '', meuNome);
+        if (!minha) return;
+      }
       linhas.push({ dom: d, sol: s });
     });
   });
   linhas.sort((a, b) => (b.sol.criado_em_ts || 0) - (a.sol.criado_em_ts || 0));
 
   if (linhas.length === 0) {
-    div.innerHTML = `<div class="vazio" style="padding:1.25rem"><div class="icone-vazio">📋</div>Nenhuma solicitação ${soAtivas ? 'ativa' : ''} encontrada.</div>`;
+    div.innerHTML = `<div class="vazio" style="padding:1.25rem"><div class="icone-vazio">📋</div>${ehEntrevistador ? 'Você não tem solicitações' : 'Nenhuma solicitação'} ${soAtivas ? 'ativa' : ''} encontrada.</div>`;
     return;
   }
 
@@ -6858,8 +6870,11 @@ function renderizarPainelSolicitacoes() {
     const etapa = sol.etapa || 'pendente';
     const etapaInfo = ETAPA_SOL[etapa] || ETAPA_SOL.pendente;
     const dataCriacao = sol.criado_em_ts ? new Date(sol.criado_em_ts).toLocaleDateString('pt-BR') : '—';
+    // Para entrevistador, badge de etapa maior e mais chamativo
     const etapaBadge = ativa
-      ? `<span style="font-size:0.68rem;font-weight:700;color:${etapaInfo.cor};background:${etapaInfo.bg};border-radius:8px;padding:1px 7px">${etapaInfo.label}</span>`
+      ? (ehEntrevistador
+          ? `<span style="font-size:0.8rem;font-weight:800;color:${etapaInfo.cor};background:${etapaInfo.bg};border-radius:8px;padding:2px 10px;border:1.5px solid ${etapaInfo.cor}">${_ETAPA_SOL_ICONE[etapa] || ''} ${etapaInfo.label}</span>`
+          : `<span style="font-size:0.68rem;font-weight:700;color:${etapaInfo.cor};background:${etapaInfo.bg};border-radius:8px;padding:1px 7px">${etapaInfo.label}</span>`)
       : `<span class="badge badge-cinza" style="font-size:0.68rem">Resolvida</span>`;
     const botoesEtapa = (ativa && podeGerirEtapa)
       ? ['aceita', 'em_andamento', 'pronta'].map(et => `
@@ -6878,17 +6893,25 @@ function renderizarPainelSolicitacoes() {
       ? `<button onclick="excluirSolicitacaoDefinitivo('${dom.id}','${sol.id}')" title="Excluir definitivamente"
           style="background:var(--vermelho);color:#fff;border:none;border-radius:4px;padding:0.2rem 0.55rem;cursor:pointer;font-size:0.78rem;font-weight:700">🗑️</button>`
       : '';
+    // Para entrevistador, destaque visual extra quando etapa avançou (não é mais pendente)
+    const etapaAvancou = ehEntrevistador && ativa && etapa !== 'pendente';
+    const bgRow = ativa ? (etapaAvancou ? etapaInfo.bg : 'var(--azul-claro)') : 'var(--cinza-claro)';
+    const borderRow = ativa ? (etapaAvancou ? etapaInfo.cor : 'var(--azul-medio)') : 'var(--borda)';
+    const atencaoRow = etapaAvancou
+      ? `<div style="font-size:0.73rem;font-weight:700;color:${etapaInfo.cor};margin-top:4px">Supervisor atualizou o status da sua solicitação.</div>`
+      : '';
     return `<div style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.6rem 0.85rem;border-radius:8px;margin-bottom:0.5rem;
-        background:${ativa ? 'var(--azul-claro)' : 'var(--cinza-claro)'};border:1px solid ${ativa ? 'var(--azul-medio)' : 'var(--borda)'}">
+        background:${bgRow};border:1.5px solid ${borderRow}">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
           <span style="font-size:0.85rem;font-weight:700">${SOL_LABELS[sol.tipo] || sol.tipo}</span>
           ${etapaBadge}
-          <span style="font-size:0.72rem;color:var(--cinza);margin-left:auto;white-space:nowrap">${dataCriacao}${sol.criado_por_nome ? ' · ' + esc(sol.criado_por_nome) : ''}</span>
+          <span style="font-size:0.72rem;color:var(--cinza);margin-left:auto;white-space:nowrap">${dataCriacao}${!ehEntrevistador && sol.criado_por_nome ? ' · ' + esc(sol.criado_por_nome) : ''}</span>
         </div>
         <button onclick="abrirFicha('${dom.id}','solicitacoes')" title="Abrir ficha do domicílio"
           style="display:block;text-align:left;background:none;border:none;padding:0;cursor:pointer;font-size:0.78rem;color:var(--azul);font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-decoration:underline">📍 ${esc(dom.endereco || '—')}</button>
         ${sol.obs ? `<div style="font-size:0.78rem;color:var(--cinza);margin-top:2px">${esc(sol.obs)}</div>` : ''}
+        ${atencaoRow}
         ${botoesEtapa ? `<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">${botoesEtapa}</div>` : ''}
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0">${btnResolver}${btnExcluir}</div>
