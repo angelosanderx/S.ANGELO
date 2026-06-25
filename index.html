@@ -763,6 +763,7 @@
   .cron-card-hdr { font-size:10px;margin-bottom:2px;display:flex;gap:4px;align-items:center;flex-wrap:wrap; }
   .cron-hd-span { color:#888; }
   .cron-hd-hora { font-weight:600;color:#555;white-space:normal;overflow-wrap:break-word; }
+  .cron-hd-hora-fixa { font-size:13px;font-weight:800;color:var(--azul-med); }
   .cron-hd-pend { font-style:italic;color:#A32D2D; }
   .cron-setor-item { display:flex;align-items:center;gap:3px;background:rgba(255,255,255,0.6);border-radius:3px;padding:2px 4px;margin-bottom:2px; }
   .cron-etapa-badge { font-size:8px;font-weight:700;padding:1px 3px;border-radius:3px;flex-shrink:0;white-space:nowrap; }
@@ -6991,8 +6992,9 @@ function _buildCronGrid() {
         .forEach(m => {
           if (m.hora) {
             const horaFixa = /^\d{1,2}:\d{2}$/.test(m.hora.trim());
+            const horaClasse = horaFixa ? 'cron-hd-hora cron-hd-hora-fixa' : 'cron-hd-hora';
             const horaStyle = horaFixa ? '' : ' style="color:var(--vermelho)"';
-            inner += `<div class="cron-card-hdr"><span class="cron-hd-hora"${horaStyle}>${m.hora}</span>${span>1?`<span class="cron-hd-span"> · ${span}d</span>`:''}</div>`;
+            inner += `<div class="cron-card-hdr"><span class="${horaClasse}"${horaStyle}>${m.hora}</span>${span>1?`<span class="cron-hd-span"> · ${span}d</span>`:''}</div>`;
           }
           m.upas.forEach((upa, si) => {
             if (!upa) return;
