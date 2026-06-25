@@ -663,6 +663,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div class="bs-linha"><span class="ic">👤</span><span id="bs-entr">—</span></div>
     <div class="bs-linha" id="bs-etapa5-linha" style="display:none;color:#b91c1c;font-weight:600">⚠️ Etapa 5 — sai da amostra no próximo trimestre</div>
   </div>
+  <div id="bs-minhas-sols" style="display:none;margin:0 1rem .6rem;border-radius:10px;overflow:hidden;border:1.5px solid var(--borda)"></div>
   <div class="bs-btns">
     <button class="bs-btn" onclick="abrirFichaCompleta()"><span class="bi">📋</span>Ficha</button>
     <button class="bs-btn" onclick="abrirPanelObs()"><span class="bi">💬</span>Observações</button>
@@ -2149,14 +2150,21 @@ function renderDoms(L) {
     const est       = estadoDom(d.status_atual);
     const temSolAtiva = (d.solicitacoes||[]).some(x => !x.resolvido);
     const temSuperAlert = temSolAtiva && (d.solicitacoes||[]).some(x => !x.resolvido && x.criado_por_nome && !mesmoNome(x.criado_por_nome, usuarioNome));
+    // Etapa mais avançada das minhas solicitações ativas
+    const _etOrd = ['pronta','em_andamento','aceita','pendente'];
+    const minhasSolsAtivas = (d.solicitacoes||[]).filter(x => !x.resolvido && mesmoNome(x.criado_por_nome||'', usuarioNome));
+    const melhorEtapaMinha = minhasSolsAtivas.reduce((m,x) => {
+      const et = x.etapa||'pendente'; return _etOrd.indexOf(et) < _etOrd.indexOf(m) ? et : m;
+    }, 'pendente');
+    const ecMinha = minhasSolsAtivas.length ? (_ETAPA_CFG[melhorEtapaMinha]||_ETAPA_CFG.pendente) : null;
     const emAndamento = est === 'andamento' || temSolAtiva;
-    const check = est === 'realizada' ? '✓' : emAndamento ? '…' : '';
-    const borda = est === 'realizada' ? '#15803d' : emAndamento ? '#f97316' : '#fff';
+    const check = est === 'realizada' ? '✓' : emAndamento ? (ecMinha ? ecMinha.ico : '…') : '';
+    const borda = est === 'realizada' ? '#15803d' : (ecMinha ? ecMinha.cor : emAndamento ? '#f97316' : '#fff');
     const ico = L.divIcon({
       className: '',
       html: `<div style="position:relative;width:32px;height:32px">
         <div style="width:32px;height:32px;border-radius:50%;background:${fill};border:3px solid ${borda};display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.55);box-shadow:0 2px 6px rgba(0,0,0,.28);font-family:sans-serif">${num}</div>
-        ${check ? `<div style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;border-radius:50%;background:${est==='realizada'?'#22c55e':'#f97316'};border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#fff">${check}</div>` : ''}
+        ${check ? `<div style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:${est==='realizada'?'#22c55e':(ecMinha?.cor||'#f97316')};border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#fff">${check}</div>` : ''}
         ${temSuperAlert ? `<div style="position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:#d97706;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:11px;animation:pulse-super 1.5s infinite;box-shadow:0 1px 5px rgba(217,119,6,.55)">📢</div>` : ''}
       </div>`,
       iconSize: [32,32],
@@ -2258,7 +2266,7 @@ function abrirBS(d) {
   const pill = $('bs-pill');
   pill.textContent = lblS(s);
   pill.style.cssText = `background:${corS(s)}22;color:${corS(s)};border:1px solid ${corS(s)}55`;
-  // Solicitations from others (supervisor notes)
+  // Solicitações da supervisão (de outros)
   const solsSuper = (d.solicitacoes||[]).filter(x => !x.resolvido && x.criado_por_nome && !mesmoNome(x.criado_por_nome, usuarioNome));
   const alertEl = $('bs-super-alerta');
   if (solsSuper.length) {
@@ -2272,6 +2280,30 @@ function abrirBS(d) {
     alertEl.style.display = '';
   } else {
     alertEl.style.display = 'none';
+  }
+  // Minhas solicitações — exibe com etapa do supervisor
+  const minhasSols = (d.solicitacoes||[]).filter(x => !x.resolvido && mesmoNome(x.criado_por_nome||'', usuarioNome));
+  const bsSols = $('bs-minhas-sols');
+  if (minhasSols.length) {
+    const _ordemEtapa = ['pronta','em_andamento','aceita','pendente'];
+    const sorted = [...minhasSols].sort((a,b) => _ordemEtapa.indexOf(a.etapa||'pendente') - _ordemEtapa.indexOf(b.etapa||'pendente'));
+    bsSols.innerHTML =
+      `<div style="font-size:.68rem;font-weight:800;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;padding:.45rem .75rem;background:var(--cinza-claro);border-bottom:1px solid var(--borda)">Minhas solicitações</div>` +
+      sorted.map(x => {
+        const tipo = SOL_TIPOS.find(t => t.id === x.tipo);
+        const ec   = _ETAPA_CFG[x.etapa||'pendente'] || _ETAPA_CFG.pendente;
+        const morador = x.obs?.startsWith('Para:') ? `<span style="font-size:.72rem;color:var(--cinza)">${x.obs.replace(/^Para:\s*/,'👤 ')}</span>` : '';
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:.45rem .75rem;border-bottom:1px solid var(--borda);gap:.5rem">
+          <div style="min-width:0">
+            <div style="font-size:.83rem;font-weight:700">${tipo?.ico||'📋'} ${tipo?.label||x.tipo}</div>
+            ${morador}
+          </div>
+          <span style="flex-shrink:0;font-size:.72rem;font-weight:800;color:${ec.cor};background:${ec.bg};border:1.5px solid ${ec.cor};border-radius:8px;padding:2px 9px;white-space:nowrap">${ec.ico} ${ec.label}</span>
+        </div>`;
+      }).join('').replace(/border-bottom[^;]+;([^"]*<\/div>\s*$)/, '$1');
+    bsSols.style.display = '';
+  } else {
+    bsSols.style.display = 'none';
   }
   $('bottom-sheet').classList.add('aberto');
   $('overlay').classList.add('show');
