@@ -1019,7 +1019,7 @@
       <span class="icone">⚠️</span> Pendências <span id="nav-pendencias-count" style="margin-left:auto;font-size:0.7rem;font-weight:700;background:var(--laranja);color:#fff;border-radius:10px;padding:1px 7px;display:none"></span>
     </div>
     <div class="nav-item" onclick="irPara('visitas')">
-      <span class="icone">📋</span> Solicitações
+      <span class="icone">📋</span> Solicitações <span id="nav-solicitacoes-count" style="margin-left:auto;font-size:0.7rem;font-weight:700;background:var(--azul-medio);color:#fff;border-radius:10px;padding:1px 7px;display:none"></span>
     </div>
     <div class="nav-item" onclick="irPara('importar-sigc')">
       <span class="icone">📥</span> Importar SIGC
@@ -1140,6 +1140,7 @@
               <button onclick="copiarPendenciasWhatsApp('pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">📲 Copiar para WhatsApp</button>
               <button onclick="abrirControlePendencias();this.closest('.dropdown-listagens').classList.remove('aberto')">📊 Controle de pendências</button>
               <button onclick="abrirControleNaoRealizadas();this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Controle de não realizadas</button>
+              <button onclick="abrirMapaSetores();this.closest('.dropdown-listagens').classList.remove('aberto')">🗺️ Trabalho após o expediente</button>
             </div>
           </div>
         </div>
@@ -2550,6 +2551,51 @@
   </div>
 </div>
 
+<!-- Modal: Trabalho após o Expediente -->
+<div class="modal-overlay" id="modal-mapa-setores" onclick="if(event.target===this)fecharModal('modal-mapa-setores')">
+  <div class="modal" style="max-width:640px;width:100%">
+    <div class="modal-header" style="padding:1rem 1.25rem">
+      <div>
+        <h3 style="font-size:0.95rem;font-weight:700;color:var(--azul)">Trabalho após o Expediente</h3>
+        <div style="font-size:0.75rem;color:var(--cinza);margin-top:2px">PNAD Contínua · Campos dos Goytacazes</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem">
+        <button onclick="imprimirMapaSetores()" style="background:none;border:1.5px solid var(--borda);border-radius:6px;padding:0.3rem 0.75rem;font-size:0.8rem;font-family:var(--fonte);cursor:pointer;color:var(--cinza-escuro)">🖨️ Imprimir</button>
+        <button class="btn-fechar" onclick="fecharModal('modal-mapa-setores')">×</button>
+      </div>
+    </div>
+    <div class="modal-body" style="padding:1rem 1.25rem">
+      <!-- Entrevistador(es) -->
+      <div style="position:relative;margin-bottom:1rem" id="mapa-entr-wrap">
+        <div style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.35rem">Entrevistador(es)</div>
+        <button id="mapa-entr-btn" type="button" onclick="toggleDropdownMapaEntr(event)" style="padding:0.45rem 0.75rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.88rem;font-family:var(--fonte);background:var(--cinza-claro);cursor:pointer;display:flex;align-items:center;gap:0.5rem;width:100%;justify-content:space-between">
+          <span id="mapa-entr-cabecalho">Todos os entrevistadores</span><span style="font-size:0.7rem;opacity:0.6">▾</span>
+        </button>
+        <div id="mapa-entr-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:300;background:#fff;border:1.5px solid var(--borda);border-radius:8px;min-width:240px;max-height:220px;overflow-y:auto;box-shadow:0 4px 20px rgba(0,0,0,0.13);padding:0.25rem 0">
+          <div id="mapa-entr-lista"></div>
+          <div style="display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.8rem;border-top:1px solid var(--borda)">
+            <input type="checkbox" id="mapa-entr-custom-chk" onchange="_toggleMapaEntrCustom(this)">
+            <input type="text" id="mapa-entr-custom-input" placeholder="Digite o nome…" oninput="_atualizarMapaEntrCustomNome()" style="display:none;flex:1;border:1.5px solid var(--borda);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.83rem;font-family:var(--fonte)">
+          </div>
+        </div>
+      </div>
+
+      <!-- Setor / Localidade -->
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:0.4rem 0.5rem;border-bottom:1.5px solid var(--borda);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--cinza)">Setor</th>
+            <th style="text-align:left;padding:0.4rem 0.5rem;border-bottom:1.5px solid var(--borda);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--cinza)">Cidade</th>
+            <th style="width:28px;border-bottom:1.5px solid var(--borda)"></th>
+          </tr>
+        </thead>
+        <tbody id="mapa-setores-linhas"></tbody>
+      </table>
+      <button type="button" onclick="adicionarLinhaMapaSetor()" style="margin-top:0.6rem;background:none;border:1px dashed var(--borda);border-radius:6px;padding:0.3rem 0.8rem;font-size:0.78rem;font-family:var(--fonte);color:var(--cinza-escuro);cursor:pointer">+ Adicionar setor</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Controle por UPA (CNEFE × PNAD) -->
 <div class="modal-overlay" id="modal-cnefe-controle" onclick="if(event.target===this)fecharModal('modal-cnefe-controle')">
   <div class="modal" style="max-width:min(98vw,1100px);width:100%;display:flex;flex-direction:column;max-height:90vh;overflow:hidden">
@@ -3109,6 +3155,7 @@ async function carregarDomicilios() {
     preencherFiltroEntrevistador();
     filtrarDomicilios();
     renderizarMapaSetores();
+    _atualizarContadorSolicitacoes();
     _carregarIndicadoresMoradores(); // background — não bloqueia a tela
   } catch(e) {
     console.error(e);
@@ -4822,6 +4869,183 @@ ${clone.innerHTML}
   win.document.close();
 };
 
+// ── TRABALHO APÓS O EXPEDIENTE ───────────────────────────────────────────────
+
+// Cada item: { tipo: 'cadastrado'|'custom', valor: <nome> }. A ordem do array
+// define a formatação do cabeçalho (1º marcado = negrito, demais após traço).
+let _mapaEntrOrdem = [];
+let _mapaEntrCustomObj = null;
+
+window.abrirMapaSetores = async () => {
+  _mapaEntrOrdem = [];
+  _mapaEntrCustomObj = null;
+  abrirModal('modal-mapa-setores');
+  const customChk = document.getElementById('mapa-entr-custom-chk');
+  const customInp = document.getElementById('mapa-entr-custom-input');
+  if (customChk) customChk.checked = false;
+  if (customInp) { customInp.style.display = 'none'; customInp.value = ''; }
+  await _popularEntrevistadoresMapaSetores();
+  document.getElementById('mapa-setores-linhas').innerHTML = '';
+  adicionarLinhaMapaSetor();
+};
+
+async function _popularEntrevistadoresMapaSetores() {
+  if (!entrevistadoresCache) {
+    try {
+      const snap = await getDocs(query(collection(db, 'usuarios'), where('perfil', '==', 'entrevistador')));
+      entrevistadoresCache = snap.docs.map(d => ({ id: d.id, nome: d.data().nome }));
+    } catch(e) { entrevistadoresCache = []; }
+  }
+  let supervisores = [];
+  try {
+    const snapSup = await getDocs(query(collection(db, 'usuarios'), where('perfil', '==', 'supervisor')));
+    supervisores = snapSup.docs.map(d => d.data().nome).filter(Boolean);
+  } catch(e) { /* ignora — lista de supervisores é apenas um complemento */ }
+  const lista = document.getElementById('mapa-entr-lista');
+  const nomes = [...new Set([...(entrevistadoresCache||[]).map(u => u.nome), ...supervisores].map(toTitleCase).filter(Boolean))].sort();
+  lista.innerHTML = nomes.map(nome =>
+    `<label style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.8rem;cursor:pointer;font-size:0.83rem" onmouseenter="this.style.background='var(--cinza-claro)'" onmouseleave="this.style.background=''">
+      <input type="checkbox" value="${esc(nome)}" onchange="_toggleEntrMapaOrdem(this)"> ${esc(nome)}
+    </label>`
+  ).join('');
+  _atualizarCabecalhoMapaSetores();
+}
+
+window.toggleDropdownMapaEntr = (e) => {
+  e.stopPropagation();
+  const dd = document.getElementById('mapa-entr-dropdown');
+  if (dd) dd.style.display = dd.style.display === 'none' ? '' : 'none';
+};
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#mapa-entr-wrap')) {
+    const dd = document.getElementById('mapa-entr-dropdown');
+    if (dd) dd.style.display = 'none';
+  }
+});
+
+window._toggleEntrMapaOrdem = (chk) => {
+  if (chk.checked) {
+    if (!_mapaEntrOrdem.some(e => e.tipo === 'cadastrado' && e.valor === chk.value)) {
+      _mapaEntrOrdem.push({ tipo: 'cadastrado', valor: chk.value });
+    }
+  } else {
+    _mapaEntrOrdem = _mapaEntrOrdem.filter(e => !(e.tipo === 'cadastrado' && e.valor === chk.value));
+  }
+  _atualizarCabecalhoMapaSetores();
+};
+
+// Quadradinho sem nome: ao marcar, abre o campo para digitar qualquer outro nome.
+window._toggleMapaEntrCustom = (chk) => {
+  const inp = document.getElementById('mapa-entr-custom-input');
+  if (chk.checked) {
+    inp.style.display = '';
+    inp.focus();
+    _mapaEntrCustomObj = { tipo: 'custom', valor: '' };
+    _mapaEntrOrdem.push(_mapaEntrCustomObj);
+  } else {
+    inp.style.display = 'none';
+    inp.value = '';
+    _mapaEntrOrdem = _mapaEntrOrdem.filter(e => e !== _mapaEntrCustomObj);
+    _mapaEntrCustomObj = null;
+  }
+  _atualizarCabecalhoMapaSetores();
+};
+
+window._atualizarMapaEntrCustomNome = () => {
+  if (!_mapaEntrCustomObj) return;
+  _mapaEntrCustomObj.valor = document.getElementById('mapa-entr-custom-input').value.trim();
+  _atualizarCabecalhoMapaSetores();
+};
+
+function _atualizarCabecalhoMapaSetores() {
+  const cab = document.getElementById('mapa-entr-cabecalho');
+  if (!cab) return;
+  const nomes = _mapaEntrOrdem.map(e => e.valor).filter(Boolean);
+  // Filtro automático: nenhum marcado = todos os entrevistadores
+  if (nomes.length === 0) { cab.innerHTML = 'Todos os entrevistadores'; return; }
+  cab.innerHTML = `<strong>${esc(nomes[0])}</strong>` + nomes.slice(1).map(n => ' - ' + esc(n)).join('');
+}
+
+window.adicionarLinhaMapaSetor = () => {
+  const corpo = document.getElementById('mapa-setores-linhas');
+  const setores = [...new Set(todosdomicilios.map(d => d.controle ? d.controle.slice(0,-1) : d.upa).filter(Boolean))].sort();
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td style="padding:0.35rem 0.5rem;border-bottom:1px solid var(--borda)">
+      <select class="mapa-setor-select" style="width:100%;padding:0.35rem 0.5rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
+        <option value="">Selecione…</option>
+        ${setores.map(s => `<option value="${esc(s)}">Setor ${esc(s)}</option>`).join('')}
+      </select>
+    </td>
+    <td style="padding:0.35rem 0.5rem;border-bottom:1px solid var(--borda)">
+      <input type="text" class="mapa-localidade-input" placeholder="Cidade" style="width:100%;padding:0.35rem 0.5rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte)">
+    </td>
+    <td style="padding:0.35rem 0.25rem;border-bottom:1px solid var(--borda);text-align:center">
+      <button type="button" onclick="this.closest('tr').remove()" title="Remover setor" style="background:none;border:none;cursor:pointer;color:var(--cinza);font-size:1rem;line-height:1">×</button>
+    </td>`;
+  corpo.appendChild(tr);
+};
+
+window.imprimirMapaSetores = () => {
+  const cabecalhoHtml = document.getElementById('mapa-entr-cabecalho').innerHTML;
+  const linhas = [...document.querySelectorAll('#mapa-setores-linhas tr')].map(tr => {
+    const sel = tr.querySelector('.mapa-setor-select');
+    const setorTxt = sel.value || '';
+    const localidade = tr.querySelector('.mapa-localidade-input').value.trim();
+    return { setorTxt, localidade };
+  }).filter(l => l.setorTxt || l.localidade);
+
+  if (linhas.length === 0) { mostrarToast('Adicione ao menos um setor', 'erro'); return; }
+
+  const linhasHtml = linhas.map(l => `<tr><td>${esc(l.setorTxt)}</td><td>${esc(l.localidade)}</td></tr>`).join('');
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Trabalho após o Expediente — PNAD-C</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:Arial,sans-serif; font-size:11pt; color:#000; background:#fff; padding-top:44px; }
+  .toolbar { position:fixed; top:0; left:0; right:0; background:#1a3a5c; color:#fff; padding:0.4rem 1rem; display:flex; align-items:center; gap:0.75rem; font-size:0.82rem; z-index:999; }
+  .toolbar button { background:#2563a8; border:none; color:#fff; padding:0.25rem 0.85rem; border-radius:6px; cursor:pointer; font-size:0.82rem; }
+  .toolbar button.sec { background:rgba(255,255,255,0.15); }
+  .doc { padding:0 14mm; }
+  .cabecalho-doc { border-bottom:2px solid #000; padding:6px 0 10px; margin-bottom:12px; }
+  .cabecalho-doc .titulo { font-size:9pt; color:#555; text-transform:uppercase; letter-spacing:0.4px; }
+  .cabecalho-doc .nomes { font-size:14pt; margin-top:3px; }
+  table.mapa-tbl { width:100%; border-collapse:collapse; }
+  table.mapa-tbl th, table.mapa-tbl td { border:1px solid #000; padding:6px 10px; text-align:left; font-size:11pt; }
+  table.mapa-tbl th { background:#eee; font-size:9pt; text-transform:uppercase; letter-spacing:0.3px; }
+  @media print {
+    @page { size:A4 portrait; margin:12mm; }
+    body { padding-top:0; }
+    .toolbar { display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <span>🗺️ Trabalho após o Expediente</span>
+  <button onclick="window.print()">🖨️ Imprimir</button>
+  <button class="sec" onclick="window.close()">Fechar</button>
+</div>
+<div class="doc">
+  <div class="cabecalho-doc">
+    <div class="titulo">PNAD-C Campos — Entrevistador(es)</div>
+    <div class="nomes">${cabecalhoHtml}</div>
+  </div>
+  <table class="mapa-tbl">
+    <thead><tr><th>Setor</th><th>Cidade</th></tr></thead>
+    <tbody>${linhasHtml}</tbody>
+  </table>
+</div>
+</body>
+</html>`);
+  win.document.close();
+};
+
 // ── CONTROLE DE NÃO REALIZADAS ──────────────────────────────────────────────
 
 let _ctrNrSemana = 'todas';
@@ -5365,6 +5589,26 @@ function _filtrarPendentes(docs, semanaAtual) {
 function _atualizarContadorPendencias(n) {
   const badge = document.getElementById('nav-pendencias-count');
   if (!badge) return;
+  badge.textContent = n;
+  badge.style.display = n > 0 ? '' : 'none';
+}
+
+// Conta, para o entrevistador logado, quantas solicitações dele ainda estão ativas
+// (não resolvidas) — mostrado como badge no item "Solicitações" do menu principal.
+function _atualizarContadorSolicitacoes() {
+  const badge = document.getElementById('nav-solicitacoes-count');
+  if (!badge) return;
+  if (perfilLogado?.perfil !== 'entrevistador') { badge.style.display = 'none'; return; }
+  const meuUid  = usuarioLogado?.uid;
+  const meuNome = perfilLogado?.nome || '';
+  let n = 0;
+  todosdomicilios.forEach(d => {
+    (d.solicitacoes || []).forEach(s => {
+      if (s.resolvido) return;
+      const minha = s.criado_por_uid ? s.criado_por_uid === meuUid : nomesCorrespondem(s.criado_por_nome || '', meuNome);
+      if (minha) n++;
+    });
+  });
   badge.textContent = n;
   badge.style.display = n > 0 ? '' : 'none';
 }
@@ -6206,6 +6450,14 @@ const SOL_LABELS = {
 const SOL_TIPOS_CARTA      = ['carta_abertura', 'carta_retorno', 'carta_recusa'];
 const SOL_TIPOS_SUPERVISOR = ['correcao_questionario', 'comunicar_dmc', 'contato_informante', 'mais_empenho', 'verificar_status'];
 
+// Etapas de atendimento de uma solicitação pela supervisão
+const ETAPA_SOL = {
+  pendente:     { label: 'Pendente',     cor: '#6b7280', bg: '#eef0f2' },
+  aceita:       { label: 'Aceita',       cor: '#2563a8', bg: '#e8f0fb' },
+  em_andamento: { label: 'Em andamento', cor: '#b45309', bg: '#fef3c7' },
+  pronta:       { label: 'Pronta',       cor: '#15803d', bg: '#dcfce7' },
+};
+
 let tipoSolicitacaoSelecionado   = null;
 let statusSolicitacaoSelecionado = null;
 
@@ -6225,14 +6477,29 @@ function renderizarSolicitacoesExistentes(domId) {
   if (!container || !lista) return;
   if (sols.length === 0) { container.style.display = 'none'; return; }
   container.style.display = '';
+  const podeGerirEtapa = ['supervisor', 'administrador'].includes(perfilLogado?.perfil);
   lista.innerHTML = sols.map(s => {
     let detalhes = '';
     if (s.morador_carta)      detalhes += `<span style="color:var(--cinza)"> · ${esc(s.morador_carta)}</span>`;
     if (s.nome_informante)    detalhes += `<div style="font-size:0.75rem;color:var(--cinza)">👤 ${esc(s.nome_informante)}${s.telefone_informante ? ' · 📞 ' + esc(s.telefone_informante) : ''}</div>`;
     if (s.obs)                detalhes += `<div style="font-size:0.75rem;color:var(--cinza);margin-top:2px">${esc(s.obs)}</div>`;
+    const etapa = s.etapa || 'pendente';
+    const etapaInfo = ETAPA_SOL[etapa] || ETAPA_SOL.pendente;
+    const etapaBadge = `<span style="font-size:0.68rem;font-weight:700;color:${etapaInfo.cor};background:${etapaInfo.bg};border-radius:8px;padding:1px 7px;margin-left:6px">${etapaInfo.label}</span>`;
+    const botoesEtapa = podeGerirEtapa
+      ? `<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">
+          ${['aceita', 'em_andamento', 'pronta'].map(et => `
+            <button onclick="atualizarEtapaSolicitacao('${domId}','${s.id}','${et}')"
+              style="font-size:0.7rem;font-weight:600;border-radius:5px;padding:2px 7px;cursor:pointer;
+                border:1.5px solid ${etapa === et ? ETAPA_SOL[et].cor : 'var(--borda)'};
+                background:${etapa === et ? ETAPA_SOL[et].bg : '#fff'};
+                color:${etapa === et ? ETAPA_SOL[et].cor : 'var(--cinza)'}">${ETAPA_SOL[et].label}</button>
+          `).join('')}
+        </div>`
+      : '';
     return `<div style="display:flex;align-items:flex-start;gap:0.5rem;padding:0.5rem 0.75rem;background:var(--cinza-claro);border-radius:6px;margin-bottom:0.4rem">
       <div style="flex:1;font-size:0.83rem">
-        <span style="font-weight:700">${SOL_LABELS[s.tipo] || s.tipo}</span>${detalhes}
+        <span style="font-weight:700">${SOL_LABELS[s.tipo] || s.tipo}</span>${etapaBadge}${detalhes}${botoesEtapa}
       </div>
       <button onclick="excluirSolicitar('${domId}','${s.id}')" title="Marcar como resolvida"
         style="flex-shrink:0;background:var(--verde);color:#fff;border:none;border-radius:4px;padding:0.2rem 0.6rem;cursor:pointer;font-size:0.8rem;font-weight:700;line-height:1.4">✓</button>
@@ -6401,7 +6668,9 @@ window.salvarSolicitar = async () => {
       telefone_informante: telefoneInformante,
       obs:                 obs,
       criado_em_ts:        Date.now(),
-      criado_por_nome:     usuarioLogado.nome || usuarioLogado.email || '',
+      criado_por_nome:     perfilLogado?.nome || usuarioLogado.email || '',
+      criado_por_uid:      usuarioLogado.uid,
+      etapa:               'pendente',
     };
     // Preserva o status original antes de ser sobreposto pela solicitação
     const solsAtivasAntes = (domAtual?.solicitacoes || []).filter(s => !s.resolvido);
@@ -6471,6 +6740,29 @@ window.excluirSolicitar = async (domId, solId) => {
   }
 };
 
+// Supervisor/administrador sinaliza o andamento de uma solicitação para o entrevistador que a abriu.
+window.atualizarEtapaSolicitacao = async (domId, solId, etapa) => {
+  const domAtual = todosdomicilios.find(d => d.id === domId);
+  if (!domAtual) return;
+  const novasSols = (domAtual.solicitacoes || []).map(s =>
+    s.id === solId
+      ? { ...s, etapa, etapa_atualizada_em: Date.now(), etapa_atualizada_por: perfilLogado?.nome || usuarioLogado.email || '' }
+      : s
+  );
+  try {
+    await updateDoc(doc(db, 'domicilios', domId), { solicitacoes: novasSols });
+    domAtual.solicitacoes = novasSols;
+    renderizarSolicitacoesExistentes(domId);
+    if (typeof domicilioAtualId !== 'undefined' && domicilioAtualId === domId)
+      renderizarHistoricoSolicitacoesFicha(domId);
+    _atualizarContadorSolicitacoes();
+    mostrarToast(`Solicitação marcada como "${ETAPA_SOL[etapa]?.label || etapa}"`, 'sucesso');
+  } catch(e) {
+    mostrarToast('Erro ao atualizar etapa da solicitação', 'erro');
+    console.error(e);
+  }
+};
+
 function renderizarHistoricoSolicitacoesFicha(domId) {
   const div = document.getElementById('historico-solicitacoes-ficha');
   if (!div) return;
@@ -6480,6 +6772,7 @@ function renderizarHistoricoSolicitacoesFicha(domId) {
     div.innerHTML = '<div class="vazio" style="padding:1.25rem"><div class="icone-vazio">📋</div>Nenhuma solicitação registrada para este domicílio.</div>';
     return;
   }
+  const podeGerirEtapa = ['supervisor', 'administrador'].includes(perfilLogado?.perfil);
   div.innerHTML = sols.map(s => {
     const ativa = !s.resolvido;
     const dataCriacao = s.criado_em_ts ? new Date(s.criado_em_ts).toLocaleDateString('pt-BR') : '—';
@@ -6490,15 +6783,32 @@ function renderizarHistoricoSolicitacoesFicha(domId) {
     const resolvidoInfo = (s.resolvido && s.resolvido_em)
       ? `<div style="font-size:0.73rem;color:var(--verde);margin-top:4px">✅ Resolvida em ${new Date(s.resolvido_em).toLocaleDateString('pt-BR')}${s.resolvido_por ? ' por ' + esc(s.resolvido_por) : ''}</div>`
       : '';
+    const etapa = s.etapa || 'pendente';
+    const etapaInfo = ETAPA_SOL[etapa] || ETAPA_SOL.pendente;
+    const etapaBadge = ativa
+      ? `<span style="font-size:0.68rem;font-weight:700;color:${etapaInfo.cor};background:${etapaInfo.bg};border-radius:8px;padding:1px 7px">${etapaInfo.label}</span>`
+      : '';
+    const botoesEtapa = (ativa && podeGerirEtapa)
+      ? `<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">
+          ${['aceita', 'em_andamento', 'pronta'].map(et => `
+            <button onclick="atualizarEtapaSolicitacao('${domId}','${s.id}','${et}')"
+              style="font-size:0.7rem;font-weight:600;border-radius:5px;padding:2px 7px;cursor:pointer;
+                border:1.5px solid ${etapa === et ? ETAPA_SOL[et].cor : 'var(--borda)'};
+                background:${etapa === et ? ETAPA_SOL[et].bg : '#fff'};
+                color:${etapa === et ? ETAPA_SOL[et].cor : 'var(--cinza)'}">${ETAPA_SOL[et].label}</button>
+          `).join('')}
+        </div>`
+      : '';
     return `<div style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.65rem 0.85rem;border-radius:8px;margin-bottom:0.5rem;
         background:${ativa ? 'var(--azul-claro)' : 'var(--cinza-claro)'};border:1px solid ${ativa ? 'var(--azul-medio)' : 'var(--borda)'}">
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
           <span style="font-size:0.85rem;font-weight:700;color:${ativa ? 'var(--azul)' : 'var(--cinza)'}">${SOL_LABELS[s.tipo] || s.tipo}</span>
           <span class="badge ${ativa ? 'badge-azul' : 'badge-cinza'}" style="font-size:0.68rem">${ativa ? 'Ativa' : 'Resolvida'}</span>
+          ${etapaBadge}
           <span style="font-size:0.72rem;color:var(--cinza);margin-left:auto">${dataCriacao}${s.criado_por_nome ? ' · ' + esc(s.criado_por_nome) : ''}</span>
         </div>
-        ${detalhes}${resolvidoInfo}
+        ${detalhes}${resolvidoInfo}${botoesEtapa}
       </div>
     </div>`;
   }).join('');
@@ -9067,6 +9377,19 @@ window.importarKML = (input) => {
   reader.readAsText(file, 'UTF-8');
 };
 
+// Maior estágio entre as solicitações ativas (não resolvidas) de um domicílio, ou null se não houver.
+const _ETAPA_SOL_ORDEM = ['pendente', 'aceita', 'em_andamento', 'pronta'];
+function _etapaAtivaDomicilio(d) {
+  const ativas = (d?.solicitacoes || []).filter(s => !s.resolvido);
+  if (ativas.length === 0) return null;
+  let melhor = 'pendente';
+  ativas.forEach(s => {
+    const et = s.etapa || 'pendente';
+    if (_ETAPA_SOL_ORDEM.indexOf(et) > _ETAPA_SOL_ORDEM.indexOf(melhor)) melhor = et;
+  });
+  return melhor;
+}
+
 async function renderizarMapaSetores() {
   const mapaDiv = document.getElementById('mapa-setores');
   if (!mapaDiv) return;
@@ -9087,7 +9410,8 @@ async function renderizarMapaSetores() {
           lat: d.lat, lng: d.lng, dom: d.dom,
           logradouro: d.logradouro, numero: d.numero, complemento: d.complemento,
           cor: corEntrevistador(domObj?.entrevistador_nome || ''),
-          entrevistador: domObj?.entrevistador_nome || ''
+          entrevistador: domObj?.entrevistador_nome || '',
+          etapaSolicitacao: _etapaAtivaDomicilio(domObj),
         });
       });
     });
@@ -9103,7 +9427,8 @@ async function renderizarMapaSetores() {
         lat: parseFloat(d.latitude_kml), lng: parseFloat(d.longitude_kml),
         dom: d.domicilio_num, logradouro: d.endereco || '', numero: '', complemento: d.complemento || '',
         cor: corEntrevistador(d.entrevistador_nome || ''),
-        entrevistador: d.entrevistador_nome || ''
+        entrevistador: d.entrevistador_nome || '',
+        etapaSolicitacao: _etapaAtivaDomicilio(d),
       });
     });
   }
@@ -9176,12 +9501,17 @@ function iniciarMapaSetores(pins) {
   const pinsComOffset = offsetEspiral(pins);
 
   pinsComOffset.forEach(d => {
+    const etapaInfo = d.etapaSolicitacao ? ETAPA_SOL[d.etapaSolicitacao] : null;
+    const borda = etapaInfo ? etapaInfo.cor : 'white';
+    const flag = etapaInfo
+      ? '<div style="position:absolute;top:-5px;right:-5px;background:' + etapaInfo.cor + ';color:#fff;border:1.5px solid #fff;border-radius:50%;width:15px;height:15px;display:flex;align-items:center;justify-content:center;font-size:9px;line-height:1">🚩</div>'
+      : '';
     const icon = window.L.divIcon({
-      html: '<div style="background:' + d.cor + ';color:white;border:2px solid white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;box-shadow:0 2px 4px rgba(0,0,0,0.4)">' + d.dom + '</div>',
+      html: '<div style="position:relative"><div style="background:' + d.cor + ';color:white;border:2px solid ' + borda + ';border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;box-shadow:0 2px 4px rgba(0,0,0,0.4)">' + d.dom + '</div>' + flag + '</div>',
       className: '', iconSize: [28, 28], iconAnchor: [14, 14]
     });
     const marker = window.L.marker([d.lat, d.lng], { icon }).addTo(_mapaSetoresInstance);
-    marker.bindPopup('<strong>Dom. ' + d.dom + '</strong><br>' + (d.logradouro||'') + ' ' + (d.numero||'') + '<br>' + (d.complemento||'') + (d.entrevistador ? '<br><small>' + d.entrevistador + '</small>' : ''));
+    marker.bindPopup('<strong>Dom. ' + d.dom + '</strong><br>' + (d.logradouro||'') + ' ' + (d.numero||'') + '<br>' + (d.complemento||'') + (d.entrevistador ? '<br><small>' + d.entrevistador + '</small>' : '') + (etapaInfo ? '<br><span style="color:' + etapaInfo.cor + ';font-weight:700">📋 Solicitação: ' + etapaInfo.label + '</span>' : ''));
     bounds.push([d.lat, d.lng]);
   });
 
