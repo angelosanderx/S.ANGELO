@@ -5876,6 +5876,9 @@ window.abrirFicha = (id, origem = '') => {
           if (tabBtn) cnefeMudarAba('qualidade', tabBtn);
         });
       };
+    } else if (origem === 'solicitacoes') {
+      btnVoltar.textContent = '← Voltar para Solicitações';
+      btnVoltar.onclick = () => irPara('visitas');
     } else {
       btnVoltar.textContent = '← Voltar';
       btnVoltar.onclick = () => irPara('domicilios');
@@ -6883,7 +6886,8 @@ function renderizarPainelSolicitacoes() {
           ${etapaBadge}
           <span style="font-size:0.72rem;color:var(--cinza);margin-left:auto;white-space:nowrap">${dataCriacao}${sol.criado_por_nome ? ' · ' + esc(sol.criado_por_nome) : ''}</span>
         </div>
-        <div style="font-size:0.78rem;color:var(--cinza);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 ${esc(dom.endereco || '—')}</div>
+        <button onclick="abrirFicha('${dom.id}','solicitacoes')" title="Abrir ficha do domicílio"
+          style="display:block;text-align:left;background:none;border:none;padding:0;cursor:pointer;font-size:0.78rem;color:var(--azul);font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-decoration:underline">📍 ${esc(dom.endereco || '—')}</button>
         ${sol.obs ? `<div style="font-size:0.78rem;color:var(--cinza);margin-top:2px">${esc(sol.obs)}</div>` : ''}
         ${botoesEtapa ? `<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">${botoesEtapa}</div>` : ''}
       </div>
@@ -6967,7 +6971,7 @@ async function carregarVisitas() {
         <td style="white-space:nowrap;font-size:0.82rem">${data}</td>
         <td style="font-size:0.82rem">${
           dom
-            ? `<button onclick="abrirFicha('${v.domicilio_id}')" style="font-weight:700;color:var(--azul);background:#eef2ff;border:none;border-radius:5px;padding:1px 6px;cursor:pointer;font-family:var(--fonte);font-size:0.82rem;text-align:left" title="Abrir ficha">${domLabel}</button>`
+            ? `<button onclick="abrirFicha('${v.domicilio_id}','solicitacoes')" style="font-weight:700;color:var(--azul);background:#eef2ff;border:none;border-radius:5px;padding:1px 6px;cursor:pointer;font-family:var(--fonte);font-size:0.82rem;text-align:left" title="Abrir ficha">${domLabel}</button>`
             : domLabel
         }</td>
         <td>${badgeStatus(v.status)}</td>
