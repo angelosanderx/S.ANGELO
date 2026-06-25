@@ -6959,9 +6959,17 @@ async function carregarVisitas() {
     let html = '<table><thead><tr><th>Data</th><th>Domicílio</th><th>Status</th><th>Obs.</th></tr></thead><tbody>';
     for (const v of visitas) {
       const data = v.data_visita?.toDate?.()?.toLocaleDateString('pt-BR') || '—';
+      const dom = todosdomicilios.find(td => td.id === v.domicilio_id);
+      const domLabel = dom
+        ? `Dom.${dom.domicilio_num || dom.numero_sequencial || '-'}${dom.endereco_custom || dom.endereco ? ' · ' + esc(dom.endereco_custom || dom.endereco) : ''}`
+        : v.domicilio_id.substring(0,8) + '...';
       html += `<tr>
         <td style="white-space:nowrap;font-size:0.82rem">${data}</td>
-        <td style="font-size:0.82rem">${v.domicilio_id.substring(0,8)}...</td>
+        <td style="font-size:0.82rem">${
+          dom
+            ? `<button onclick="abrirFicha('${v.domicilio_id}')" style="font-weight:700;color:var(--azul);background:#eef2ff;border:none;border-radius:5px;padding:1px 6px;cursor:pointer;font-family:var(--fonte);font-size:0.82rem;text-align:left" title="Abrir ficha">${domLabel}</button>`
+            : domLabel
+        }</td>
         <td>${badgeStatus(v.status)}</td>
         <td style="font-size:0.82rem;color:var(--cinza)">${v.observacao || '—'}</td>
       </tr>`;
