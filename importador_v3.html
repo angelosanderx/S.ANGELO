@@ -407,17 +407,54 @@ function parseCSV(text) {
   const linhas = text.trim().split('\n');
   if (linhas.length < 2) throw new Error('Arquivo vazio');
   const sep = linhas[0].includes(';') ? ';' : ',';
-  const cab = linhas[0].split(sep).map(c => c.trim().replace(/^"|"$/g, ''));
+  const cab = _splitCSVLine(linhas[0], sep).map(c => c.trim());
   return linhas.slice(1).map(linha => {
-    const cols = linha.split(sep);
+    const cols = _splitCSVLine(linha, sep);
     const obj = {};
-    cab.forEach((c, i) => obj[c] = (cols[i] || '').trim().replace(/^"|"$/g, ''));
+    cab.forEach((c, i) => obj[c] = (cols[i] || '').trim());
     return obj;
   }).filter(r => Object.values(r).some(v => v));
 }
 
+// Respeita campos entre aspas (RFC4180): o separador e aspas escapadas ("")
+// dentro de um campo citado não quebram a coluna, diferente de um split() ingênuo.
+function _splitCSVLine(linha, sep) {
+  const out = [];
+  let cur = '';
+  let dentroDeAspas = false;
+  for (let i = 0; i < linha.length; i++) {
+    const ch = linha[i];
+    if (dentroDeAspas) {
+      if (ch === '"') {
+        if (linha[i + 1] === '"') { cur += '"'; i++; }
+        else dentroDeAspas = false;
+      } else {
+        cur += ch;
+      }
+    } else if (ch === '"') {
+      dentroDeAspas = true;
+    } else if (ch === sep) {
+      out.push(cur);
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
 function chave(controle, dom) {
   return `${controle}_${dom}`;
+}
+// Repete a requisição com backoff exponencial só em caso de 429 (limite de taxa do
+// Firestore) — outros erros (rede, 4xx/5xx não relacionados a taxa) retornam direto.
+async function _fetchComRetry429(url, opts, maxRetries = 3) {
+  for (let tentativa = 0; tentativa <= maxRetries; tentativa++) {
+    const resp = await fetch(url, opts);
+    if (resp.status !== 429 || tentativa === maxRetries) return resp;
+    await new Promise(r => setTimeout(r, 500 * Math.pow(2, tentativa)));
+  }
 }
 function chaveSemLetra(controleComLetra, dom) {
   return `${controleComLetra.slice(0,-1)}_${dom}`;
@@ -548,12 +585,17 @@ function processarDados() {
   const trimestre = document.getElementById('cfg-trimestre').value;
   const periodo = document.getElementById('cfg-periodo').value;
   dadosProcessados = [];
+  let _linhasInvalidasPuladas = 0;
 
   dados.movimento.forEach(row => {
     const controleComLetra = row['Controle'];
-    const controleSemLetra = controleComLetra.slice(0, -1);
     const domNum = row['Domicilio'];
-    const keyEnd = `${controleSemLetra}_${domNum}`;
+    if (!controleComLetra || !String(controleComLetra).trim() || !domNum || !String(domNum).trim()) {
+      _linhasInvalidasPuladas++;
+      console.warn('[importador] Linha do Relatório de Movimento sem Controle/Domicílio válido, pulada:', row);
+      return;
+    }
+    const keyEnd = chaveSemLetra(controleComLetra, domNum);
     const keyTent = chave(controleComLetra, domNum);
     const keyEsp = chave(controleComLetra, domNum);
     const keyTel = chave(controleComLetra, domNum);
@@ -601,6 +643,10 @@ function processarDados() {
     // OBS: "entrevista" é gravada como STRING para casar com o formato usado
     // pelo index.html (Central SIGC / modal SIGC), que faz comparações de string.
     const etapaAtualNum = parseInt(row['Entr.']) || null;
+    // mes_ano (MM/AAAA) só é conhecido com confiança para a etapa atual deste CSV,
+    // derivado da data de "Última Posição" (formato DD/MM/AAAA do IBGE).
+    const dataRow = row['Data'] || '';
+    const mesAnoAtual = /^\d{2}\/\d{2}\/\d{4}$/.test(dataRow) ? dataRow.substring(3, 10) : '';
     const historicoEspecies = [];
     if (especies) {
       for (let i = 1; i <= 5; i++) {
@@ -609,7 +655,8 @@ function processarDados() {
           historicoEspecies.push({
             entrevista: String(i),
             resultado: val,
-            entrevistador: (i === etapaAtualNum && entrevistadorNome) ? entrevistadorNome : 'Não identificado'
+            entrevistador: (i === etapaAtualNum && entrevistadorNome) ? entrevistadorNome : 'Não identificado',
+            mes_ano: (i === etapaAtualNum) ? mesAnoAtual : ''
           });
         }
       }
@@ -713,6 +760,7 @@ function processarDados() {
     <div class="resumo-card vermelho"><div class="num">${etapa5}</div><div class="rot">Etapa 5 (saindo)</div></div>
     <div class="resumo-card"><div class="num">${comTentativas}</div><div class="rot">Dom. com tentativas</div></div>
     <div class="resumo-card"><div class="num">${comEntrevistador}</div><div class="rot">Dom. com entrevistador</div></div>
+    ${_linhasInvalidasPuladas > 0 ? `<div class="resumo-card vermelho"><div class="num">${_linhasInvalidasPuladas}</div><div class="rot">Linhas sem Controle/Domicílio (puladas)</div></div>` : ''}
   `;
 
   if (etapa5 > 0) {
@@ -797,17 +845,21 @@ async function importarFirestore() {
   };
 
   addLog(`Iniciando importação de ${dadosProcessados.length} domicílios...`, 'info');
-  let ok = 0, erros = 0;
+  let ok = 0, erros = 0, pulados = 0;
 
-  // ── Pré-busca de historico_especies existente (batchGet) ──────────────────
+  // ── Pré-busca de historico_especies + trimestre/etapa existentes (batchGet) ─
   // Lê todos os documentos que serão atualizados de uma vez, para poder mesclar
   // o histórico novo com o existente sem perder etapas de trimestres anteriores
-  // nem nomes de entrevistadores gravados pela planilha xlsx.
+  // nem nomes de entrevistadores gravados pela planilha xlsx, e também para
+  // detectar reimportação acidental de um trimestre/etapa mais antigo que o
+  // já salvo (evita sobrescrever dados mais novos com dados velhos).
   addLog('Lendo histórico existente no Firestore…', 'info');
   const _existingHistorico = {};
+  const _existingTrimEtapa = {};
   const _baseDocPath = `projects/${projectId}/databases/(default)/documents/domicilios/`;
   const _allDocIds = dadosProcessados.map(d => `${d.periodo}_${d.controle}_${d.domicilio_num}`);
   const _chunkSize = 200;
+  let _falhaPreLeitura = false;
   for (let c = 0; c < _allDocIds.length; c += _chunkSize) {
     const chunk = _allDocIds.slice(c, c + _chunkSize);
     try {
@@ -821,21 +873,43 @@ async function importarFirestore() {
         for (const item of items) {
           if (!item.found) continue;
           const docId = item.found.name.split('/').pop();
-          const fld = (item.found.fields || {}).historico_especies;
+          const f = item.found.fields || {};
+          const fld = f.historico_especies;
           if (fld && fld.arrayValue && fld.arrayValue.values) {
             _existingHistorico[docId] = fld.arrayValue.values.map(v => {
-              const f = v.mapValue?.fields || {};
+              const ff = v.mapValue?.fields || {};
               return {
-                entrevista:    f.entrevista?.stringValue    || '',
-                resultado:     f.resultado?.stringValue     || '',
-                entrevistador: f.entrevistador?.stringValue || '',
-                mes_ano:       f.mes_ano?.stringValue       || '',
+                entrevista:    ff.entrevista?.stringValue    || '',
+                resultado:     ff.resultado?.stringValue     || '',
+                entrevistador: ff.entrevistador?.stringValue || '',
+                mes_ano:       ff.mes_ano?.stringValue       || '',
               };
             });
           }
+          _existingTrimEtapa[docId] = {
+            trimestre:    f.trimestre?.stringValue    || '',
+            visita_etapa: f.visita_etapa?.stringValue || '',
+          };
         }
+      } else {
+        _falhaPreLeitura = true;
       }
-    } catch(_e) { /* continua mesmo sem pré-leitura */ }
+    } catch(_e) { _falhaPreLeitura = true; }
+  }
+  if (_falhaPreLeitura) {
+    addLog('⚠ Falha ao buscar dados existentes em algum lote — histórico de espécies pode não ser mesclado corretamente e a proteção contra trimestre antigo pode não valer para esses domicílios.', 'warn');
+  }
+
+  // Um trimestre é "regressivo" se for anterior ao já salvo (string 'AAAATQ' compara
+  // lexicograficamente de forma correta), ou se for o mesmo trimestre mas com uma
+  // etapa de visita menor que a já registrada.
+  function _ehRegressao(existente, novo) {
+    if (!existente || !existente.trimestre || !novo.trimestre) return false;
+    if (existente.trimestre > novo.trimestre) return true;
+    if (existente.trimestre === novo.trimestre) {
+      return (parseInt(existente.visita_etapa) || 0) > (parseInt(novo.visita_etapa) || 0);
+    }
+    return false;
   }
 
   // Mescla historico_especies novo com existente:
@@ -866,6 +940,15 @@ async function importarFirestore() {
     const d = dadosProcessados[i];
     const docId = `${d.periodo}_${d.controle}_${d.domicilio_num}`;
     const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/domicilios/${docId}`;
+
+    if (_ehRegressao(_existingTrimEtapa[docId], d)) {
+      pulados++;
+      const ex = _existingTrimEtapa[docId];
+      addLog(`⏭ ${docId}: pulado — já existe trimestre/etapa mais recente salvo (${ex.trimestre || '—'}/etapa ${ex.visita_etapa || '—'} é mais novo que ${d.trimestre || '—'}/etapa ${d.visita_etapa || '—'} deste CSV)`, 'warn');
+      fill.style.width = `${Math.round((i+1)/dadosProcessados.length*100)}%`;
+      progTexto.textContent = `${i+1} de ${dadosProcessados.length} — ${Math.round((i+1)/dadosProcessados.length*100)}%`;
+      continue;
+    }
 
     const toStr = v => ({ stringValue: String(v || '') });
     const toInt = v => ({ integerValue: parseInt(v) || 0 });
@@ -922,7 +1005,7 @@ async function importarFirestore() {
     const maskQuery = maskFields.map(f => `updateMask.fieldPaths=${encodeURIComponent(f)}`).join('&');
 
     try {
-      const resp = await fetch(`${url}?${maskQuery}`, {
+      const resp = await _fetchComRetry429(`${url}?${maskQuery}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ fields })
@@ -948,9 +1031,9 @@ async function importarFirestore() {
     await new Promise(r => setTimeout(r, 40));
   }
 
-  addLog(`\n✅ Concluído! ${ok} importados, ${erros} erros.`, erros === 0 ? 'ok' : 'warn');
+  addLog(`\n✅ Concluído! ${ok} importados, ${erros} erros, ${pulados} pulado(s) por trimestre/etapa mais antigo.`, erros === 0 ? 'ok' : 'warn');
   addLog(`📌 Período: ${LABELS_PERIODO[document.getElementById('cfg-periodo').value] || document.getElementById('cfg-periodo').value}`, 'info');
-  progTexto.textContent = `Concluído — ${ok} importados, ${erros} erros`;
+  progTexto.textContent = `Concluído — ${ok} importados, ${erros} erros, ${pulados} pulados`;
 
   if (erros === 0) {
     addLog('Todos os registros foram salvos com sucesso!', 'ok');
