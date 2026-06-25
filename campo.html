@@ -753,7 +753,6 @@ let statusSel  = null;
 let solSel     = null;
 let mySectors  = [];     // [{ upa, localidade, doms[], _dist? }]
 let abaAtual     = 'setores';
-let mapaGeral    = false;
 let domParaAbrir = null;
 let avisosUnsub  = null;
 let ultimosAvisos = [];
@@ -788,6 +787,15 @@ const CORES_ENTREVISTADORES = {
   'PAULO':                               '#1D4ED8',
 };
 
+// Compara nomes de entrevistador ignorando caixa, acentos e espaços extras —
+// evita que uma pequena diferença de formatação entre o cadastro em "usuarios"
+// e o campo gravado em "domicilios" faça o app tratar como "outro entrevistador".
+function _normNome(nome) {
+  return (nome || '').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ');
+}
+function mesmoNome(a, b) {
+  return !!a && !!b && _normNome(a) === _normNome(b);
+}
 function corEntrevistador(nome) {
   if (!nome) return '#94A3B8';
   const n = nome.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
@@ -1049,11 +1057,9 @@ function _buildCronGridReadOnly() {
 }
 
 // Três estados de visita
-const STATUS_PENDENTES = new Set(['nao_visitado','ausente','fechado','recusa','agendado']);
 function estadoDom(s) {
   if (s === 'realizada')                          return 'realizada';
   if (s === 'carta_solicitada' || s === 'supervisao') return 'andamento';
-  if (STATUS_PENDENTES.has(s || 'nao_visitado')) return 'pendente';
   return 'pendente';
 }
 
@@ -1164,6 +1170,7 @@ window.trocarUsuario = async () => {
   usuarioNome = '';
   if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
   if (unsub) { unsub(); unsub = null; }
+  if (avisosUnsub) { avisosUnsub(); avisosUnsub = null; }
   await mostrarPickerUsuario();
 };
 
@@ -1267,7 +1274,17 @@ window.baixarMapaOffline = () => {
       _offlineTileLayer.off('saveend', onSaveEnd);
     }
   };
-  _offlineSaveControl._saveTiles();
+  try {
+    _offlineSaveControl._saveTiles();
+  } catch(e) {
+    console.error('[mapa offline] falha ao iniciar download', e);
+    toast('Erro ao iniciar download do mapa offline', 'erro');
+    clearInterval(checadorParado);
+    _offlineTileLayer.off('loadtileend', onLoadTile);
+    _offlineTileLayer.off('savetileend', onSaveTile);
+    _offlineTileLayer.off('saveend', onSaveEnd);
+    if (btn) { btn.disabled = false; btn.textContent = '📥 Baixar mapa offline'; }
+  }
 };
 
 window.limparMapaOffline = async () => {
@@ -1549,7 +1566,6 @@ window.selecionarSetor = async upa => {
 };
 
 window.abrirMapaGeral = async () => {
-  mapaGeral = true;
   const todosOsMeus = mySectors.flatMap(s => s.doms);
   if (!todosOsMeus.length) { toast('Nenhum domicílio carregado', 'erro'); return; }
   mostrarTela('tela-mapa');
@@ -1560,6 +1576,7 @@ window.abrirMapaGeral = async () => {
   const L = await Lp;
   if (mapaInst) { try { mapaInst.remove(); } catch(_){} mapaInst = null; }
   layers = { contorno: null, faces: null, doms: null, gps: null };
+  if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
   gpsMarker = null; gpsCircle = null;
   mapaInst = L.map($('mapa'), { zoomControl: false, attributionControl: false });
   await _criarCamadaMapaOffline(L, mapaInst);
@@ -1704,7 +1721,7 @@ function renderSolicitacoes() {
     const tipo = SOL_TIPOS.find(t => t.id === sol.tipo);
     const end  = dom.endereco || dom.logradouro_kml || '';
     const isSuper = tipo?.status === 'supervisao';
-    const daSup   = sol.criado_por_nome && sol.criado_por_nome !== usuarioNome;
+    const daSup   = sol.criado_por_nome && !mesmoNome(sol.criado_por_nome, usuarioNome);
     return `<div class="sol-list-card${isSuper?' supervisao':tipo?.status==='carta_solicitada'?' carta':''}"
       onclick="abrirDomPendente('${dom.id}','${upa}')">
       <div class="sol-list-cabec">
@@ -1732,11 +1749,11 @@ window.voltarSetores = () => {
   gpsMarker = null; gpsCircle = null;
   fecharTudo();
   // Reset state
-  mapaGeral = false; domParaAbrir = null;
+  domParaAbrir = null;
   $('set-titulo').textContent = ['supervisor','administrador'].includes(usuarioPerfil) ? 'Todos os setores' : 'Meus setores';
   // Restore tab
   abaAtual = 'setores';
-  ['setores','pendencias','solicitacoes','avisos'].forEach(t => {
+  ['setores','pendencias','solicitacoes','avisos','cronograma'].forEach(t => {
     $('tab-'+t)?.classList.toggle('ativo', t === 'setores');
     $('lista-'+t)?.classList.toggle('hidden', t !== 'setores');
   });
@@ -1756,6 +1773,7 @@ async function abrirSetor(upa, domsIniciais) {
   const L = await Lp;
   if (mapaInst) { try { mapaInst.remove(); } catch(_){} mapaInst = null; }
   layers = { contorno: null, faces: null, doms: null, gps: null };
+  if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
   gpsMarker = null; gpsCircle = null;
 
   const mapaDiv = $('mapa');
@@ -1824,7 +1842,7 @@ async function carregarKML(upa, L) {
 
 /* ── MARCADORES ───────────────────────────────────────── */
 function ehMeuPendente(d) {
-  if (d.entrevistador_nome !== usuarioNome) return false;
+  if (!mesmoNome(d.entrevistador_nome, usuarioNome)) return false;
   const pendente = ['nao_visitado','ausente','agendado','carta_solicitada','supervisao'].includes(d.status_atual||'nao_visitado')
     || (d.solicitacoes||[]).some(x => !x.resolvido);
   return pendente;
@@ -1853,7 +1871,7 @@ function renderDoms(L) {
     const num       = d.domicilio_num || '?';
     const est       = estadoDom(d.status_atual);
     const temSolAtiva = (d.solicitacoes||[]).some(x => !x.resolvido);
-    const temSuperAlert = temSolAtiva && (d.solicitacoes||[]).some(x => !x.resolvido && x.criado_por_nome && x.criado_por_nome !== usuarioNome);
+    const temSuperAlert = temSolAtiva && (d.solicitacoes||[]).some(x => !x.resolvido && x.criado_por_nome && !mesmoNome(x.criado_por_nome, usuarioNome));
     const emAndamento = est === 'andamento' || temSolAtiva;
     const check = est === 'realizada' ? '✓' : emAndamento ? '…' : '';
     const borda = est === 'realizada' ? '#15803d' : emAndamento ? '#f97316' : '#fff';
@@ -1897,7 +1915,7 @@ function atualizarStats() {
   const pend = domicilios.filter(d => (['nao_visitado','ausente','agendado','carta_solicitada','supervisao'].includes(d.status_atual||'nao_visitado') || (d.solicitacoes||[]).some(x=>!x.resolvido))).length;
   $('topbar-stats').textContent = `${real}/${tot} · ${pend} pend.`;
   const superCnt = domicilios.filter(d =>
-    (d.solicitacoes||[]).some(x => !x.resolvido && x.criado_por_nome && x.criado_por_nome !== usuarioNome)
+    (d.solicitacoes||[]).some(x => !x.resolvido && x.criado_por_nome && !mesmoNome(x.criado_por_nome, usuarioNome))
   ).length;
   const badge = $('topbar-super-badge');
   if (badge) {
@@ -1964,7 +1982,7 @@ function abrirBS(d) {
   pill.textContent = lblS(s);
   pill.style.cssText = `background:${corS(s)}22;color:${corS(s)};border:1px solid ${corS(s)}55`;
   // Solicitations from others (supervisor notes)
-  const solsSuper = (d.solicitacoes||[]).filter(x => !x.resolvido && x.criado_por_nome && x.criado_por_nome !== usuarioNome);
+  const solsSuper = (d.solicitacoes||[]).filter(x => !x.resolvido && x.criado_por_nome && !mesmoNome(x.criado_por_nome, usuarioNome));
   const alertEl = $('bs-super-alerta');
   if (solsSuper.length) {
     $('bs-super-conteudo').innerHTML = solsSuper.map(x => {
