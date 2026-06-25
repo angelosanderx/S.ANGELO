@@ -60,12 +60,6 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .sc-barra{height:4px;border-radius:2px;background:#e2e8f0;margin-top:6px;overflow:hidden}
 .sc-barra-fill{height:100%;border-radius:2px;background:var(--verde);transition:width .3s}
 .sc-check{position:absolute;top:.75rem;right:.85rem;font-size:1.3rem;line-height:1}
-.sc-offline-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:8px;padding-top:7px;border-top:1px solid var(--borda)}
-.sc-offline-status{font-size:.68rem;color:var(--cinza)}
-.sc-offline-status.atualizado{color:var(--verde);font-weight:600}
-.sc-offline-btn{background:#eff6ff;color:var(--azul-med);border:1px solid #bfdbfe;border-radius:8px;padding:4px 10px;font-size:.68rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
-.sc-offline-btn:active{background:#dbeafe}
-.sc-offline-btn:disabled{opacity:.6;pointer-events:none}
 .setor-card{position:relative}
 .setor-card.concluido{border-color:#bbf7d0;background:#f0fdf4}
 /* WEEK GROUPS */
@@ -74,6 +68,9 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .sem-titulo::after{content:'';flex:1;height:1px;background:var(--borda)}
 /* VER TODOS TOGGLE */
 .set-toggle{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:.74rem;font-weight:700;padding:4px 12px;border-radius:12px;cursor:pointer;font-family:inherit;transition:background .12s}
+.set-toggle.offline-global{display:block;width:fit-content;margin-top:8px}
+.set-toggle.offline-global.offline-ok{background:#22c55e;border-color:#22c55e}
+.set-toggle.offline-global:disabled{opacity:.7;pointer-events:none}
 .set-toggle.ativo{background:rgba(255,255,255,.3)}
 /* TABS */
 .set-tabs{display:flex;background:var(--azul);padding:0 1rem .7rem;gap:5px}
@@ -527,6 +524,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
         <button onclick="trocarUsuario()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:.75rem;padding:4px 10px;border-radius:12px;cursor:pointer;font-family:inherit">Trocar</button>
       </div>
     </div>
+    <button class="set-toggle offline-global" id="btn-baixar-tudo" onclick="baixarTudoOffline()">📥 Baixar tudo offline</button>
     <p id="set-sub">Selecione o setor que vai trabalhar hoje</p>
   </div>
   <div class="set-tabs">
@@ -1507,6 +1505,7 @@ async function carregarSetores() {
 
     mySectors = Object.values(upaMap).map(s => ({ ...s, localidade: locs[s.upa] || '' }));
     atualizarBadgeSols();
+    _atualizarBotaoOfflineGlobal();
 
     // GPS
     const pos = await obterGPS().catch(() => null);
@@ -1634,51 +1633,63 @@ function _semanaDo(s) {
   return Object.entries(freq).sort((a,b)=>b[1]-a[1])[0]?.[0] || '?';
 }
 
-/* ── Download por setor para uso offline ─────────────────
-   "Baixa" um setor = força a leitura (e o cache local automático do Firestore)
-   de tudo que as telas desse setor usam: domicílios, moradores, roteiro (CNEFE)
-   e contorno/pontos KML. Depois disso, abrir o mesmo setor sem conexão usa os
-   dados já salvos localmente em vez de falhar. */
-function _htmlStatusOffline(upa) {
-  const ts = parseInt(localStorage.getItem('campo_setor_offline_' + upa));
-  if (!ts) return `<span class="sc-offline-status" id="sc-off-${upa}">📥 Nunca baixado</span>`;
-  const diffMin = Math.max(0, Math.round((Date.now() - ts) / 60000));
-  let txt;
-  if (diffMin < 1)        txt = 'agora mesmo';
-  else if (diffMin < 60)  txt = `há ${diffMin} min`;
-  else if (diffMin < 1440) txt = `há ${Math.round(diffMin / 60)}h`;
-  else                    txt = `há ${Math.round(diffMin / 1440)}d`;
-  return `<span class="sc-offline-status atualizado" id="sc-off-${upa}">✅ Atualizado ${txt}</span>`;
+/* ── Download global para uso offline ────────────────────
+   Um único botão na tela inicial baixa de uma vez: domicílios, moradores,
+   roteiro (CNEFE) e contorno/pontos KML de TODOS os setores visíveis
+   (aquecendo o cache nativo do Firestore, usado pelo mapa/ficha individual)
+   e, com os mesmos dados de moradores/roteiro já buscados, monta e salva o
+   pacote da tela de Fichas — sem buscar a mesma coisa duas vezes. */
+function _setoresAtuais() {
+  return [...new Set(mySectors.map(s => s.upa))];
 }
 
-async function _prefetchSetorOffline(upa) {
-  const snap = await getDocs(query(collection(db, 'domicilios'), where('upa', '==', upa)));
-  const doms = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  await Promise.all([
-    ...doms.map(d => getDocs(collection(db, 'domicilios', d.id, 'moradores')).catch(() => null)),
-    getDoc(doc(db, 'enderecos_setor', upa)).catch(() => null),
-    getDocs(query(collection(db, 'cnefe_kml'), where('setor', '==', upa))).catch(() => null),
-  ]);
+function _setorEstaBaixado(upa) {
+  try {
+    const status = JSON.parse(localStorage.getItem('campo_offline_status') || 'null');
+    return !!status?.upas?.includes(upa);
+  } catch(e) { return false; }
 }
 
-window.baixarSetorOffline = async (ev, upa) => {
-  ev.stopPropagation();
-  const btn = ev.currentTarget;
-  const txtOriginal = btn.textContent;
+function _offlineEstaCompleto() {
+  const atuais = _setoresAtuais();
+  return atuais.length > 0 && atuais.every(_setorEstaBaixado);
+}
+
+function _atualizarBotaoOfflineGlobal() {
+  const btn = $('btn-baixar-tudo');
+  if (!btn) return;
+  const completo = _offlineEstaCompleto();
+  btn.classList.toggle('offline-ok', completo);
+  btn.textContent = completo ? '✅ Tudo baixado' : '📥 Baixar tudo offline';
+}
+
+window.baixarTudoOffline = async () => {
+  if (!mySectors.length) { toast('Nenhum setor para baixar', 'erro'); return; }
+  const btn = $('btn-baixar-tudo');
+  const upas = _setoresAtuais();
+  const todosDoms = mySectors.flatMap(s => s.doms); // já em memória, sem nova leitura
   btn.disabled = true;
   btn.textContent = '⏳ Baixando…';
   try {
-    await _prefetchSetorOffline(upa);
-    localStorage.setItem('campo_setor_offline_' + upa, String(Date.now()));
-    toast(`Setor ${upa} salvo para uso offline`, 'ok');
+    // Busca moradores (por domicílio) e roteiro (por setor) uma única vez — os mesmos
+    // dados servem tanto para aquecer o cache do Firestore quanto para o pacote de Fichas.
+    await _carregarExtrasFichas(todosDoms);
+    // KML é só para o mapa, não entra nas Fichas — busca separada, 1 leitura por setor.
+    await Promise.all(upas.map(upa =>
+      getDocs(query(collection(db, 'cnefe_kml'), where('setor', '==', upa))).catch(() => null)
+    ));
+    localStorage.setItem('campo_offline_status', JSON.stringify({ ts: Date.now(), upas }));
+
+    const meusDoms = _meusDomsParaFichas();
+    if (meusDoms.length) _salvarFichasOffline(meusDoms, false);
+
+    toast('Tudo baixado para uso offline', 'ok');
   } catch(e) {
-    console.error('Falha ao baixar setor para offline', upa, e);
-    toast('Erro ao baixar setor para offline', 'erro');
+    console.error('Falha ao baixar tudo para offline', e);
+    toast('Erro ao baixar para offline', 'erro');
   } finally {
     btn.disabled = false;
-    btn.textContent = txtOriginal;
-    const statusEl = $('sc-off-' + upa);
-    if (statusEl) statusEl.outerHTML = _htmlStatusOffline(upa);
+    _atualizarBotaoOfflineGlobal();
   }
 };
 
@@ -1703,10 +1714,6 @@ function _htmlSetorCard(s) {
     <div class="sc-stats">${tot} domicílios · ${real} realizadas${pend>0?` · <strong style="color:var(--vermelho)">${pend} pend.</strong>`:' · <strong style="color:var(--verde)">sem pendências</strong>'}</div>
     ${entr}${dist ? `<div class="sc-dist">${dist}</div>` : ''}
     <div class="sc-barra"><div class="sc-barra-fill" style="width:${pct}%"></div></div>
-    <div class="sc-offline-row">
-      ${_htmlStatusOffline(s.upa)}
-      <button class="sc-offline-btn" onclick="baixarSetorOffline(event, '${s.upa}')">⬇️ Baixar offline</button>
-    </div>
   </div>`;
 }
 
@@ -1747,7 +1754,7 @@ function renderListaSetores(pos, setores) {
 }
 
 window.selecionarSetor = async upa => {
-  if (navigator.onLine === false && !localStorage.getItem('campo_setor_offline_' + upa)) {
+  if (navigator.onLine === false && !_setorEstaBaixado(upa)) {
     toast('Sem conexão e este setor não foi baixado antes — os dados podem estar incompletos', 'erro');
   }
   const s = mySectors.find(x => x.upa === upa);
