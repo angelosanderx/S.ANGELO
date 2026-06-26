@@ -409,6 +409,18 @@
     color: var(--cinza);
     background: var(--cinza-claro);
     border-bottom: 1px solid var(--borda);
+    position: relative;
+  }
+  .col-resize-handle {
+    position: absolute;
+    top: 0; right: -3px;
+    width: 7px; height: 100%;
+    cursor: col-resize;
+    z-index: 2;
+    border-radius: 2px;
+  }
+  .col-resize-handle:hover, .col-resize-handle.ativo {
+    background: rgba(37,99,168,0.25);
   }
 
   td {
@@ -5604,14 +5616,46 @@ function _montarTentativasSubrow(d) {
   </tr>`;
 }
 
+const _rh = '<div class="col-resize-handle"></div>';
+
+function iniciarResizeColunas(containerEl) {
+  if (!containerEl) return;
+  containerEl.querySelectorAll('table').forEach(table => {
+    table.querySelectorAll('thead th').forEach(th => {
+      const handle = th.querySelector('.col-resize-handle');
+      if (!handle) return;
+      let startX, startW;
+      handle.addEventListener('mousedown', e => {
+        startX = e.clientX;
+        startW = th.offsetWidth;
+        handle.classList.add('ativo');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        const onMove = e => { th.style.width = Math.max(30, startW + e.clientX - startX) + 'px'; };
+        const onUp = () => {
+          handle.classList.remove('ativo');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        e.preventDefault();
+        e.stopPropagation();
+      });
+    });
+  });
+}
+
 function _cabecalhoTabela(checkboxId, oncheckAll) {
   return '<div style="overflow-x:auto"><table style="min-width:660px;table-layout:fixed;width:100%"><thead><tr>' +
     `<th style="width:35px;padding:0.3rem 0.4rem"><input type="checkbox" id="${checkboxId}" onchange="${oncheckAll}" title="Selecionar todos"></th>` +
-    '<th style="width:138px;padding:0.3rem 0.5rem">Domicílio</th>' +
-    '<th style="width:128px;padding:0.3rem 0.45rem">Status</th>' +
-    '<th style="padding:0.3rem 0.6rem">Endereço / Morador</th>' +
-    '<th style="width:70px;padding:0.3rem 0.4rem">Entrev.</th>' +
-    '<th style="width:84px;padding:0.3rem 0.45rem">Trim. Ant.</th>' +
+    `<th style="width:138px;padding:0.3rem 0.5rem">Domicílio${_rh}</th>` +
+    `<th style="width:128px;padding:0.3rem 0.45rem">Status${_rh}</th>` +
+    `<th style="padding:0.3rem 0.6rem">Endereço / Morador${_rh}</th>` +
+    `<th style="width:70px;padding:0.3rem 0.4rem">Entrev.${_rh}</th>` +
+    `<th style="width:84px;padding:0.3rem 0.45rem">Trim. Ant.${_rh}</th>` +
     '</tr></thead><tbody>';
 }
 
@@ -5627,6 +5671,7 @@ function renderizarDomicilios(lista) {
     _cabecalhoTabela('chk-todos', 'toggleTodos(this)') +
     lista.map(d => _montarLinhaDOM(d, '')).join('') +
     '</tbody></table></div>';
+  iniciarResizeColunas(document.getElementById('tabela-domicilios'));
   preencherSelectAtribuicao();
 }
 
@@ -5687,6 +5732,7 @@ function renderizarPainelPendentes(docs, semanaAtual) {
     _cabecalhoTabela('chk-todos-painel', "document.querySelectorAll('#painel-pendentes-tabela .chk-dom').forEach(c=>c.checked=this.checked);atualizarSelecao()") +
     pendentes.map(d => _montarLinhaDOM(d, 'pd-')).join('') +
     '</tbody></table></div>';
+  iniciarResizeColunas(el);
 }
 
 // ── PENDÊNCIAS — estado de filtros ──
@@ -5848,16 +5894,18 @@ window.filtrarPendencias = () => {
     for (const [nome, doms] of Object.entries(grupos).sort(([a],[b])=>a.localeCompare(b))) {
       html += `<div style="background:var(--azul-claro);padding:0.45rem 1rem;font-weight:700;font-size:0.85rem;color:var(--azul);border-bottom:2px solid var(--azul-medio)">👤 ${nome} — ${doms.length} pendência${doms.length!==1?'s':''}</div>`;
       html += '<table style="min-width:660px;table-layout:fixed;width:100%"><thead><tr>' +
-        '<th style="width:35px;padding:0.3rem 0.4rem"></th><th style="width:138px;padding:0.3rem 0.5rem">Domicílio</th><th style="width:128px;padding:0.3rem 0.45rem">Status</th><th style="padding:0.3rem 0.6rem">Endereço / Morador</th><th style="width:70px;padding:0.3rem 0.4rem">Entrev.</th><th style="width:84px;padding:0.3rem 0.45rem">Trim. Ant.</th>' +
+        `<th style="width:35px;padding:0.3rem 0.4rem"></th><th style="width:138px;padding:0.3rem 0.5rem">Domicílio${_rh}</th><th style="width:128px;padding:0.3rem 0.45rem">Status${_rh}</th><th style="padding:0.3rem 0.6rem">Endereço / Morador${_rh}</th><th style="width:70px;padding:0.3rem 0.4rem">Entrev.${_rh}</th><th style="width:84px;padding:0.3rem 0.45rem">Trim. Ant.${_rh}</th>` +
         '</tr></thead><tbody>' + doms.map(d => _montarLinhaDOM(d,'pp-') + _montarTentativasSubrow(d)).join('') + '</tbody></table>';
     }
     html += '</div>';
     el.innerHTML = html;
+    iniciarResizeColunas(el);
   } else {
     el.innerHTML =
       _cabecalhoTabela('chk-todos-pag-pend', "document.querySelectorAll('#pag-pendencias-tabela .chk-dom').forEach(c=>c.checked=this.checked);atualizarSelecao()") +
       lista.map(d => _montarLinhaDOM(d, 'pp-') + _montarTentativasSubrow(d)).join('') +
       '</tbody></table></div>';
+    iniciarResizeColunas(el);
   }
 };
 
