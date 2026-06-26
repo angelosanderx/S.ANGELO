@@ -3055,17 +3055,34 @@ window.confirmarSolicitar = () => {
     $('mcm-btn-confirmar').disabled = true;
     $('mcm-btn-morador').style.cssText = '';
     mcmNomeFinal = '';
-    // PNAD primeiro (até 2), depois CNEFE
-    const btnsEl = $('mcm-btns-dinamicos');
-    btnsEl.innerHTML = '';
-    const pnadMors = Array.isArray(domAtivo._moradores) ? domAtivo._moradores.filter(m => m.nome).slice(0, 2) : [];
-    pnadMors.forEach((m, i) => btnsEl.appendChild(_mcmBtnDinamico(m.nome, 'PNAD', `mcm-din-${i}`)));
-    if (domAtivo.morador_cnefe) btnsEl.appendChild(_mcmBtnDinamico(domAtivo.morador_cnefe, 'CNEFE', 'mcm-din-cnefe'));
-    // Campo de texto só aparece quando não há nenhum dado dinâmico disponível
-    const hasDynamic = pnadMors.length > 0 || !!domAtivo.morador_cnefe;
-    $('mcm-input-section').style.display = hasDynamic ? 'none' : '';
-    $('modal-confirm-morador').classList.remove('hidden');
-    if (!hasDynamic) setTimeout(() => $('mcm-input-nome').focus(), 150);
+
+    const _abrirModalCarta = () => {
+      // PNAD primeiro (até 2), depois CNEFE
+      const btnsEl = $('mcm-btns-dinamicos');
+      btnsEl.innerHTML = '';
+      const pnadMors = Array.isArray(domAtivo._moradores) ? domAtivo._moradores.filter(m => m.nome).slice(0, 2) : [];
+      pnadMors.forEach((m, i) => btnsEl.appendChild(_mcmBtnDinamico(m.nome, 'PNAD', `mcm-din-${i}`)));
+      if (domAtivo.morador_cnefe) btnsEl.appendChild(_mcmBtnDinamico(domAtivo.morador_cnefe, 'CNEFE', 'mcm-din-cnefe'));
+      // Campo de texto só aparece quando não há nenhum dado dinâmico disponível
+      const hasDynamic = pnadMors.length > 0 || !!domAtivo.morador_cnefe;
+      $('mcm-input-section').style.display = hasDynamic ? 'none' : '';
+      $('modal-confirm-morador').classList.remove('hidden');
+      if (!hasDynamic) setTimeout(() => $('mcm-input-nome').focus(), 150);
+    };
+
+    // _moradores só é carregado pela tela de Fichas — se o usuário foi
+    // direto pelo mapa, busca agora antes de abrir o modal.
+    if (domAtivo._moradores === undefined) {
+      getDocs(collection(db, 'domicilios', domAtivo.id, 'moradores'))
+        .then(snap => {
+          domAtivo._moradores = snap.docs.map(x => x.data())
+            .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''));
+        })
+        .catch(() => { domAtivo._moradores = []; })
+        .finally(_abrirModalCarta);
+    } else {
+      _abrirModalCarta();
+    }
     return;
   }
   _gravarSolicitar();
