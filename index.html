@@ -5499,48 +5499,50 @@ function _montarLinhaDOM(d, ns = '') {
     return `${ano}T${q}`;
   };
   const _dataAnt = _ant ? (_ant.mes_ano || _calcTrimEtapa(d.trimestre, _eta, _ant.entrevista)) : '';
-  return `<tr id="${ns}row-${d.id}">
-      <td style="padding:0.22rem 0.4rem"><input type="checkbox" class="chk-dom" value="${d.id}" onchange="atualizarSelecao()"></td>
-      <td style="padding:0.22rem 0.5rem">
-        <div style="font-size:0.62rem;color:var(--cinza);line-height:1.5;white-space:nowrap">
-          <span style="font-weight:600;color:var(--cinza-escuro)">UPA</span> ${d.upa || '-'} <span style="color:var(--borda-escura,#94a3b8)">·</span> <span style="font-weight:600;color:var(--cinza-escuro)">Setor</span> ${setorAbrev}
-        </div>
-        <div style="display:flex;align-items:center;gap:3px">
-          <button onclick="abrirFicha('${d.id}')" style="font-weight:800;font-size:1rem;color:var(--azul);line-height:1.1;background:#eef2ff;border:none;border-radius:5px;padding:1px 6px;cursor:pointer;text-align:left;font-family:var(--fonte);white-space:nowrap" title="Abrir ficha">Dom.${d.domicilio_num || d.numero_sequencial || '-'}</button>
-          <div id="${ns}ind-morad-${d.id}" style="display:inline-block;transform:scale(0.48);transform-origin:left center;line-height:1;opacity:0.6">${_badgeMoradores(d._tem_moradores)}</div>
-        </div>
-        ${periodoAtual === 'todos' ? `<div style="font-size:0.58rem;font-weight:700;color:var(--azul-medio);margin-top:1px">${PERIODOS[d.periodo || PERIODO_PADRAO]}</div>` : ''}
+  return `<tr id="${ns}row-${d.id}" style="vertical-align:top">
+      <td style="padding:0.25rem 0.4rem;width:32px">
+        <input type="checkbox" class="chk-dom" value="${d.id}" onchange="atualizarSelecao()">
       </td>
-      <td style="text-align:center;padding:0.22rem 0.3rem">
-        <div style="font-size:0.8rem;font-weight:700;color:var(--cinza-escuro);line-height:1.2">S${d.semana || '-'}</div>
-        <div style="font-size:0.72rem;color:var(--cinza);line-height:1.2">${d.visita_etapa || '-'}ª</div>
+      <td style="padding:0.25rem 0.5rem">
+        <div style="font-size:0.57rem;color:#94a3b8;line-height:1.4;letter-spacing:0.1px;white-space:nowrap">
+          <span style="font-weight:700;color:#64748b">UPA</span> ${d.upa || '-'} <span style="opacity:0.4">·</span> <span style="font-weight:700;color:#64748b">Set.</span> ${setorAbrev}
+        </div>
+        <div style="display:flex;align-items:center;gap:3px;margin-top:2px">
+          <button onclick="abrirFicha('${d.id}')" style="font-weight:800;font-size:0.95rem;color:var(--azul);line-height:1.1;background:#eef2ff;border:none;border-radius:5px;padding:1px 6px;cursor:pointer;text-align:left;font-family:var(--fonte);white-space:nowrap" title="Abrir ficha">Dom.${d.domicilio_num || d.numero_sequencial || '-'}</button>
+          <div id="${ns}ind-morad-${d.id}" style="display:inline-block;transform:scale(0.48);transform-origin:left center;line-height:1;opacity:0.55">${_badgeMoradores(d._tem_moradores)}</div>
+        </div>
+        ${periodoAtual === 'todos' ? `<div style="font-size:0.55rem;font-weight:700;color:var(--azul-medio);margin-top:1px">${PERIODOS[d.periodo || PERIODO_PADRAO]}</div>` : ''}
       </td>
-      <td style="font-size:0.75rem;padding:0.22rem 0.4rem;white-space:nowrap">${nomeEntr}</td>
-      <td style="padding:0.22rem 0.6rem">
-        <div class="campo-editavel-inline" style="font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:3px">
+      <td style="text-align:center;padding:0.25rem 0.3rem;white-space:nowrap">
+        <div style="font-size:0.78rem;font-weight:700;color:var(--cinza-escuro);line-height:1.25">S${d.semana || '-'}</div>
+        <div style="font-size:0.68rem;color:var(--cinza);line-height:1.25">${d.visita_etapa || '-'}ª</div>
+      </td>
+      <td style="padding:0.25rem 0.4rem;white-space:nowrap">${nomeEntr}</td>
+      <td style="padding:0.25rem 0.6rem">
+        <div class="campo-editavel-inline" style="font-size:0.8rem;font-weight:600;display:flex;align-items:center;gap:3px">
           <span id="${ns}dom-end-${d.id}">${d.endereco_custom || d.endereco || '-'}</span>
           <button class="btn-editar-inline" onclick="editarCampoDomicilio('${d.id}','endereco_custom','${ns}')" title="Editar endereço">✏️</button>
         </div>
-        <div class="campo-editavel-inline" style="font-size:0.72rem;color:var(--cinza);display:flex;align-items:center;gap:3px;margin-top:1px">
+        <div class="campo-editavel-inline" style="font-size:0.7rem;color:var(--cinza);display:flex;align-items:center;gap:3px;margin-top:2px">
           <span id="${ns}dom-mor-${d.id}">${d.morador_cnefe || d.morador || ''}</span>
           <button class="btn-editar-inline" onclick="editarCampoDomicilio('${d.id}','morador_cnefe','${ns}')" title="Editar morador CNEFE">✏️</button>
-          ${d.telefone ? `<span style="opacity:0.65"> · ${d.telefone}</span>` : ''}
+          ${d.telefone ? `<span style="opacity:0.5"> · ${d.telefone}</span>` : ''}
         </div>
       </td>
-      <td style="padding:0.22rem 0.45rem">
+      <td style="padding:0.25rem 0.45rem">
         ${badgeStatus(d.status_atual || 'nao_visitado')}
-        <div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:2px">
+        <div style="margin-top:2px;display:flex;flex-wrap:wrap;gap:2px">
           ${(d.solicitacoes?.length ? d.solicitacoes : d.tipo_solicitacao ? [{ tipo: d.tipo_solicitacao }] : [])
-            .map(s => `<span style="font-size:0.62rem;font-weight:700;color:var(--laranja);background:var(--laranja-claro);padding:1px 5px;border-radius:10px;white-space:nowrap">${
+            .map(s => `<span style="font-size:0.6rem;font-weight:700;color:var(--laranja);background:var(--laranja-claro);padding:1px 4px;border-radius:8px;white-space:nowrap">${
               {carta_abertura:'📄 Abertura', carta_retorno:'🔄 Retorno', carta_recusa:'✉️ Recusa', apoio_supervisao:'👤 Apoio', apoio_viatura:'🚗 Viatura', corrigir_moradores:'👥 Moradores', correcao_questionario:'✏️ Correção', comunicar_dmc:'📢 DMC', contato_informante:'📞 Contato', mais_empenho:'💪 Empenho', verificar_status:'🔍 Status'}[s.tipo] || s.tipo
             }</span>`).join('')}
         </div>
-        <button class="btn-acao secundario" style="font-size:0.72rem;padding:0.18rem 0.5rem;margin-top:4px;background:var(--cinza-claro);color:var(--cinza);border:1px solid #cbd5e1" onclick="abrirSolicitar('${d.id}')">+ Solicitar</button>
+        <button style="font-size:0.58rem;padding:0.05rem 0.28rem;margin-top:3px;background:transparent;color:#b0b8c4;border:1px solid #e4eaf0;border-radius:3px;cursor:pointer;font-family:inherit" onclick="abrirSolicitar('${d.id}')">+ solicitar</button>
       </td>
-      <td style="font-size:0.75rem;padding:0.22rem 0.45rem">
+      <td style="padding:0.25rem 0.45rem">
         ${_ant
-          ? `<div style="font-weight:600;font-size:0.75rem;line-height:1.3">${_ant.resultado || '—'}</div><div style="font-size:0.64rem;color:var(--cinza);margin-top:1px;white-space:nowrap">${_ant.entrevista || '?'}ª${_ant.entrevistador && _ant.entrevistador !== 'Não identificado' ? ' · ' + _ant.entrevistador.split(' ')[0] : ''}</div>`
-          : '<span style="color:var(--cinza)">—</span>'}
+          ? `<div style="font-weight:600;font-size:0.72rem;line-height:1.3;color:var(--cinza-escuro)">${_ant.resultado || '—'}</div><div style="font-size:0.62rem;color:var(--cinza);margin-top:1px;white-space:nowrap">${_ant.entrevista || '?'}ª${_ant.entrevistador && _ant.entrevistador !== 'Não identificado' ? ' · ' + _ant.entrevistador.split(' ')[0] : ''}</div>`
+          : '<span style="color:var(--cinza);font-size:0.75rem">—</span>'}
       </td>
     </tr>`;
 }
@@ -5605,13 +5607,13 @@ function _montarTentativasSubrow(d) {
 
 function _cabecalhoTabela(checkboxId, oncheckAll) {
   return '<div style="overflow-x:auto"><table style="min-width:700px;table-layout:fixed;width:100%"><thead><tr>' +
-    `<th style="width:32px;padding:0.35rem 0.4rem"><input type="checkbox" id="${checkboxId}" onchange="${oncheckAll}" title="Selecionar todos"></th>` +
-    '<th style="width:140px">Dom.</th>' +
-    '<th style="width:42px;text-align:center;padding:0.35rem 0.3rem">S · E</th>' +
-    '<th style="width:68px">Entrev.</th>' +
-    '<th>Endereço / Morador</th>' +
-    '<th style="width:125px">Status</th>' +
-    '<th style="width:80px">Ant.</th>' +
+    `<th style="width:32px;padding:0.3rem 0.4rem"><input type="checkbox" id="${checkboxId}" onchange="${oncheckAll}" title="Selecionar todos"></th>` +
+    '<th style="width:145px;padding:0.3rem 0.5rem">Domicílio</th>' +
+    '<th style="width:42px;text-align:center;padding:0.3rem 0.3rem">Sem. / Eta.</th>' +
+    '<th style="width:72px;padding:0.3rem 0.4rem">Entrev.</th>' +
+    '<th style="padding:0.3rem 0.6rem">Endereço / Morador</th>' +
+    '<th style="width:130px;padding:0.3rem 0.45rem">Status / Solicitação</th>' +
+    '<th style="width:82px;padding:0.3rem 0.45rem">Trim. Ant.</th>' +
     '</tr></thead><tbody>';
 }
 
@@ -5848,7 +5850,7 @@ window.filtrarPendencias = () => {
     for (const [nome, doms] of Object.entries(grupos).sort(([a],[b])=>a.localeCompare(b))) {
       html += `<div style="background:var(--azul-claro);padding:0.45rem 1rem;font-weight:700;font-size:0.85rem;color:var(--azul);border-bottom:2px solid var(--azul-medio)">👤 ${nome} — ${doms.length} pendência${doms.length!==1?'s':''}</div>`;
       html += '<table style="min-width:780px;table-layout:fixed;width:100%"><thead><tr>' +
-        '<th style="width:36px"></th><th style="width:110px">UPA/Setor/Dom.</th><th style="width:40px;text-align:center">Sem.</th><th style="width:46px;text-align:center">Eta.</th><th style="width:80px">Entrev.</th><th>Endereço/Morador</th><th style="width:108px">Status</th><th style="width:108px">Trim.Ant.</th><th style="width:80px">Ação</th>' +
+        '<th style="width:32px;padding:0.3rem 0.4rem"></th><th style="width:145px;padding:0.3rem 0.5rem">Domicílio</th><th style="width:42px;text-align:center;padding:0.3rem 0.3rem">Sem. / Eta.</th><th style="width:72px;padding:0.3rem 0.4rem">Entrev.</th><th style="padding:0.3rem 0.6rem">Endereço / Morador</th><th style="width:130px;padding:0.3rem 0.45rem">Status / Solicitação</th><th style="width:82px;padding:0.3rem 0.45rem">Trim. Ant.</th>' +
         '</tr></thead><tbody>' + doms.map(d => _montarLinhaDOM(d,'pp-') + _montarTentativasSubrow(d)).join('') + '</tbody></table>';
     }
     html += '</div>';
