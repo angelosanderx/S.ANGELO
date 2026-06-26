@@ -1146,7 +1146,9 @@
               <button onclick="abrirEditorEnderecos();this.closest('.dropdown-listagens').classList.remove('aberto')">✏️ Editar endereços</button>
               <button onclick="gerarEtiquetas(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">🏷️ Etiquetas</button>
               <button onclick="gerarCartoes(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem</button>
+              <button onclick="gerarCartoes(null,'pag-pendencias-tabela',true);this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem por entrevistador</button>
               <button onclick="gerarDiarioCampo(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples</button>
+              <button onclick="gerarDiarioCampo(null,'pag-pendencias-tabela',true);this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples por entrevistador</button>
               <button onclick="gerarRoteiroCarta(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">✉️ Primeira entrevista</button>
               <button onclick="gerarResumoPendencias(null,'pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">📱 Resumo pendências</button>
               <button onclick="copiarPendenciasWhatsApp('pag-pendencias-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">📲 Copiar para WhatsApp</button>
@@ -1358,7 +1360,9 @@
                   <button onclick="abrirEditorEnderecos();this.closest('.dropdown-listagens').classList.remove('aberto')">✏️ Editar endereços</button>
                   <button onclick="gerarEtiquetas(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">🏷️ Etiquetas</button>
                   <button onclick="gerarCartoes(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem</button>
+                  <button onclick="gerarCartoes(null,'tabela-domicilios',true);this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem por entrevistador</button>
                   <button onclick="gerarDiarioCampo(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples</button>
+                  <button onclick="gerarDiarioCampo(null,'tabela-domicilios',true);this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples por entrevistador</button>
                   <button onclick="gerarRoteiroCarta(null,'tabela-domicilios');this.closest('.dropdown-listagens').classList.remove('aberto')">✉️ Primeira entrevista</button>
                 </div>
               </div>
@@ -1391,7 +1395,9 @@
               <div class="dropdown-listagens-menu">
                 <button onclick="gerarEtiquetas(null,'painel-pendentes-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">🏷️ Etiquetas</button>
                 <button onclick="gerarCartoes(null,'painel-pendentes-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem</button>
+                <button onclick="gerarCartoes(null,'painel-pendentes-tabela',true);this.closest('.dropdown-listagens').classList.remove('aberto')">🗂️ Listagem por entrevistador</button>
                 <button onclick="gerarDiarioCampo(null,'painel-pendentes-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples</button>
+                <button onclick="gerarDiarioCampo(null,'painel-pendentes-tabela',true);this.closest('.dropdown-listagens').classList.remove('aberto')">📋 Listagem simples por entrevistador</button>
                 <button onclick="gerarRoteiroCarta(null,'painel-pendentes-tabela');this.closest('.dropdown-listagens').classList.remove('aberto')">✉️ Primeira entrevista</button>
               </div>
             </div>
@@ -3969,7 +3975,7 @@ ${paginas}
 };
 
 // ── CARTÕES DE CAMPO (4 por folha A4) ──
-window.gerarCartoes = async (idsOverride, tableId) => {
+window.gerarCartoes = async (idsOverride, tableId, porEntrevistador = false) => {
   let lista = [];
   let usarSelecao = false;
   if (idsOverride && idsOverride.length > 0) {
@@ -4104,12 +4110,40 @@ window.gerarCartoes = async (idsOverride, tableId) => {
   };
 
   const POR_PAGINA = 8;
+  const _sortCrt = (a, b) => {
+    const semDiff = parseInt(a.semana||0) - parseInt(b.semana||0);
+    if (semDiff !== 0) return semDiff;
+    const upaDiff = (a.upa||'').localeCompare(b.upa||'');
+    if (upaDiff !== 0) return upaDiff;
+    const sA = a.controle ? a.controle.slice(0,-1) : (a.upa||'');
+    const sB = b.controle ? b.controle.slice(0,-1) : (b.upa||'');
+    const setDiff = sA.localeCompare(sB);
+    if (setDiff !== 0) return setDiff;
+    return parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0);
+  };
   let paginas = '';
-  for (let i = 0; i < lista.length; i += POR_PAGINA) {
-    const fatia = lista.slice(i, i+POR_PAGINA);
-    // Preenche com cartões vazios para completar grade 2×2
-    while (fatia.length < POR_PAGINA) fatia.push(null);
-    paginas += `<div class="pagina">${fatia.map(d => d ? montarCartao(d) : '<div class="cartao cartao-vazio"></div>').join('')}</div>`;
+  if (porEntrevistador) {
+    const _ccrt = entrevistadoresCache || [];
+    const _cnCrt = n => { const s=(n||'').trim(); if(!s) return ''; const r=_ccrt.find(u=>nomesCorrespondem(u.nome,s)); return r?toTitleCase(r.nome):toTitleCase(_chaveNomeGlobal(s)||s); };
+    const grupos = new Map();
+    lista.forEach(d => { const k=_cnCrt(d.entrevistador_nome)||'(Não atribuído)'; if(!grupos.has(k)) grupos.set(k,[]); grupos.get(k).push(d); });
+    [...grupos.entries()].sort((a,b)=>a[0].localeCompare(b[0])).forEach(([nome, doms]) => {
+      doms.sort(_sortCrt);
+      // Página de capa do entrevistador
+      paginas += `<div class="pagina pagina-capa"><div class="capa-entr"><div class="capa-nome">${nome}</div><div class="capa-sub">${doms.length} domicílio(s)</div></div></div>`;
+      for (let i=0; i<doms.length; i+=POR_PAGINA) {
+        const fatia = doms.slice(i, i+POR_PAGINA);
+        while (fatia.length < POR_PAGINA) fatia.push(null);
+        paginas += `<div class="pagina">${fatia.map(d => d ? montarCartao(d) : '<div class="cartao cartao-vazio"></div>').join('')}</div>`;
+      }
+    });
+  } else {
+    lista.sort(_sortCrt);
+    for (let i=0; i<lista.length; i+=POR_PAGINA) {
+      const fatia = lista.slice(i, i+POR_PAGINA);
+      while (fatia.length < POR_PAGINA) fatia.push(null);
+      paginas += `<div class="pagina">${fatia.map(d => d ? montarCartao(d) : '<div class="cartao cartao-vazio"></div>').join('')}</div>`;
+    }
   }
 
   const win = window.open('', '_blank');
@@ -4144,6 +4178,10 @@ window.gerarCartoes = async (idsOverride, tableId) => {
     font-size: 6.5pt;
   }
   .cartao-vazio { border: 1px dashed #ccc; background: #fafafa; }
+  .pagina-capa { display: flex; align-items: center; justify-content: center; }
+  .capa-entr { text-align: center; }
+  .capa-nome { font-size: 22pt; font-weight: 800; color: #1a3a5c; }
+  .capa-sub { font-size: 11pt; color: #64748b; margin-top: 6px; }
 
   .c-hd {
     display: flex;
@@ -4233,7 +4271,7 @@ window.gerarCartoes = async (idsOverride, tableId) => {
 </head>
 <body>
 <div class="toolbar">
-  <span>🗂️ <strong>${lista.length}</strong> cartão(ões)${usarSelecao ? ' — seleção manual' : ' — filtro atual'}</span>
+  <span>🗂️ <strong>${lista.length}</strong> cartão(ões)${porEntrevistador ? ' — por entrevistador' : usarSelecao ? ' — seleção manual' : ' — filtro atual'}</span>
   <button onclick="window.print()">🖨️ Imprimir</button>
   <button class="sec" onclick="window.close()">Fechar</button>
 </div>
@@ -4244,7 +4282,7 @@ ${paginas}
 };
 
 // ── DIÁRIO DE CAMPO (14 domicílios por folha A4 paisagem, 2 colunas) ──
-window.gerarDiarioCampo = async (idsOverride, tableId) => {
+window.gerarDiarioCampo = async (idsOverride, tableId, porEntrevistador = false) => {
   let lista = [];
   let usarSelecao = false;
   if (idsOverride && idsOverride.length > 0) {
@@ -4274,8 +4312,15 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
     } catch(e) { moradoresPorDom[d.id] = []; }
   }));
 
-  // Ordena igual à view principal: Semana → UPA → Setor → Dom
-  lista.sort((a, b) => {
+  const _cacheCarta = entrevistadoresCache || [];
+  const _canonCarta = n => {
+    const s = (n || '').trim();
+    if (!s) return '';
+    const reg = _cacheCarta.find(u => nomesCorrespondem(u.nome, s));
+    return reg ? toTitleCase(reg.nome) : toTitleCase(_chaveNomeGlobal(s) || s);
+  };
+
+  const _sortNormal = (a, b) => {
     const semDiff = parseInt(a.semana||0) - parseInt(b.semana||0);
     if (semDiff !== 0) return semDiff;
     const upaDiff = (a.upa||'').localeCompare(b.upa||'');
@@ -4285,25 +4330,7 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
     const setDiff = sA.localeCompare(sB);
     if (setDiff !== 0) return setDiff;
     return parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0);
-  });
-
-  // Metadados do cabeçalho
-  const upaHeader = [...new Set(lista.map(d => d.upa).filter(Boolean))].join(', ') || '—';
-  const semana = lista[0]?.semana || '—';
-  const periodo = PERIODOS[lista[0]?.periodo] || (lista[0]?.periodo || '—');
-  const _cacheCarta = entrevistadoresCache || [];
-  const _canonCarta = n => {
-    const s = (n || '').trim();
-    if (!s) return '';
-    const reg = _cacheCarta.find(u => nomesCorrespondem(u.nome, s));
-    return reg ? toTitleCase(reg.nome) : toTitleCase(_chaveNomeGlobal(s) || s);
   };
-  const entrCount = {};
-  lista.forEach(d => {
-    const k = _canonCarta(d.entrevistador_nome);
-    if (k) entrCount[k] = (entrCount[k]||0)+1;
-  });
-  const entrevistadorNome = Object.keys(entrCount).sort((a,b) => entrCount[b]-entrCount[a])[0] || '—';
 
   const STATUS_ABREV = {
     nao_visitado:'NÃO VISITADO', ausente:'AUSENTE', fechado:'FECHADO', agendado:'AGENDADO',
@@ -4312,18 +4339,6 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
   };
   const MINUSC = new Set(['de','da','do','das','dos','e','em','a','o','ao','à','na','no','nas','nos','por','pelo','pela']);
   const tc = s => s ? s.trim().toLowerCase().split(/\s+/).map((w,i)=>(i===0||!MINUSC.has(w))?w[0].toUpperCase()+w.slice(1):w).join(' ') : '';
-
-  // Monta lista de itens com separadores de setor (inclui etapa do primeiro dom do setor)
-  const items = [];
-  let lastSetor = null;
-  lista.forEach(d => {
-    const setor = d.controle ? d.controle.slice(0,-1) : (d.upa||'');
-    if (setor !== lastSetor) {
-      items.push({type:'setor', code:setor, etapa: d.visita_etapa||''});
-      lastSetor = setor;
-    }
-    items.push({type:'dom', d});
-  });
 
   // Divide itens em coluna de exatamente N domicílios (preserva separadores)
   const sliceCol = (arr, n) => {
@@ -4372,19 +4387,7 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
     </div>`;
   };
 
-  const cabecalho = `<div class="cabecalho">
-    <table class="hd-tbl"><tr>
-      <td>UPA: <strong>${upaHeader}</strong></td>
-      <td>Data: <span class="bl bl-dt"></span></td>
-      <td>Semana: <strong>${semana}</strong></td>
-      <td>Período: <strong>${periodo}</strong></td>
-    </tr><tr>
-      <td colspan="2">Entrevistador: <strong>${entrevistadorNome}</strong></td>
-      <td colspan="2">Supervisor: <span class="bl bl-sup"></span> &nbsp;Tel: <span class="bl bl-tel"></span></td>
-    </tr></table>
-  </div>`;
-
-  const rodape = `<div class="rodape">
+  const _rodape = `<div class="rodape">
     <table class="rod-tbl"><tr>
       <td>Realizadas: <span class="bl bl-xs"></span></td>
       <td>Vagas: <span class="bl bl-xs"></span></td>
@@ -4396,20 +4399,44 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
     </tr></table>
   </div>`;
 
-  const DOMS_POR_COL = 7;
-  let remaining = [...items];
-  let paginas = '';
-  while (remaining.some(it => it.type==='dom')) {
-    let [c1, rest] = sliceCol(remaining, DOMS_POR_COL);
-    let [c2, newRemaining] = sliceCol(rest, DOMS_POR_COL);
-    remaining = newRemaining;
-    // Garante que col2 comece com separador de setor
-    if (c2.length > 0 && c2[0].type !== 'setor') {
-      const fd = c2.find(it => it.type==='dom');
-      if (fd) { const s = fd.d.controle ? fd.d.controle.slice(0,-1) : (fd.d.upa||''); c2 = [{type:'setor',code:s,etapa:fd.d.visita_etapa||''},...c2]; }
+  const _gerarPags = (subLista, nomeEntr) => {
+    subLista.sort(_sortNormal);
+    const upaH = [...new Set(subLista.map(d => d.upa).filter(Boolean))].join(', ') || '—';
+    const sem0 = subLista[0]?.semana || '—';
+    const per0 = PERIODOS[subLista[0]?.periodo] || (subLista[0]?.periodo || '—');
+    const cab = `<div class="cabecalho"><table class="hd-tbl"><tr><td>UPA: <strong>${upaH}</strong></td><td>Data: <span class="bl bl-dt"></span></td><td>Semana: <strong>${sem0}</strong></td><td>Período: <strong>${per0}</strong></td></tr><tr><td colspan="2">Entrevistador: <strong>${nomeEntr}</strong></td><td colspan="2">Supervisor: <span class="bl bl-sup"></span> &nbsp;Tel: <span class="bl bl-tel"></span></td></tr></table></div>`;
+    const its = [];
+    let lastSt = null;
+    subLista.forEach(d => {
+      const s = d.controle ? d.controle.slice(0,-1) : (d.upa||'');
+      if (s !== lastSt) { its.push({type:'setor',code:s,etapa:d.visita_etapa||''}); lastSt = s; }
+      its.push({type:'dom', d});
+    });
+    let rem = [...its], pags = '';
+    while (rem.some(it => it.type==='dom')) {
+      let [c1, rest] = sliceCol(rem, 7);
+      let [c2, newRem] = sliceCol(rest, 7);
+      rem = newRem;
+      if (c2.length > 0 && c2[0].type !== 'setor') {
+        const fd = c2.find(it => it.type==='dom');
+        if (fd) { const s = fd.d.controle ? fd.d.controle.slice(0,-1) : (fd.d.upa||''); c2 = [{type:'setor',code:s,etapa:fd.d.visita_etapa||''},...c2]; }
+      }
+      const rc = col => col.map(it => it.type==='setor' ? renderSetor(it.code, it.etapa) : renderDom(it.d)).join('');
+      pags += `<div class="pagina">${cab}<div class="corpo"><div class="coluna">${rc(c1)}</div><div class="coluna">${rc(c2)}</div></div>${_rodape}</div>`;
     }
-    const renderCol = col => col.map(it => it.type==='setor' ? renderSetor(it.code, it.etapa) : renderDom(it.d)).join('');
-    paginas += `<div class="pagina">${cabecalho}<div class="corpo"><div class="coluna">${renderCol(c1)}</div><div class="coluna">${renderCol(c2)}</div></div></div>`;
+    return pags;
+  };
+
+  let paginas = '';
+  if (porEntrevistador) {
+    const grupos = new Map();
+    lista.forEach(d => { const k = _canonCarta(d.entrevistador_nome) || '(Não atribuído)'; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(d); });
+    [...grupos.entries()].sort((a,b) => a[0].localeCompare(b[0])).forEach(([nome, doms]) => { paginas += _gerarPags(doms, nome); });
+  } else {
+    const entrCount = {};
+    lista.forEach(d => { const k = _canonCarta(d.entrevistador_nome); if (k) entrCount[k] = (entrCount[k]||0)+1; });
+    const nomeEntr = Object.keys(entrCount).sort((a,b) => entrCount[b]-entrCount[a])[0] || '—';
+    paginas = _gerarPags(lista, nomeEntr);
   }
 
   const win = window.open('', '_blank');
@@ -4466,7 +4493,7 @@ window.gerarDiarioCampo = async (idsOverride, tableId) => {
 </head>
 <body>
 <div class="toolbar">
-  <span>📋 Diário de Campo — <strong>${lista.length}</strong> domicílio(s)${usarSelecao?' — seleção manual':' — filtro atual'}</span>
+  <span>📋 Diário de Campo — <strong>${lista.length}</strong> domicílio(s)${porEntrevistador?' — por entrevistador':usarSelecao?' — seleção manual':' — filtro atual'}</span>
   <button onclick="window.print()">🖨️ Imprimir</button>
   <button class="sec" onclick="window.close()">Fechar</button>
 </div>
