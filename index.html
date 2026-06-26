@@ -5986,6 +5986,9 @@ window.abrirFicha = (id, origem = '') => {
     } else if (origem === 'solicitacoes') {
       btnVoltar.textContent = '← Voltar para Solicitações';
       btnVoltar.onclick = () => irPara('visitas');
+    } else if (origem === 'tentativas') {
+      btnVoltar.textContent = '← Voltar para Tentativas';
+      btnVoltar.onclick = () => irPara('tentativas');
     } else {
       btnVoltar.textContent = '← Voltar';
       btnVoltar.onclick = () => irPara('domicilios');
@@ -9190,6 +9193,10 @@ async function carregarTentativas() {
     const snap = await getDocs(collection(db, 'domicilios'));
     const domicilios = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.endereco && pertencePeriodo(d));
 
+    // Garante que abrirFicha funcione mesmo sem passar pela aba Domicílios
+    const _idsGlobal = new Set(_todosdomiciliosGlobal.map(d => d.id));
+    domicilios.forEach(d => { if (!_idsGlobal.has(d.id)) _todosdomiciliosGlobal.push(d); });
+
     // Extrai todas as tentativas de todos os domicílios
     todasTentativas = [];
     domicilios.forEach(d => {
@@ -9320,9 +9327,9 @@ window.filtrarTentativas = () => {
   filtradas.forEach(t => {
     const setor = t.controle ? t.controle.slice(0,-1) : t.upa;
     html += `<tr>
-      <td style="${S}">
+      <td style="${S};cursor:pointer" onclick="abrirFicha('${t.domicilio_id}','tentativas')" title="Abrir ficha">
         <div style="font-size:0.68rem;color:var(--cinza)">${setor}</div>
-        <div style="font-weight:700;color:var(--azul);font-size:0.8rem">${t.domicilio_num}</div>
+        <div style="font-weight:700;color:var(--azul);font-size:0.8rem;text-decoration:underline dotted">${t.domicilio_num}</div>
       </td>
       <td style="${S}">
         <div style="font-weight:600">${esc(t.endereco||'—')}</div>
