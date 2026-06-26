@@ -4,7 +4,7 @@
 // eles têm sua própria persistência/cache e usam conexões (long-polling, streaming)
 // que um service worker genérico poderia quebrar se tentasse interceptar.
 
-const CACHE_NAME = 'campo-shell-v2';
+const CACHE_NAME = 'campo-shell-v3';
 
 const APP_SHELL_RELATIVE = [
   '/campo.html',
@@ -26,6 +26,9 @@ const APP_SHELL = [
   ...APP_SHELL_RELATIVE.map((p) => new URL(p, self.location.origin).href),
   ...APP_SHELL_EXTERNAL,
 ];
+
+// URL completa do campo.html para comparação no fetch handler
+const CAMPO_HTML_URL = new URL('/campo.html', self.location.origin).href;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -50,10 +53,18 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   if (!APP_SHELL.includes(request.url)) return; // deixa passar tudo que não é o app shell
 
-  // Network-first: busca a versão mais nova quando online (o app muda com frequência),
+  // campo.html muda com frequência. Usa cache:'no-cache' para forçar revalidação
+  // com o servidor a cada acesso, ignorando o cache HTTP do navegador.
+  // A requisição de navegação (mode:'navigate') é substituída por um GET simples
+  // para garantir compatibilidade no contexto do service worker.
+  const fetchReq = request.url === CAMPO_HTML_URL
+    ? new Request(request.url, { cache: 'no-cache' })
+    : request;
+
+  // Network-first: busca a versão mais nova quando online,
   // cai para o cache local quando offline ou a rede falhar.
   event.respondWith(
-    fetch(request)
+    fetch(fetchReq)
       .then((resp) => {
         const copia = resp.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(request, copia));
