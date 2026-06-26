@@ -539,6 +539,11 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
         <button onclick="trocarUsuario()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:.75rem;padding:4px 10px;border-radius:12px;cursor:pointer;font-family:inherit">Trocar</button>
       </div>
     </div>
+    <div style="display:flex;gap:6px;align-items:center;margin-top:7px">
+      <button class="set-toggle" onclick="switchTab('solicitacoes')" style="position:relative">✉️ Solicitações<span class="tab-badge" id="badge-sols"></span></button>
+      <button class="set-toggle" onclick="switchTab('avisos')" style="position:relative">📢 Avisos<span class="tab-badge" id="badge-avisos"></span></button>
+      <button class="set-toggle" onclick="switchTab('cronograma')">📅 Cronograma</button>
+    </div>
     <button class="set-toggle offline-global" id="btn-baixar-tudo" onclick="baixarTudoOffline()">📥 Baixar tudo offline</button>
     <p id="set-sub">Selecione o setor que vai trabalhar hoje</p>
   </div>
@@ -1895,12 +1900,16 @@ window.switchTab = tab => {
   abaAtual = tab;
   if (tab === 'fichas') { abrirFichas(); return; }
   if (tab === 'mapa')   { abrirMapaGeral(); return; }
-  ['setores','pendencias','cronograma'].forEach(t => {
-    $('tab-'+t).classList.toggle('ativo', t === tab);
-    $('lista-'+t).classList.toggle('hidden', t !== tab);
+  ['setores','pendencias','cronograma','solicitacoes','avisos'].forEach(t => {
+    $('lista-'+t)?.classList.toggle('hidden', t !== tab);
   });
-  if (tab === 'pendencias') renderPendencias(mySectors);
-  if (tab === 'cronograma') carregarCronogramaTab();
+  ['setores','pendencias','cronograma'].forEach(t => {
+    $('tab-'+t)?.classList.toggle('ativo', t === tab);
+  });
+  if (tab === 'pendencias')   renderPendencias(mySectors);
+  if (tab === 'solicitacoes') renderSolicitacoes();
+  if (tab === 'avisos')       renderAvisos(ultimosAvisos);
+  if (tab === 'cronograma')   carregarCronogramaTab();
 };
 
 async function carregarCronogramaTab() {
@@ -2096,9 +2105,11 @@ window.voltarSetores = () => {
   $('set-titulo').textContent = ['supervisor','administrador'].includes(usuarioPerfil) ? 'Todos os setores' : 'Meus setores';
   // Restore tab
   abaAtual = 'setores';
+  ['setores','pendencias','cronograma','solicitacoes','avisos'].forEach(t => {
+    $('lista-'+t)?.classList.toggle('hidden', t !== 'setores');
+  });
   ['setores','pendencias','cronograma'].forEach(t => {
     $('tab-'+t)?.classList.toggle('ativo', t === 'setores');
-    $('lista-'+t)?.classList.toggle('hidden', t !== 'setores');
   });
   atualizarBadgeSols();
   renderListaSetores(gpsPos, mySectors);
