@@ -546,7 +546,6 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div style="display:flex;gap:6px;align-items:center;margin-top:7px">
       <button class="set-toggle" onclick="switchTab('solicitacoes')" style="position:relative">✉️ Solicitações<span class="tab-badge" id="badge-sols"></span></button>
       <button class="set-toggle" onclick="switchTab('avisos')" style="position:relative">📢 Avisos<span class="tab-badge" id="badge-avisos"></span></button>
-      <button class="set-toggle" onclick="switchTab('cronograma')">📅 Cronograma</button>
     </div>
     <button class="set-toggle offline-global" id="btn-baixar-tudo" onclick="baixarTudoOffline()">📥 Baixar tudo offline</button>
     <p id="set-sub">Selecione o setor que vai trabalhar hoje</p>
@@ -579,7 +578,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div id="cron-tabela-wrap"></div>
   </div>
   <div id="campo-ultima-atualizacao" style="text-align:center;font-size:11px;color:#888780;font-style:italic;padding:.4rem 0 calc(env(safe-area-inset-bottom) + .4rem);background:#fff;border-top:1px solid var(--borda);flex-shrink:0"></div>
-  <button onclick="(async()=>{if('serviceWorker' in navigator){const rs=await navigator.serviceWorker.getRegistrations();for(const r of rs)await r.unregister();}location.reload();})()" title="Forçar atualização do aplicativo" style="position:fixed;bottom:calc(env(safe-area-inset-bottom) + 54px);right:16px;z-index:800;width:56px;height:56px;border-radius:50%;background:var(--azul);color:#fff;font-size:1.5rem;border:none;cursor:pointer;box-shadow:0 4px 18px rgba(37,99,235,.5);display:flex;align-items:center;justify-content:center;line-height:1">🔄</button>
+  <button onclick="(async()=>{if('serviceWorker' in navigator){const rs=await navigator.serviceWorker.getRegistrations();for(const r of rs)await r.unregister();}location.reload();})()" title="Forçar atualização do aplicativo" style="position:fixed;bottom:calc(env(safe-area-inset-bottom) + 54px);right:16px;z-index:800;width:56px;height:56px;border-radius:50%;background:transparent;color:var(--azul);font-size:1.5rem;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">🔄</button>
 </div>
 
 <!-- FICHAS DOS DOMICÍLIOS -->
@@ -3220,20 +3219,20 @@ function _gravarSolicitar(nomeMorador = '') {
 let _modoSelPend = false;
 const _selPend = new Set();
 
-function _entrarModoSelPend() {
+window._entrarModoSelPend = function() {
   _modoSelPend = true;
   _selPend.clear();
   _atualizarBarraEtiq();
-}
+};
 
-function _sairModoSelPend() {
+window._sairModoSelPend = function() {
   _modoSelPend = false;
   _selPend.clear();
   document.querySelectorAll('#lista-pendencias .pend-card.selecionado').forEach(c => c.classList.remove('selecionado'));
   document.getElementById('barra-acao-etiq').classList.remove('visivel');
-}
+};
 
-function _onClickPendCard(domId, upa) {
+window._onClickPendCard = function(domId, upa) {
   if (_modoSelPend) {
     const card = document.querySelector(`#lista-pendencias .pend-card[data-id="${domId}"]`);
     if (_selPend.has(domId)) { _selPend.delete(domId); card?.classList.remove('selecionado'); }
@@ -3242,7 +3241,7 @@ function _onClickPendCard(domId, upa) {
   } else {
     abrirDomPendente(domId, upa);
   }
-}
+};
 
 function _atualizarBarraEtiq() {
   const barra = document.getElementById('barra-acao-etiq');
