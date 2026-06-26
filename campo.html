@@ -535,8 +535,6 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div style="display:flex;align-items:center;justify-content:space-between">
       <h2 id="set-titulo">Meus setores</h2>
       <div style="display:flex;gap:6px;align-items:center">
-        <button class="set-toggle" onclick="abrirFichas()">📋 Fichas</button>
-        <button class="set-toggle" onclick="abrirMapaGeral()">🗺️ Mapa geral</button>
         <button onclick="(async()=>{if('serviceWorker' in navigator){const rs=await navigator.serviceWorker.getRegistrations();for(const r of rs)await r.unregister();}location.reload();})()" title="Forçar atualização do aplicativo" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:.75rem;padding:4px 10px;border-radius:12px;cursor:pointer;font-family:inherit">🔄</button>
         <button onclick="trocarUsuario()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:.75rem;padding:4px 10px;border-radius:12px;cursor:pointer;font-family:inherit">Trocar</button>
       </div>
@@ -546,10 +544,10 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   </div>
   <div class="set-tabs">
     <button class="set-tab ativo" id="tab-setores" onclick="switchTab('setores')">🗂️ Setores</button>
+    <button class="set-tab" id="tab-fichas" onclick="switchTab('fichas')">📋 Fichas</button>
     <button class="set-tab" id="tab-pendencias" onclick="switchTab('pendencias')">⏳ Pendências</button>
-    <button class="set-tab" id="tab-solicitacoes" onclick="switchTab('solicitacoes')">✉️ Solicitações<span class="tab-badge" id="badge-sols"></span></button>
-    <button class="set-tab" id="tab-avisos" onclick="switchTab('avisos')">📢 Avisos<span class="tab-badge" id="badge-avisos"></span></button>
     <button class="set-tab" id="tab-cronograma" onclick="switchTab('cronograma')">📅 Cronograma</button>
+    <button class="set-tab" id="tab-mapa" onclick="switchTab('mapa')">🗺️ Mapa Geral</button>
   </div>
   <div id="lista-setores"></div>
   <div id="lista-pendencias" class="hidden" style="flex:1;overflow-y:auto"></div>
@@ -1895,14 +1893,14 @@ window.abrirMapaGeral = async () => {
 
 window.switchTab = tab => {
   abaAtual = tab;
-  ['setores','pendencias','solicitacoes','avisos','cronograma'].forEach(t => {
+  if (tab === 'fichas') { abrirFichas(); return; }
+  if (tab === 'mapa')   { abrirMapaGeral(); return; }
+  ['setores','pendencias','cronograma'].forEach(t => {
     $('tab-'+t).classList.toggle('ativo', t === tab);
     $('lista-'+t).classList.toggle('hidden', t !== tab);
   });
-  if (tab === 'pendencias')    renderPendencias(mySectors);
-  if (tab === 'solicitacoes')  renderSolicitacoes();
-  if (tab === 'avisos')        renderAvisos(ultimosAvisos);
-  if (tab === 'cronograma')    carregarCronogramaTab();
+  if (tab === 'pendencias') renderPendencias(mySectors);
+  if (tab === 'cronograma') carregarCronogramaTab();
 };
 
 async function carregarCronogramaTab() {
@@ -2098,7 +2096,7 @@ window.voltarSetores = () => {
   $('set-titulo').textContent = ['supervisor','administrador'].includes(usuarioPerfil) ? 'Todos os setores' : 'Meus setores';
   // Restore tab
   abaAtual = 'setores';
-  ['setores','pendencias','solicitacoes','avisos','cronograma'].forEach(t => {
+  ['setores','pendencias','cronograma'].forEach(t => {
     $('tab-'+t)?.classList.toggle('ativo', t === 'setores');
     $('lista-'+t)?.classList.toggle('hidden', t !== 'setores');
   });
