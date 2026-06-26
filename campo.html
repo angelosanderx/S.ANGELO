@@ -808,7 +808,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div class="mcm-icon">⚠️</div>
     <div class="mcm-aviso">Confirme o nome do morador para a carta</div>
 
-    <!-- Botões dinâmicos: CNEFE + PNAD (populados via JS) -->
+    <!-- Botões dinâmicos: PNAD (até 2) depois CNEFE (populados via JS) -->
     <div id="mcm-btns-dinamicos"></div>
 
     <button id="mcm-btn-morador" onclick="mcmUsarGenerico()"
@@ -819,18 +819,21 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       🤷 Sr(a) Morador(a)
     </button>
 
-    <div style="display:flex;align-items:center;gap:.6rem;margin:.2rem 0 .75rem">
-      <div style="flex:1;height:1px;background:var(--borda)"></div>
-      <span style="font-size:.75rem;color:var(--cinza);font-weight:600">ou escreva</span>
-      <div style="flex:1;height:1px;background:var(--borda)"></div>
-    </div>
+    <!-- Campo de texto: visível apenas quando não há nomes dinâmicos disponíveis -->
+    <div id="mcm-input-section">
+      <div style="display:flex;align-items:center;gap:.6rem;margin:.2rem 0 .75rem">
+        <div style="flex:1;height:1px;background:var(--borda)"></div>
+        <span style="font-size:.75rem;color:var(--cinza);font-weight:600">ou escreva</span>
+        <div style="flex:1;height:1px;background:var(--borda)"></div>
+      </div>
 
-    <input type="text" id="mcm-input-nome"
-      placeholder="Digite o nome do morador"
-      oninput="mcmAtualizarBtn()"
-      style="width:100%;padding:.8rem 1rem;border:2px solid var(--borda);border-radius:11px;font-size:.95rem;font-family:inherit;color:var(--texto);margin-bottom:.9rem;outline:none"
-      onfocus="this.style.borderColor='var(--azul-med)'"
-      onblur="this.style.borderColor='var(--borda)'">
+      <input type="text" id="mcm-input-nome"
+        placeholder="Digite o nome do morador"
+        oninput="mcmAtualizarBtn()"
+        style="width:100%;padding:.8rem 1rem;border:2px solid var(--borda);border-radius:11px;font-size:.95rem;font-family:inherit;color:var(--texto);margin-bottom:.9rem;outline:none"
+        onfocus="this.style.borderColor='var(--azul-med)'"
+        onblur="this.style.borderColor='var(--borda)'">
+    </div>
 
     <div class="mcm-btns">
       <button class="mcm-btn cancelar" onclick="fecharConfirmMorador()">Cancelar</button>
@@ -3052,18 +3055,17 @@ window.confirmarSolicitar = () => {
     $('mcm-btn-confirmar').disabled = true;
     $('mcm-btn-morador').style.cssText = '';
     mcmNomeFinal = '';
-    // Popula botões dinâmicos (CNEFE + até 2 moradores PNAD)
+    // PNAD primeiro (até 2), depois CNEFE
     const btnsEl = $('mcm-btns-dinamicos');
     btnsEl.innerHTML = '';
-    if (domAtivo.morador_cnefe) {
-      btnsEl.appendChild(_mcmBtnDinamico(domAtivo.morador_cnefe, 'CNEFE', 'mcm-din-0'));
-    }
-    const pnadMors = Array.isArray(domAtivo._moradores) ? domAtivo._moradores : [];
-    pnadMors.slice(0, 2).forEach((m, i) => {
-      if (m.nome) btnsEl.appendChild(_mcmBtnDinamico(m.nome, 'PNAD', `mcm-din-${i + 1}`));
-    });
+    const pnadMors = Array.isArray(domAtivo._moradores) ? domAtivo._moradores.filter(m => m.nome).slice(0, 2) : [];
+    pnadMors.forEach((m, i) => btnsEl.appendChild(_mcmBtnDinamico(m.nome, 'PNAD', `mcm-din-${i}`)));
+    if (domAtivo.morador_cnefe) btnsEl.appendChild(_mcmBtnDinamico(domAtivo.morador_cnefe, 'CNEFE', 'mcm-din-cnefe'));
+    // Campo de texto só aparece quando não há nenhum dado dinâmico disponível
+    const hasDynamic = pnadMors.length > 0 || !!domAtivo.morador_cnefe;
+    $('mcm-input-section').style.display = hasDynamic ? 'none' : '';
     $('modal-confirm-morador').classList.remove('hidden');
-    setTimeout(() => $('mcm-input-nome').focus(), 150);
+    if (!hasDynamic) setTimeout(() => $('mcm-input-nome').focus(), 150);
     return;
   }
   _gravarSolicitar();
