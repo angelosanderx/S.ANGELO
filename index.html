@@ -4643,16 +4643,16 @@ window.copiarPendenciasWhatsApp = (tableId) => {
   const todosGrupos = [...grupos, ...gruposZero];
 
   // Tabela comparativa em monospace (``` no WhatsApp)
+  // Colunas numéricas usam padStart (alinhamento à direita) — dígito das unidades
+  // sempre na mesma posição, independente do número de dígitos.
   // Emojis ✅/⬜ têm largura visual 2 mas JS conta como 1 → padEnd usa colNome-1 nas linhas de dados.
-  const _ctr = (str, w) => { str = String(str); const p = Math.max(0, w - str.length); return ' '.repeat(Math.floor(p/2)) + str + ' '.repeat(Math.ceil(p/2)); };
   const _pNome = nome => nome ? nome.split(' ')[0] : nome;
-  // colNome = largura visual: prefixo "✅ " ocupa 3 visuais (emoji=2 + espaço=1)
   const colNome = Math.max(10, ...todosGrupos.map(g => _pNome(g.nome).length + 3));
   const SEP = ' ';
-  const cTot = 4, cPend = 4, cPct = 4; // 4 chars cabe "100%" centralizado
+  const cTot = 4, cPend = 4, cPct = 4;
   const sepW = colNome + SEP.length + cTot + SEP.length + cPend + SEP.length + cPct;
   const tabelaLinhas = ['```'];
-  tabelaLinhas.push('   APM'.padEnd(colNome) + SEP + _ctr('Tot',cTot) + SEP + _ctr('Pnd',cPend) + SEP + _ctr('%',cPct));
+  tabelaLinhas.push('   APM'.padEnd(colNome) + SEP + 'Tot'.padStart(cTot) + SEP + 'Pnd'.padStart(cPend) + SEP + '%'.padStart(cPct));
   tabelaLinhas.push('-'.repeat(sepW));
   let somaTotal = 0;
   todosGrupos.forEach(g => {
@@ -4662,18 +4662,18 @@ window.copiarPendenciasWhatsApp = (tableId) => {
     const pfx = g.doms.length === 0 ? '✅ ' : '⬜ ';
     tabelaLinhas.push(
       (pfx + _pNome(g.nome)).padEnd(colNome - 1) + SEP +
-      _ctr(tot, cTot) + SEP +
-      _ctr(g.doms.length, cPend) + SEP +
-      _ctr(pct + '%', cPct)
+      String(tot).padStart(cTot) + SEP +
+      String(g.doms.length).padStart(cPend) + SEP +
+      (pct + '%').padStart(cPct)
     );
   });
   tabelaLinhas.push('-'.repeat(sepW));
   const pctTotal = somaTotal > 0 ? Math.round(lista.length / somaTotal * 100) : 0;
   tabelaLinhas.push(
     '   TOTAL'.padEnd(colNome) + SEP +
-    _ctr(somaTotal, cTot) + SEP +
-    _ctr(lista.length, cPend) + SEP +
-    _ctr(pctTotal + '%', cPct)
+    String(somaTotal).padStart(cTot) + SEP +
+    String(lista.length).padStart(cPend) + SEP +
+    (pctTotal + '%').padStart(cPct)
   );
   tabelaLinhas.push('```');
 
