@@ -4646,12 +4646,13 @@ window.copiarPendenciasWhatsApp = (tableId) => {
   const _ctr = (str, w) => { str = String(str); const p = Math.max(0, w - str.length); return ' '.repeat(Math.floor(p/2)) + str + ' '.repeat(Math.ceil(p/2)); };
   const _pNome = nome => nome ? nome.split(' ')[0] : nome; // primeiro nome
   // +3 para reservar espaço do prefixo "✅ " / "⬜ " (emoji visual 2 + espaço 1)
-  const colNome = Math.max(16, ...todosGrupos.map(g => _pNome(g.nome).length + 3));
-  const H_PCT = '% Porc. Pendentes';
-  const cTot = 7, cPend = 7, cPct = H_PCT.length;
-  const sepW = colNome + 2 + cTot + 2 + cPend + 2 + cPct;
+  const colNome = Math.max(10, ...todosGrupos.map(g => _pNome(g.nome).length + 3));
+  const H_PCT = 'Porc.%';
+  const SEP = ' '; // 1 espaço entre colunas
+  const cTot = 4, cPend = 4, cPct = H_PCT.length;
+  const sepW = colNome + SEP.length + cTot + SEP.length + cPend + SEP.length + cPct;
   const tabelaLinhas = ['```'];
-  tabelaLinhas.push('   Entrevistador'.padEnd(colNome) + '  ' + _ctr('Total',cTot) + '  ' + _ctr('Pend.',cPend) + '  ' + H_PCT);
+  tabelaLinhas.push('   APM'.padEnd(colNome) + SEP + _ctr('Tot',cTot) + SEP + _ctr('Pend',cPend) + SEP + H_PCT);
   tabelaLinhas.push('-'.repeat(sepW));
   let somaTotal = 0;
   todosGrupos.forEach(g => {
@@ -4660,18 +4661,18 @@ window.copiarPendenciasWhatsApp = (tableId) => {
     const pct = tot > 0 ? Math.round(g.doms.length / tot * 100) : 0;
     const pfx = g.doms.length === 0 ? '✅ ' : '⬜ ';
     tabelaLinhas.push(
-      (pfx + _pNome(g.nome)).padEnd(colNome) + '  ' +
-      _ctr(tot, cTot) + '  ' +
-      _ctr(g.doms.length, cPend) + '  ' +
+      (pfx + _pNome(g.nome)).padEnd(colNome) + SEP +
+      _ctr(tot, cTot) + SEP +
+      _ctr(g.doms.length, cPend) + SEP +
       _ctr(pct + '%', cPct)
     );
   });
   tabelaLinhas.push('-'.repeat(sepW));
   const pctTotal = somaTotal > 0 ? Math.round(lista.length / somaTotal * 100) : 0;
   tabelaLinhas.push(
-    '   TOTAL'.padEnd(colNome) + '  ' +
-    _ctr(somaTotal, cTot) + '  ' +
-    _ctr(lista.length, cPend) + '  ' +
+    '   TOTAL'.padEnd(colNome) + SEP +
+    _ctr(somaTotal, cTot) + SEP +
+    _ctr(lista.length, cPend) + SEP +
     _ctr(pctTotal + '%', cPct)
   );
   tabelaLinhas.push('```');
