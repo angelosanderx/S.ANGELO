@@ -4091,7 +4091,7 @@ window.gerarCartoes = async (idsOverride, tableId, porEntrevistador = false) => 
         <div class="c-status">${STATUS_LABEL[d.status_atual] || d.status_atual || 'Não visitado'}</div>
       </div>
       <div class="c-end">${endFmt}</div>
-      <div class="c-meta">Sem.<strong>${d.semana||'—'}</strong> · Et.<strong>${d.visita_etapa||'—'}ª</strong> · Ant: ${situacaoAnterior}${d.entrevistador_nome ? ' · ' + (d.entrevistador_nome||'').split(' ')[0] : ''}</div>
+      <div class="c-meta">Sem.<strong>${d.semana||'—'}</strong> · Et.<strong>${d.visita_etapa||'—'}ª</strong> · Ant: ${situacaoAnterior}${d.entrevistador_nome ? ' · <strong style="color:#1e293b">' + (d.entrevistador_nome||'').split(' ')[0] + '</strong>' : ''}</div>
       ${d.morador_cnefe||d.morador ? `<div class="c-cnefe">👤 ${titleCase(d.morador_cnefe||d.morador||'')}</div>` : ''}
       <div class="c-sep"></div>
       <div class="c-sec">Moradores</div>
