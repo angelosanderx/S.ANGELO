@@ -1001,7 +1001,7 @@ async function importarFirestore() {
     const _especiesMesclado = _mesclarEspecies(d.historico_especies, _existingHistorico[docId] || []);
     if (_especiesMesclado.length > 0) { fields.historico_especies = toArr(_especiesMesclado); maskFields.push('historico_especies'); }
     if (d.historico_telefones.length > 0) { fields.historico_telefones = toArr(d.historico_telefones); maskFields.push('historico_telefones'); }
-    if (d.tentativas.length > 0) { fields.tentativas_recentes = toArr(d.tentativas.slice(-3)); maskFields.push('tentativas_recentes'); }
+    if (d.tentativas.length > 0) { fields.tentativas_recentes = toArr(d.tentativas); maskFields.push('tentativas_recentes'); }
 
     // updateMask garante que apenas os campos listados são tocados — campos extras
     // salvos pelo app (solicitacoes, status_base, entrevistador_id, morador_cnefe, etc.)
