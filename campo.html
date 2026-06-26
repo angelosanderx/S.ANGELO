@@ -1918,12 +1918,12 @@ async function carregarCronogramaTab() {
   await renderCronogramaTab();
 }
 
-// Solicitar carta num domicílio já realizado não o torna pendente
+// Pendência definida exclusivamente pelo status do CSV — solicitações não alteram essa lógica
 const _ehPendente = d => {
   const s = d.status_atual || 'nao_visitado';
-  if (['nao_visitado','ausente','agendado','carta_solicitada','supervisao'].includes(s)) return true;
-  if (s === 'realizada') return false;
-  return (d.solicitacoes||[]).some(x => !x.resolvido);
+  if (['nao_visitado','ausente','agendado'].includes(s)) return true;
+  if (['realizada','carta_solicitada','supervisao','uso_ocasional','vago','fechado'].includes(s)) return false;
+  return (d.solicitacoes||[]).some(x => !x.resolvido); // recusa com solicitação aberta
 };
 
 function renderPendencias(setores) {

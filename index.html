@@ -1180,8 +1180,6 @@
                 <button class="filtro-chip" data-grupo="status" data-val="fechado" onclick="toggleChipPend(this)">Fechado</button>
                 <button class="filtro-chip" data-grupo="status" data-val="agendado" onclick="toggleChipPend(this)">Agendado</button>
                 <button class="filtro-chip" data-grupo="status" data-val="recusa" onclick="toggleChipPend(this)">Recusa</button>
-                <button class="filtro-chip" data-grupo="status" data-val="carta_solicitada" onclick="toggleChipPend(this)">Carta solicitada</button>
-                <button class="filtro-chip" data-grupo="status" data-val="supervisao" onclick="toggleChipPend(this)">Supervisão</button>
               </div>
             </div>
           </div>
@@ -1617,6 +1615,19 @@
             📌 Fixar nomes de entrevistadores
           </button>
           <div id="fixar-nomes-status" style="margin-top:0.85rem;font-size:0.85rem"></div>
+
+          <hr class="divisor-secao" style="margin:1.5rem 0">
+
+          <p style="font-size:0.85rem;color:var(--cinza-escuro);margin-bottom:0.75rem">
+            <strong>Corrigir status inválido (carta_solicitada / supervisao).</strong> Versões antigas do
+            aplicativo gravavam <code>status_atual = carta_solicitada</code> ao solicitar uma carta, fazendo
+            domicílios realizados aparecerem como pendentes. Esta função redefine esses domicílios para
+            <code>nao_visitado</code> <em>sem apagar</em> as solicitações. Execute antes de reimportar o CSV.
+          </p>
+          <button class="btn-acao" onclick="corrigirStatusInvalido()">
+            🔧 Corrigir status inválido
+          </button>
+          <div id="corrigir-status-result" style="margin-top:0.85rem;font-size:0.85rem"></div>
 
           <hr class="divisor-secao" style="margin:1.5rem 0">
 
@@ -8598,6 +8609,41 @@ window.fixarNomesEntrevistadores = async () => {
   } catch(e) {
     statusDiv.innerHTML = `<span style="color:var(--vermelho)">❌ Erro: ${e.message}</span>`;
   }
+};
+
+window.corrigirStatusInvalido = async () => {
+  if (perfilLogado.perfil !== 'administrador') {
+    mostrarToast('Apenas administradores podem executar esta correção', 'erro'); return;
+  }
+  const statusDiv = document.getElementById('corrigir-status-result');
+  const INVALIDOS = ['carta_solicitada', 'supervisao'];
+  const snap = await getDocs(collection(db, 'domicilios')).catch(e => {
+    statusDiv.innerHTML = `<div style="color:var(--vermelho)">❌ Erro: ${e.message}</div>`;
+    return null;
+  });
+  if (!snap) return;
+
+  statusDiv.innerHTML = '<div style="color:var(--cinza)">⏳ Verificando...</div>';
+  const afetados = snap.docs.filter(d => INVALIDOS.includes(d.data().status_atual));
+  if (afetados.length === 0) {
+    statusDiv.innerHTML = '<div style="color:var(--verde);font-weight:700">✅ Nenhum registro com status inválido encontrado.</div>';
+    return;
+  }
+  if (!confirm(`Encontrados ${afetados.length} domicílio(s) com status inválido (carta_solicitada / supervisao). Redefinir para "nao_visitado" sem apagar as solicitações? Após isso, reimporte o CSV para atualizar o status correto.`)) return;
+
+  const BATCH_SIZE = 400;
+  let lote = writeBatch(db);
+  let ops = 0;
+  for (const d of afetados) {
+    lote.update(d.ref, { status_atual: 'nao_visitado' });
+    ops++;
+    if (ops === BATCH_SIZE) { await lote.commit(); lote = writeBatch(db); ops = 0; }
+  }
+  if (ops > 0) await lote.commit();
+
+  statusDiv.innerHTML = `<div style="color:var(--verde);font-weight:700">✅ ${afetados.length} domicílio(s) corrigido(s). Reimporte o CSV para atualizar o status real.</div>`;
+  mostrarToast(`${afetados.length} status inválido(s) corrigido(s)`, 'sucesso');
+  await carregarDomicilios();
 };
 
 window.limparTodasSolicitacoes = async () => {
