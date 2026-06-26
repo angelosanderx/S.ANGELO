@@ -535,7 +535,6 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div style="display:flex;align-items:center;justify-content:space-between">
       <h2 id="set-titulo">Meus setores</h2>
       <div style="display:flex;gap:6px;align-items:center">
-        <button onclick="(async()=>{if('serviceWorker' in navigator){const rs=await navigator.serviceWorker.getRegistrations();for(const r of rs)await r.unregister();}location.reload();})()" title="Forçar atualização do aplicativo" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:.75rem;padding:4px 10px;border-radius:12px;cursor:pointer;font-family:inherit">🔄</button>
         <button onclick="trocarUsuario()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:.75rem;padding:4px 10px;border-radius:12px;cursor:pointer;font-family:inherit">Trocar</button>
       </div>
     </div>
@@ -575,6 +574,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div id="cron-tabela-wrap"></div>
   </div>
   <div id="campo-ultima-atualizacao" style="text-align:center;font-size:11px;color:#888780;font-style:italic;padding:.4rem 0 calc(env(safe-area-inset-bottom) + .4rem);background:#fff;border-top:1px solid var(--borda);flex-shrink:0"></div>
+  <button onclick="(async()=>{if('serviceWorker' in navigator){const rs=await navigator.serviceWorker.getRegistrations();for(const r of rs)await r.unregister();}location.reload();})()" title="Forçar atualização do aplicativo" style="position:fixed;bottom:calc(env(safe-area-inset-bottom) + 54px);right:16px;z-index:800;width:56px;height:56px;border-radius:50%;background:var(--azul);color:#fff;font-size:1.5rem;border:none;cursor:pointer;box-shadow:0 4px 18px rgba(37,99,235,.5);display:flex;align-items:center;justify-content:center;line-height:1">🔄</button>
 </div>
 
 <!-- FICHAS DOS DOMICÍLIOS -->
