@@ -6628,13 +6628,6 @@ const ETAPA_SOL = {
 let tipoSolicitacaoSelecionado   = null;
 let statusSolicitacaoSelecionado = null;
 
-function calcularStatusSolicitacoes(sols, statusBase) {
-  const ativas = (sols || []).filter(s => !s.resolvido);
-  if (ativas.length === 0) return statusBase || 'nao_visitado';
-  if (ativas.some(s => ['apoio_supervisao', 'apoio_viatura', 'corrigir_moradores', ...SOL_TIPOS_SUPERVISOR].includes(s.tipo)))
-    return 'supervisao';
-  return 'carta_solicitada';
-}
 
 function renderizarSolicitacoesExistentes(domId) {
   const d = todosdomicilios.find(x => x.id === domId);
@@ -6839,9 +6832,6 @@ window.salvarSolicitar = async () => {
       criado_por_uid:      usuarioLogado.uid,
       etapa:               'pendente',
     };
-    // Preserva o status original antes de ser sobreposto pela solicitação
-    const solsAtivasAntes = (domAtual?.solicitacoes || []).filter(s => !s.resolvido);
-    const statusBase = solsAtivasAntes.length === 0 ? (domAtual?.status_atual || 'nao_visitado') : undefined;
     const novasSols = [...(domAtual?.solicitacoes || []), novaSol];
     await addDoc(collection(db, 'visitas'), {
       domicilio_id: domicilioAtualId, entrevistador_id: usuarioLogado.uid,
@@ -6852,15 +6842,11 @@ window.salvarSolicitar = async () => {
     });
     await updateDoc(doc(db, 'domicilios', domicilioAtualId), {
       solicitacoes: novasSols,
-      status_atual: calcularStatusSolicitacoes(novasSols, statusBase),
       tipo_solicitacao: tipoSolicitacaoSelecionado,
       ultima_visita: serverTimestamp(),
-      ...(statusBase !== undefined ? { status_base: statusBase } : {}),
     });
     if (domAtual) {
       domAtual.solicitacoes = novasSols;
-      domAtual.status_atual = calcularStatusSolicitacoes(novasSols, statusBase);
-      if (statusBase !== undefined) domAtual.status_base = statusBase;
     }
     mostrarToast(SOL_LABELS[tipoSolicitacaoSelecionado] + ' solicitada!', 'sucesso');
     _resetarModalSolicitar();
@@ -6884,17 +6870,12 @@ window.excluirSolicitar = async (domId, solId) => {
       : s
   );
   const ativas = novasSols.filter(s => !s.resolvido);
-  const novoStatus = ativas.length > 0
-    ? calcularStatusSolicitacoes(novasSols, domAtual.status_base)
-    : (domAtual.status_base || 'nao_visitado');
   try {
     await updateDoc(doc(db, 'domicilios', domId), {
       solicitacoes: novasSols,
-      status_atual: novoStatus,
       tipo_solicitacao: ativas.length > 0 ? ativas[ativas.length - 1].tipo : null,
     });
     domAtual.solicitacoes = novasSols;
-    domAtual.status_atual = novoStatus;
     renderizarSolicitacoesExistentes(domId);
     if (typeof domicilioAtualId !== 'undefined' && domicilioAtualId === domId) {
       renderizarHistoricoSolicitacoesFicha(domId);
@@ -6944,17 +6925,12 @@ window.excluirSolicitacaoDefinitivo = async (domId, solId) => {
   if (!domAtual) return;
   const novasSols = (domAtual.solicitacoes || []).filter(s => s.id !== solId);
   const ativas = novasSols.filter(s => !s.resolvido);
-  const novoStatus = ativas.length > 0
-    ? calcularStatusSolicitacoes(novasSols, domAtual.status_base)
-    : (domAtual.status_base || 'nao_visitado');
   try {
     await updateDoc(doc(db, 'domicilios', domId), {
       solicitacoes: novasSols,
-      status_atual: novoStatus,
       tipo_solicitacao: ativas.length > 0 ? ativas[ativas.length - 1].tipo : null,
     });
     domAtual.solicitacoes = novasSols;
-    domAtual.status_atual = novoStatus;
     renderizarSolicitacoesExistentes(domId);
     if (typeof domicilioAtualId !== 'undefined' && domicilioAtualId === domId) {
       renderizarHistoricoSolicitacoesFicha(domId);
