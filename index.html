@@ -11683,7 +11683,7 @@ window.renderCnefeSetores = () => {
       const _agNomeEsc = agNome === '—' ? '' : agNome.replace(/"/g, '&quot;');
       const _trKml = s.tem_kml ? ' style="color:#1a56db;font-weight:700;background:#eff6ff"' : '';
       const _btnCsv = (() => { const tc = s.tem_csv || (_cnefeEnderecoCache[s.setor] instanceof Array && _cnefeEnderecoCache[s.setor].length > 0); return `<button title="${tc?'CSV importado — reimportar':'Importar CSV'}" onclick="window._cnefeCSVDiretoSetor='${s.setor}';document.getElementById('cnefe-csv-direto-input').click()" style="font-size:0.68rem;padding:1px 5px;background:none;border:1px solid ${tc?'#1a56db':'var(--borda)'};border-radius:4px;color:${tc?'#1a56db':'var(--cinza)'};font-weight:${tc?'700':'400'};cursor:pointer;line-height:1.4">csv</button>`; })();
-      const _btnKml = (() => { const tk = !!s.tem_kml; return `<button title="${tk?'KML importado — reimportar':'Importar KML'}" onclick="document.getElementById('cnefe-kml-tbl-input').click()" style="font-size:0.68rem;padding:1px 5px;background:none;border:1px solid ${tk?'#1a56db':'var(--borda)'};border-radius:4px;color:${tk?'#1a56db':'var(--cinza)'};font-weight:${tk?'700':'400'};cursor:pointer;line-height:1.4">kml</button>`; })();
+      const _btnKml = (() => { const tk = !!s.tem_kml; return `<button title="${tk?'KML importado — reimportar':'Importar KML'}" onclick="window._cnefeKmlTblSetor='${s.setor}';document.getElementById('cnefe-kml-tbl-input').click()" style="font-size:0.68rem;padding:1px 5px;background:none;border:1px solid ${tk?'#1a56db':'var(--borda)'};border-radius:4px;color:${tk?'#1a56db':'var(--cinza)'};font-weight:${tk?'700':'400'};cursor:pointer;line-height:1.4">kml</button>`; })();
       tbody += `<tr${_trKml}>
         <td style="color:var(--azul-medio)">
           <div style="display:flex;align-items:center;gap:3px">
@@ -13232,10 +13232,15 @@ window.selecionarCnefeMapaSetor = async (setor) => {
   }
 };
 
+window._cnefeKmlTblSetor = '';
+
 window.importarCnefeKmlTbl = async (input) => {
   const files = [...input.files];
   input.value = '';
   if (!files.length) return;
+
+  const setorFixo = window._cnefeKmlTblSetor || '';
+  window._cnefeKmlTblSetor = '';
 
   const todosSetores = new Set((_cnefeSetoresList||[]).map(s => s.setor));
 
@@ -13266,7 +13271,7 @@ window.importarCnefeKmlTbl = async (input) => {
   const erroNomes = [];
 
   for (const file of files) {
-    const setor = _resolverSetor(file.name);
+    const setor = setorFixo || _resolverSetor(file.name);
     if (!setor) { erros++; erroNomes.push(`${file.name} (setor não identificado)`); continue; }
 
     const texto = await lerArquivo(file);
