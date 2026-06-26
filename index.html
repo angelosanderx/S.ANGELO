@@ -5483,6 +5483,7 @@ function _badgeEntrevistador(nome) {
 
 function _montarLinhaDOM(d, ns = '') {
   const setor = d.controle ? d.controle.slice(0,-1) : (d.upa || '-');
+  const setorAbrev = setor && setor.length > 4 ? setor.slice(-4) : setor;
   const nomeEntr = d.entrevistador_nome
     ? _badgeEntrevistador(d.entrevistador_nome)
     : (d.entrevistador_id ? '...' : '<span style="color:var(--cinza);font-style:italic">—</span>');
@@ -5501,7 +5502,9 @@ function _montarLinhaDOM(d, ns = '') {
   return `<tr id="${ns}row-${d.id}">
       <td style="padding:0.22rem 0.4rem"><input type="checkbox" class="chk-dom" value="${d.id}" onchange="atualizarSelecao()"></td>
       <td style="padding:0.22rem 0.5rem">
-        <div style="font-size:0.62rem;color:var(--cinza);line-height:1.3;white-space:nowrap">UPA ${d.upa || '-'} · ${setor}</div>
+        <div style="font-size:0.62rem;color:var(--cinza);line-height:1.5;white-space:nowrap">
+          <span style="font-weight:600;color:var(--cinza-escuro)">UPA</span> ${d.upa || '-'} <span style="color:var(--borda-escura,#94a3b8)">·</span> <span style="font-weight:600;color:var(--cinza-escuro)">Setor</span> ${setorAbrev}
+        </div>
         <div style="display:flex;align-items:center;gap:3px">
           <button onclick="abrirFicha('${d.id}')" style="font-weight:800;font-size:1rem;color:var(--azul);line-height:1.1;background:#eef2ff;border:none;border-radius:5px;padding:1px 6px;cursor:pointer;text-align:left;font-family:var(--fonte);white-space:nowrap" title="Abrir ficha">Dom.${d.domicilio_num || d.numero_sequencial || '-'}</button>
           <div id="${ns}ind-morad-${d.id}" style="display:inline-block;transform:scale(0.48);transform-origin:left center;line-height:1;opacity:0.6">${_badgeMoradores(d._tem_moradores)}</div>
