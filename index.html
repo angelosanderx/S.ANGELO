@@ -1194,6 +1194,16 @@
                 <button class="filtro-chip" data-grupo="status" data-val="recusa" onclick="toggleChipPend(this)">Recusa</button>
               </div>
             </div>
+            <div>
+              <div style="font-size:0.7rem;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.35rem">Trim. Ant.</div>
+              <div style="display:flex;gap:0.3rem;flex-wrap:wrap">
+                <button class="filtro-chip" data-grupo="trimAnt" data-val="Realizada" onclick="toggleChipPend(this)">Realizada</button>
+                <button class="filtro-chip" data-grupo="trimAnt" data-val="Recusa" onclick="toggleChipPend(this)">Recusa</button>
+                <button class="filtro-chip" data-grupo="trimAnt" data-val="Ausente" onclick="toggleChipPend(this)">Ausente</button>
+                <button class="filtro-chip" data-grupo="trimAnt" data-val="Fechado" onclick="toggleChipPend(this)">Fechado</button>
+                <button class="filtro-chip" data-grupo="trimAnt" data-val="__sem__" onclick="toggleChipPend(this)">1ª Etapa</button>
+              </div>
+            </div>
           </div>
 
           <!-- Linha 2: dropdowns + busca + opções -->
@@ -5741,12 +5751,13 @@ const _pendFiltros = {
   etapas:         new Set(),
   status:         new Set(),
   entrevistadores: new Set(),
+  trimAnt:        new Set(),
 };
 
 window.toggleChipPend = (el) => {
   el.classList.toggle('ativo');
   const { grupo, val } = el.dataset;
-  const set = grupo === 'semana' ? _pendFiltros.semanas : grupo === 'etapa' ? _pendFiltros.etapas : _pendFiltros.status;
+  const set = grupo === 'semana' ? _pendFiltros.semanas : grupo === 'etapa' ? _pendFiltros.etapas : grupo === 'trimAnt' ? _pendFiltros.trimAnt : _pendFiltros.status;
   set[el.classList.contains('ativo') ? 'add' : 'delete'](val);
   filtrarPendencias();
 };
@@ -5791,6 +5802,7 @@ window.atualizarFiltroEntrPend = () => {
 window.limparFiltrosPendencias = () => {
   _pendFiltros.semanas.clear(); _pendFiltros.etapas.clear();
   _pendFiltros.status.clear();  _pendFiltros.entrevistadores.clear();
+  _pendFiltros.trimAnt.clear();
   document.querySelectorAll('#pag-pendencias .filtro-chip.ativo').forEach(c => c.classList.remove('ativo'));
   ['pend-busca','pend-filtro-setor','pend-filtro-data-de','pend-filtro-data-ate'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const ord = document.getElementById('pend-ordenar'); if (ord) ord.value = 'semana';
@@ -5843,6 +5855,15 @@ window.filtrarPendencias = () => {
       });
       if (!temNoPeriodo) return false;
     }
+    // Trim. Ant.
+    if (_pendFiltros.trimAnt.size > 0) {
+      const _espF = (d.historico_especies || []).slice().sort((a,b) => parseInt(a.entrevista)-parseInt(b.entrevista));
+      const _etaF = parseInt(d.visita_etapa || 0);
+      const _antF = _etaF > 1 ? (_espF.find(h => parseInt(h.entrevista) === _etaF - 1) || null) : null;
+      const antRes = _antF ? (_antF.resultado || '') : '';
+      const match = [..._pendFiltros.trimAnt].some(v => v === '__sem__' ? !_antF : antRes.toLowerCase().includes(v.toLowerCase()));
+      if (!match) return false;
+    }
     // Sem tentativa por telefone
     if (soSemTel) {
       const temTel = (d.tentativas_recentes || []).some(t => /telefone/i.test(t.origem || ''));
@@ -5868,7 +5889,7 @@ window.filtrarPendencias = () => {
     ? `<strong>${lista.length}</strong> pendência${lista.length!==1?'s':''} · <strong>${nE}</strong> entrevistador${nE!==1?'es':''} · <strong>${nS}</strong> setor${nS!==1?'es':''}`
     : '';
   _atualizarContadorPendencias(lista.length);
-  const _temFPend = !!(_pendFiltros.semanas.size || _pendFiltros.etapas.size || _pendFiltros.status.size || _pendFiltros.entrevistadores.size || busca || setor || dataFiltroDE || dataFiltroATE || soSemTel);
+  const _temFPend = !!(_pendFiltros.semanas.size || _pendFiltros.etapas.size || _pendFiltros.status.size || _pendFiltros.entrevistadores.size || _pendFiltros.trimAnt.size || busca || setor || dataFiltroDE || dataFiltroATE || soSemTel);
   _indicarFiltroAtivo('card-pend-tabela', _temFPend);
   const _pSetorEl  = document.getElementById('pend-filtro-setor');    if (_pSetorEl)  _pSetorEl.classList.toggle('filtro-ativo-ctrl', !!setor);
   const _pBuscaEl  = document.getElementById('pend-busca');           if (_pBuscaEl)  _pBuscaEl.classList.toggle('filtro-ativo-ctrl', !!busca);
