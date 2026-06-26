@@ -1315,16 +1315,20 @@
               <option value="vago">Vago/Inapto</option>
               <option value="uso_ocasional">Uso Ocasional</option>
             </select>
-            <select id="filtro-solicitacao" onchange="filtrarDomicilios()" style="padding:0.3rem 0.55rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro)">
-              <option value="">Solicitação —</option>
-              <option value="carta_abertura">📄 Carta Abertura</option>
-              <option value="carta_retorno">🔄 Carta Retorno</option>
-              <option value="carta_recusa">✉️ Carta Recusa</option>
-              <option value="apoio_supervisao">👤 Apoio Supervisão</option>
-              <option value="apoio_viatura">🚗 Apoio Viatura</option>
-              <option value="corrigir_moradores">👥 Corrigir Moradores</option>
-              <option value="verificar_status">🔍 Verificar Status</option>
-            </select>
+            <div style="position:relative" id="filtro-solic-wrap">
+              <button id="filtro-solic-btn" onclick="toggleDropdownSolicDom(event)" style="padding:0.3rem 0.55rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro);cursor:pointer;display:flex;align-items:center;gap:0.4rem;min-width:138px;justify-content:space-between;white-space:nowrap">
+                <span id="filtro-solic-label">Solicitação —</span><span style="font-size:0.7rem;opacity:0.6">▾</span>
+              </button>
+              <div id="filtro-solic-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:300;background:#fff;border:1.5px solid var(--borda);border-radius:8px;min-width:200px;max-height:280px;overflow-y:auto;box-shadow:0 4px 20px rgba(0,0,0,0.13);padding:0.25rem 0">
+                <label style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.8rem;cursor:pointer;font-size:0.83rem" onmouseenter="this.style.background='var(--cinza-claro)'" onmouseleave="this.style.background=''"><input type="checkbox" value="carta_abertura" onchange="atualizarFiltroSolicDom()"> 📄 Carta Abertura</label>
+                <label style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.8rem;cursor:pointer;font-size:0.83rem" onmouseenter="this.style.background='var(--cinza-claro)'" onmouseleave="this.style.background=''"><input type="checkbox" value="carta_retorno" onchange="atualizarFiltroSolicDom()"> 🔄 Carta Retorno</label>
+                <label style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.8rem;cursor:pointer;font-size:0.83rem" onmouseenter="this.style.background='var(--cinza-claro)'" onmouseleave="this.style.background=''"><input type="checkbox" value="carta_recusa" onchange="atualizarFiltroSolicDom()"> ✉️ Carta Recusa</label>
+                <label style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.8rem;cursor:pointer;font-size:0.83rem" onmouseenter="this.style.background='var(--cinza-claro)'" onmouseleave="this.style.background=''"><input type="checkbox" value="apoio_supervisao" onchange="atualizarFiltroSolicDom()"> 👤 Apoio Supervisão</label>
+                <label style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.8rem;cursor:pointer;font-size:0.83rem" onmouseenter="this.style.background='var(--cinza-claro)'" onmouseleave="this.style.background=''"><input type="checkbox" value="apoio_viatura" onchange="atualizarFiltroSolicDom()"> 🚗 Apoio Viatura</label>
+                <label style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.8rem;cursor:pointer;font-size:0.83rem" onmouseenter="this.style.background='var(--cinza-claro)'" onmouseleave="this.style.background=''"><input type="checkbox" value="corrigir_moradores" onchange="atualizarFiltroSolicDom()"> 👥 Corrigir Moradores</label>
+                <label style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.8rem;cursor:pointer;font-size:0.83rem" onmouseenter="this.style.background='var(--cinza-claro)'" onmouseleave="this.style.background=''"><input type="checkbox" value="verificar_status" onchange="atualizarFiltroSolicDom()"> 🔍 Verificar Status</label>
+              </div>
+            </div>
             <select id="filtro-entrevistador" onchange="filtrarDomicilios()" style="padding:0.3rem 0.55rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:160px">
               <option value="">Entrevistador —</option>
             </select>
@@ -2763,6 +2767,7 @@ let usuarioLogado = null;
 let perfilLogado = null;
 let todosdomicilios = [];
 let _todosdomiciliosGlobal = []; // todos os períodos — usado na qualidade CNEFE
+let _filtroSolicTypes = new Set();
 let entrevistadoresCache = null; // cache da lista de entrevistadores p/ não consultar o banco toda vez que o mapa abre
 let unsubs = [];
 
@@ -3214,7 +3219,6 @@ function _domFiltradosSemUpaSetor() {
   const semana = document.getElementById('filtro-semana')?.value || '';
   const etapa  = document.getElementById('filtro-etapa')?.value || '';
   const status = document.getElementById('filtro-status')?.value || '';
-  const solicitacao = document.getElementById('filtro-solicitacao')?.value || '';
   const entrevistador = document.getElementById('filtro-entrevistador')?.value || '';
   const q = (document.getElementById('busca-domicilio')?.value || '').toLowerCase();
   return todosdomicilios.filter(d => {
@@ -3223,9 +3227,9 @@ function _domFiltradosSemUpaSetor() {
     if (entrevistador === '__sem__' && d.entrevistador_nome) return false;
     if (entrevistador && entrevistador !== '__sem__' && !_entrevistadorCorresponde(d.entrevistador_nome, entrevistador)) return false;
     if (status && (d.status_atual || 'nao_visitado') !== status) return false;
-    if (solicitacao) {
-      const temNaLista = (d.solicitacoes || []).some(s => s.tipo === solicitacao);
-      const temLegado  = !(d.solicitacoes?.length) && d.tipo_solicitacao === solicitacao;
+    if (_filtroSolicTypes.size) {
+      const temNaLista = (d.solicitacoes || []).some(s => _filtroSolicTypes.has(s.tipo));
+      const temLegado  = !(d.solicitacoes?.length) && _filtroSolicTypes.has(d.tipo_solicitacao);
       if (!temNaLista && !temLegado) return false;
     }
     if (q && !(d.endereco||'').toLowerCase().includes(q) && !(d.morador||'').toLowerCase().includes(q)) return false;
@@ -3329,7 +3333,6 @@ window.filtrarDomicilios = () => {
   const etapa = document.getElementById('filtro-etapa').value;
   const entrevistador = document.getElementById('filtro-entrevistador').value;
   const q = document.getElementById('busca-domicilio').value.toLowerCase();
-  const solicitacao = document.getElementById('filtro-solicitacao').value;
   const filtrados = todosdomicilios.filter(d => {
     const setorDom = d.controle ? d.controle.slice(0,-1) : d.upa;
     if (upa && d.upa !== upa) return false;
@@ -3340,9 +3343,9 @@ window.filtrarDomicilios = () => {
     if (entrevistador && entrevistador !== '__sem__' && !_entrevistadorCorresponde(d.entrevistador_nome, entrevistador)) return false;
     const status = document.getElementById('filtro-status').value;
     if (status && (d.status_atual || 'nao_visitado') !== status) return false;
-    if (solicitacao) {
-      const temNaLista = (d.solicitacoes || []).some(s => s.tipo === solicitacao);
-      const temLegado  = !(d.solicitacoes?.length) && d.tipo_solicitacao === solicitacao;
+    if (_filtroSolicTypes.size) {
+      const temNaLista = (d.solicitacoes || []).some(s => _filtroSolicTypes.has(s.tipo));
+      const temLegado  = !(d.solicitacoes?.length) && _filtroSolicTypes.has(d.tipo_solicitacao);
       if (!temNaLista && !temLegado) return false;
     }
     if (q && !(d.endereco||'').toLowerCase().includes(q) && !(d.morador||'').toLowerCase().includes(q)) return false;
@@ -3374,13 +3377,15 @@ window.filtrarDomicilios = () => {
   });
   renderizarDomicilios(filtrados);
   const _status = document.getElementById('filtro-status')?.value || '';
-  const _temFiltro = !!(upa || setor || semana || etapa || _status || solicitacao || entrevistador || q);
+  const _temFiltro = !!(upa || setor || semana || etapa || _status || _filtroSolicTypes.size || entrevistador || q);
   _indicarFiltroAtivo('card-lista-dom', _temFiltro);
   const _cardPend = document.getElementById('card-pendentes-dom');
   if (_cardPend) _cardPend.style.display = _temFiltro ? 'none' : '';
-  ['filtro-upa','filtro-setor','filtro-semana','filtro-etapa','filtro-status','filtro-solicitacao','filtro-entrevistador'].forEach(id => {
+  ['filtro-upa','filtro-setor','filtro-semana','filtro-etapa','filtro-status','filtro-entrevistador'].forEach(id => {
     const el = document.getElementById(id); if (el) el.classList.toggle('filtro-ativo-ctrl', !!el.value);
   });
+  const _solicBtn = document.getElementById('filtro-solic-btn');
+  if (_solicBtn) _solicBtn.classList.toggle('filtro-ativo-ctrl', _filtroSolicTypes.size > 0);
   const _bDom = document.getElementById('busca-domicilio');
   if (_bDom) _bDom.classList.toggle('filtro-ativo-ctrl', !!_bDom.value);
 };
@@ -3391,7 +3396,9 @@ window.limparFiltros = () => {
   document.getElementById('filtro-semana').value = '';
   document.getElementById('filtro-etapa').value = '';
   document.getElementById('filtro-status').value = '';
-  document.getElementById('filtro-solicitacao').value = '';
+  _filtroSolicTypes.clear();
+  document.querySelectorAll('#filtro-solic-dropdown input').forEach(c => c.checked = false);
+  const _lbl = document.getElementById('filtro-solic-label'); if (_lbl) _lbl.textContent = 'Solicitação —';
   document.getElementById('filtro-entrevistador').value = '';
   document.getElementById('filtro-ordem').value = 'padrao';
   document.getElementById('busca-domicilio').value = '';
@@ -5761,6 +5768,28 @@ window.toggleChipPend = (el) => {
   set[el.classList.contains('ativo') ? 'add' : 'delete'](val);
   filtrarPendencias();
 };
+
+window.toggleDropdownSolicDom = (e) => {
+  e.stopPropagation();
+  const dd = document.getElementById('filtro-solic-dropdown');
+  if (dd) dd.style.display = dd.style.display === 'none' ? '' : 'none';
+};
+
+window.atualizarFiltroSolicDom = () => {
+  const dd = document.getElementById('filtro-solic-dropdown');
+  if (!dd) return;
+  _filtroSolicTypes = new Set([...dd.querySelectorAll('input:checked')].map(c => c.value));
+  const lbl = document.getElementById('filtro-solic-label');
+  if (lbl) lbl.textContent = _filtroSolicTypes.size === 0 ? 'Solicitação —' : `${_filtroSolicTypes.size} tipo${_filtroSolicTypes.size > 1 ? 's' : ''}`;
+  filtrarDomicilios();
+};
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#filtro-solic-wrap')) {
+    const dd = document.getElementById('filtro-solic-dropdown');
+    if (dd) dd.style.display = 'none';
+  }
+});
 
 window.toggleDropdownPendEntr = (e) => {
   e.stopPropagation();
