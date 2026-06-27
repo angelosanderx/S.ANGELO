@@ -3492,10 +3492,46 @@ async function carregarTrilhaAulas() {
       snap2.docs.forEach(d => { trilhaAulasCache[d.id] = { id: d.id, ...d.data() }; });
     } else {
       snap.docs.forEach(d => { trilhaAulasCache[d.id] = { id: d.id, ...d.data() }; });
+      // Adiciona tarefas que existem no seed mas ainda não estão no Firestore
+      // (cobre disciplinas novas ou seed atualizado sem apagar dados existentes)
+      try { await _completarSeedTrilha(); } catch (se) { console.warn('Completar seed falhou:', se); }
     }
     _trilhaAulasCarregada = true;
     renderizarTrilhaAulas();
   } catch (e) { console.error(e); erroCarregamento('trilha-aulas-lista', e); }
+}
+
+async function _completarSeedTrilha() {
+  const discs = disciplinasCache.length
+    ? disciplinasCache
+    : await getDocs(collection(db, 'concurso_disciplinas')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() })));
+
+  const adds = [];
+  for (const disc of discs) {
+    const chave = Object.keys(SEED_TRILHA_AULAS).find(k => _matchDisc(disc.nome, k));
+    if (!chave) continue;
+    const cfg = SEED_TRILHA_AULAS[chave];
+    for (const t of cfg.tarefas) {
+      const docId = `${disc.id}_t${String(t.n).padStart(3,'0')}`;
+      if (trilhaAulasCache[docId]) continue;
+      adds.push({ docId, disc, t, cfg });
+    }
+  }
+  if (!adds.length) return;
+
+  let batch = writeBatch(db), count = 0;
+  for (const { docId, disc, t, cfg } of adds) {
+    const data = {
+      disciplinaId: disc.id, disciplinaNome: disc.nome,
+      num_tarefa: t.n, tipo: t.tipo, aula: t.aula, parte: t.parte,
+      descricao: t.desc, link: cfg.link, concluida: false, data_conclusao: null, texto_apoio: '',
+    };
+    batch.set(doc(db, 'concurso_trilha_aulas', docId), data);
+    trilhaAulasCache[docId] = { id: docId, ...data };
+    count++;
+    if (count % 400 === 0) { await batch.commit(); batch = writeBatch(db); count = 0; }
+  }
+  if (count > 0) await batch.commit();
 }
 
 async function seedTrilhaAulas() {
