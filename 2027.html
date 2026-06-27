@@ -3553,10 +3553,6 @@ window.abrirDetalheTrilha = (discId) => {
     const tc = TIPO_COR[t.tipo] || '#64748b';
     const tl = TIPO_LABEL[t.tipo] || t.tipo;
     const apoio = esc(t.texto_apoio || '');
-    const caderno = esc(t.caderno_questoes || '');
-    const cadernoLink = /^https?:\/\//i.test((t.caderno_questoes || '').trim())
-      ? `<a class="tarefa-link" href="${esc(t.caderno_questoes.trim())}" target="_blank" rel="noopener" style="font-size:.75rem;display:inline-block;margin-bottom:.3rem">↗ Abrir link do caderno</a>`
-      : '';
     const primeiro = idx === 0 || t.personalizado === true;
     const cabecalhoTipo = primeiro
       ? `<select class="ta-tipo-select" style="background:${tc}" onchange="alterarTipoTrilha('${t.id}',this)">
@@ -3576,10 +3572,6 @@ window.abrirDetalheTrilha = (discId) => {
       <div class="ta-apoio-label">Texto de apoio</div>
       <textarea class="ta-apoio-textarea" id="ta-apoio-${t.id}" placeholder="Anotações, resumo, pontos importantes..."
         oninput="agendarTextoApoio('${t.id}',this.value)">${apoio}</textarea>
-      <div class="ta-apoio-label" style="margin-top:.6rem">Caderno de questões</div>
-      ${cadernoLink}
-      <textarea class="ta-apoio-textarea" id="ta-caderno-${t.id}" placeholder="Link ou texto do caderno de questões..."
-        oninput="agendarCadernoQuestoes('${t.id}',this.value)">${caderno}</textarea>
       <div class="ta-tarefa-acoes">
         <input type="checkbox" ${t.concluida ? 'checked' : ''} onchange="toggleTrilhaAula('${t.id}',this.checked)" title="Marcar como concluída">
         <span style="font-size:.75rem;color:var(--text-muted)">Concluída</span>
