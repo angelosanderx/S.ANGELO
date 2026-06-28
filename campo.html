@@ -1057,35 +1057,37 @@ let _cronSemana    = null;
 let _cronLinhas    = [];
 let _cronLoadedKey = '';
 
-// Cache com todos os setores (todas as UPAs), independente do entrevistador.
-// Populado na primeira vez que o botão é clicado; reutilizado depois.
-let _allSemanasCache = null;
+// Cache da amostra_mestra e localidades — carregados uma vez na primeira abertura do popover.
+let _amCampCache  = null;   // array com todos os registros de amostra_mestra
+let _locsCampCache = null;  // { upa: localidade }
 
 async function _cronCarregarTodosSetores() {
-  if (_allSemanasCache) return;
+  if (_amCampCache) return;
   try {
-    const [domSnap, locSnap] = await Promise.all([
-      getDocs(collection(db, 'domicilios')),
+    const [amSnap, locSnap] = await Promise.all([
+      getDocs(collection(db, 'amostra_mestra')),
       getDocs(collection(db, 'localidades_upa')).catch(() => ({ docs: [] })),
     ]);
-    const locs = {};
-    locSnap.docs.forEach(d => { locs[d.id] = d.data().localidade || ''; });
-    const map = {};
-    domSnap.docs.forEach(d => {
-      const data = d.data();
-      if (!data.upa || data.arquivado) return;
-      if (!map[data.upa]) map[data.upa] = { upa: data.upa, localidade: locs[data.upa] || data.localidade || '', semanas: new Set() };
-      if (data.semana) map[data.upa].semanas.add(Number(data.semana));
-    });
-    _allSemanasCache = Object.values(map).sort((a, b) => a.upa.localeCompare(b.upa));
+    _locsCampCache = {};
+    locSnap.docs.forEach(d => { _locsCampCache[d.id] = d.data().localidade || ''; });
+    _amCampCache = amSnap.docs.map(d => d.data());
   } catch(e) {
-    _allSemanasCache = [];
+    _amCampCache  = [];
+    _locsCampCache = {};
   }
 }
 
+// Filtra amostra_mestra pelo mês atual do cronograma e agrupa por semana.
 function _cronSetoresMesPorSemana() {
   const porSemana = {1:[],2:[],3:[],4:[]};
-  (_allSemanasCache || []).forEach(s => {
+  if (!_amCampCache || !_cronMes) return porSemana;
+  const map = {};
+  _amCampCache.filter(r => Number(r.mes) === _cronMes).forEach(r => {
+    if (!r.upa) return;
+    if (!map[r.upa]) map[r.upa] = { upa: r.upa, localidade: (_locsCampCache||{})[r.upa] || '', semanas: new Set() };
+    if (r.semana) map[r.upa].semanas.add(Number(r.semana));
+  });
+  Object.values(map).sort((a, b) => a.upa.localeCompare(b.upa)).forEach(s => {
     for (let sem = 1; sem <= 4; sem++) {
       if (s.semanas.has(sem)) porSemana[sem].push(s);
     }
