@@ -1077,12 +1077,12 @@ async function _cronCarregarTodosSetores() {
   }
 }
 
-// Filtra amostra_mestra pelo mês atual do cronograma e agrupa por semana.
-function _cronSetoresMesPorSemana() {
+// Filtra amostra_mestra pelo mês informado e agrupa por semana.
+function _cronSetoresMesPorSemana(mes) {
   const porSemana = {1:[],2:[],3:[],4:[]};
-  if (!_amCampCache || !_cronMes) return porSemana;
+  if (!_amCampCache || !mes) return porSemana;
   const map = {};
-  _amCampCache.filter(r => Number(r.mes) === _cronMes).forEach(r => {
+  _amCampCache.filter(r => Number(r.mes) === mes).forEach(r => {
     if (!r.upa) return;
     if (!map[r.upa]) map[r.upa] = { upa: r.upa, localidade: (_locsCampCache||{})[r.upa] || '', semanas: new Set() };
     if (r.semana) map[r.upa].semanas.add(Number(r.semana));
@@ -1102,8 +1102,10 @@ window.cronToggleSetoresMes = async (e) => {
   if (!_cronMes) return;
 
   await _cronCarregarTodosSetores();
-  const porSemana = _cronSetoresMesPorSemana();
-  const mesNome   = _NOMES_MES[_cronMes] || ('Mês ' + _cronMes);
+  // Entrevistadores só veem o mês atual do calendário; admins/supervisores veem o mês selecionado.
+  const mesPopover = usuarioPerfil === 'entrevistador' ? (new Date().getMonth() + 1) : _cronMes;
+  const porSemana  = _cronSetoresMesPorSemana(mesPopover);
+  const mesNome    = _NOMES_MES[mesPopover] || ('Mês ' + mesPopover);
   const total     = Object.values(porSemana).reduce((n, l) => n + l.length, 0);
 
   const corpoHtml = total === 0
@@ -1175,8 +1177,13 @@ window.cronNavWeek = (dir) => {
   let mi = MESES.indexOf(_cronMes ?? 6);
   if (mi < 0) mi = 0;
   let sem = (_cronSemana ?? 1) + dir;
-  if (sem < 1) { mi = Math.max(0, mi - 1); sem = 4; }
-  else if (sem > 4) { mi = Math.min(MESES.length - 1, mi + 1); sem = 1; }
+  if (usuarioPerfil === 'entrevistador') {
+    // Entrevistadores só navegam dentro do mês atual — sem troca de mês
+    sem = Math.max(1, Math.min(4, sem));
+  } else {
+    if (sem < 1) { mi = Math.max(0, mi - 1); sem = 4; }
+    else if (sem > 4) { mi = Math.min(MESES.length - 1, mi + 1); sem = 1; }
+  }
   _cronMes    = MESES[mi];
   _cronSemana = sem;
   _cronSyncUI();
