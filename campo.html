@@ -478,6 +478,12 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .cron-card-spanned .cron-card-hdr,
 .cron-card-spanned .cron-setor-item{justify-content:center}
 .cron-card-spanned .cron-setor-nome{flex:0 1 auto;text-align:center}
+.cron-popover{position:fixed;background:#fff;border:1px solid var(--borda);border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.18);z-index:2000;width:260px;max-height:90vh;overflow-y:auto;font-size:12px}
+.cron-pop-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--azul);color:#fff;font-weight:700;font-size:11px;border-radius:7px 7px 0 0;position:sticky;top:0;z-index:1}
+.cron-pop-hdr button{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:0;line-height:1}
+.cron-pop-body{padding:10px}
+.cron-pop-check-grid{display:flex;flex-direction:column;gap:1px;border:1px solid var(--borda);border-radius:5px;padding:3px}
+.cron-pop-check-item{display:flex;align-items:center;gap:5px;padding:3px 5px;border-radius:4px;font-size:11px;line-height:1.2}
 
 @media (max-width:600px){
   .cron-grid{display:block!important}
@@ -592,11 +598,14 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
         <span id="cron-week-label">—</span>
         <button class="cron-nav-btn" onclick="cronNavWeek(1)">→</button>
       </div>
-      <div class="cron-sem-row">
-        <button class="cron-sem-chip" data-sem="1" onclick="cronSelSemana(1)">S1</button>
-        <button class="cron-sem-chip" data-sem="2" onclick="cronSelSemana(2)">S2</button>
-        <button class="cron-sem-chip" data-sem="3" onclick="cronSelSemana(3)">S3</button>
-        <button class="cron-sem-chip" data-sem="4" onclick="cronSelSemana(4)">S4</button>
+      <div style="display:flex;align-items:center;gap:.5rem">
+        <div class="cron-sem-row">
+          <button class="cron-sem-chip" data-sem="1" onclick="cronSelSemana(1)">S1</button>
+          <button class="cron-sem-chip" data-sem="2" onclick="cronSelSemana(2)">S2</button>
+          <button class="cron-sem-chip" data-sem="3" onclick="cronSelSemana(3)">S3</button>
+          <button class="cron-sem-chip" data-sem="4" onclick="cronSelSemana(4)">S4</button>
+        </div>
+        <button onclick="cronToggleSetoresMes(event)" style="padding:.3rem .7rem;border:1.5px solid var(--borda);border-radius:8px;background:#fff;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--texto);font-family:inherit">📋 Setores do mês</button>
       </div>
     </div>
     <div id="cron-tabela-wrap"></div>
@@ -1047,6 +1056,74 @@ let _cronMes       = null;
 let _cronSemana    = null;
 let _cronLinhas    = [];
 let _cronLoadedKey = '';
+
+// Agrupa os setores do entrevistador por semana, usando mySectors carregado em carregarSetores()
+function _cronSetoresMesPorSemana() {
+  const porSemana = {1:[],2:[],3:[],4:[]};
+  (mySectors || []).forEach(s => {
+    for (let sem = 1; sem <= 4; sem++) {
+      if (s.doms.some(d => Number(d.semana) === sem)) {
+        porSemana[sem].push({ upa: s.upa, localidade: s.localidade });
+      }
+    }
+  });
+  return porSemana;
+}
+
+window.cronToggleSetoresMes = (e) => {
+  e.stopPropagation();
+  const existente = document.getElementById('cron-setores-mes-pop');
+  if (existente) { existente.remove(); document.removeEventListener('mousedown', _cronSetoresMesOutside); return; }
+  if (!_cronMes) return;
+
+  const porSemana = _cronSetoresMesPorSemana();
+  const mesNome   = _NOMES_MES[_cronMes] || ('Mês ' + _cronMes);
+  const total     = Object.values(porSemana).reduce((n, l) => n + l.length, 0);
+
+  const corpoHtml = total === 0
+    ? '<div style="padding:.9rem;text-align:center;color:#888;font-size:.8rem">Nenhum setor encontrado.</div>'
+    : [1,2,3,4].map(sem => {
+        const lista = porSemana[sem];
+        if (!lista.length) return '';
+        const itens = lista.map(st =>
+          `<div class="cron-pop-check-item">
+            <span class="cron-setor-code" style="min-width:30px;flex-shrink:0">${String(st.upa).slice(-4)}</span>
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${st.localidade||''}">${st.localidade || st.upa}</span>
+          </div>`
+        ).join('');
+        return `<div style="margin-bottom:.5rem">
+          <div style="font-size:10px;font-weight:700;color:var(--azul);text-transform:uppercase;letter-spacing:.4px;padding:3px 6px">Semana ${sem} (${lista.length})</div>
+          <div class="cron-pop-check-grid">${itens}</div>
+        </div>`;
+      }).join('');
+
+  const pop = document.createElement('div');
+  pop.id        = 'cron-setores-mes-pop';
+  pop.className = 'cron-popover';
+  pop.innerHTML = `
+    <div class="cron-pop-hdr"><span>📋 Setores — ${mesNome}</span><button onclick="cronToggleSetoresMes(event)">×</button></div>
+    <div class="cron-pop-body">${corpoHtml}</div>`;
+  document.body.appendChild(pop);
+
+  const r  = e.currentTarget.getBoundingClientRect();
+  const pw = 260;
+  let left = r.right - pw, top = r.bottom + 4;
+  if (left < 8) left = 8;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  if (top + pop.offsetHeight > window.innerHeight - 8) top = Math.max(8, r.top - pop.offsetHeight - 4);
+  pop.style.left = left + 'px';
+  pop.style.top  = top  + 'px';
+
+  setTimeout(() => document.addEventListener('mousedown', _cronSetoresMesOutside), 0);
+};
+
+function _cronSetoresMesOutside(e) {
+  const pop = document.getElementById('cron-setores-mes-pop');
+  if (!pop || pop.contains(e.target)) return;
+  if (e.target.closest && e.target.closest('[onclick*="cronToggleSetoresMes"]')) return;
+  pop.remove();
+  document.removeEventListener('mousedown', _cronSetoresMesOutside);
+}
 
 const _CRON_PALETAS = [
   { bg:'#F0F4F8', borda:'#94B4CC', cor:'#2C4A5E' },
