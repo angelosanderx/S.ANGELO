@@ -1414,7 +1414,13 @@ window.escolherUsuario = async (nome, perfil = 'entrevistador') => {
 
 window.trocarUsuario = async () => {
   localStorage.removeItem('campo_usuario');
+  localStorage.removeItem('campo_avisos_lidos');
   usuarioNome = '';
+  avisosLidos = new Set();
+  ultimosAvisos = [];
+  _avisoQueue = [];
+  if (_avisoAtivo) { $('modal-aviso').classList.add('hidden'); _avisoAtivo = null; }
+  atualizarBadgeAvisos();
   if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
   if (unsub) { unsub(); unsub = null; }
   if (avisosUnsub) { avisosUnsub(); avisosUnsub = null; }
@@ -3346,6 +3352,34 @@ window.fecharEtiqOverlay = () => {
 
 /* ── KEYBOARD ─────────────────────────────────────────── */
 document.addEventListener('keydown', e => { if(e.key==='Escape') { if(document.getElementById('etiq-overlay')?.classList.contains('ativo')) fecharEtiqOverlay(); else fecharTudo(); } });
+
+/* ── BOTÃO VOLTAR (Android / PWA) ────────────────────────
+   Empurra um estado sentinela ao carregar para que o primeiro
+   "voltar" dispare popstate em vez de fechar o app.
+   - Se algum painel/ficha estiver aberto: fecha tudo.
+   - Se nada aberto: pede confirmação antes de sair.          */
+history.pushState({ pnad: true }, '');
+let _confirmandoSaida = false;
+window.addEventListener('popstate', () => {
+  if (_confirmandoSaida) return;
+  history.pushState({ pnad: true }, ''); // recoloca o sentinela
+
+  if ($('etiq-overlay')?.classList.contains('ativo')) { fecharEtiqOverlay(); return; }
+
+  const algumAberto =
+    $('panel-ficha').classList.contains('aberto') ||
+    $('bottom-sheet').classList.contains('aberto') ||
+    !$('panel-obs').classList.contains('hidden') ||
+    !$('panel-status').classList.contains('hidden') ||
+    !$('panel-solicitar').classList.contains('hidden') ||
+    !$('panel-filtro-entr').classList.contains('hidden');
+  if (algumAberto) { fecharTudo(); return; }
+
+  if (confirm('Deseja sair do aplicativo?')) {
+    _confirmandoSaida = true;
+    history.go(-2); // retira os dois estados sentinela e fecha o app
+  }
+});
 </script>
 
 <div id="etiq-overlay">
