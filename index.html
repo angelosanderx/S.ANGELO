@@ -1007,11 +1007,17 @@
       <div class="topbar-titulo">PNAD-C Campos</div>
     </div>
     <div class="topbar-direita">
-      <select id="periodo-atual-config" onchange="mudarPeriodo(this.value)" title="Período (grupo de meses)" style="padding:0.35rem 0.6rem;border:none;border-radius:6px;font-size:0.8rem;font-family:var(--fonte);font-weight:700;color:var(--azul);background:var(--branco)">
+      <select id="periodo-atual-config" onchange="mudarPeriodo(this.value)" title="Período ativo (grupo de meses)" style="padding:0.35rem 0.6rem;border:none;border-radius:6px;font-size:0.8rem;font-family:var(--fonte);font-weight:700;color:var(--azul);background:var(--branco)">
         <option value="jan_abr_jul_out">Jan / Abr / Jul / Out</option>
         <option value="fev_mai_ago_nov">Fev / Mai / Ago / Nov</option>
         <option value="mar_jun_set_dez">Mar / Jun / Set / Dez</option>
         <option value="todos">🔎 Todos os períodos</option>
+      </select>
+      <select id="periodo-transicao-config" onchange="mudarPeriodoTransicao(this.value)" title="Período em encerramento — ativo até quarta-feira da 1ª semana do mês seguinte" style="display:none;padding:0.35rem 0.6rem;border:none;border-radius:6px;font-size:0.8rem;font-family:var(--fonte);font-weight:600;color:var(--laranja,#d97706);background:var(--branco)">
+        <option value="">↔ Sem transição</option>
+        <option value="jan_abr_jul_out">+ Jan / Abr / Jul / Out</option>
+        <option value="fev_mai_ago_nov">+ Fev / Mai / Ago / Nov</option>
+        <option value="mar_jun_set_dez">+ Mar / Jun / Set / Dez</option>
       </select>
       <span class="perfil-chip" id="chip-perfil"></span>
       <div class="avatar" id="avatar-inicial"></div>
@@ -1090,6 +1096,9 @@
 
       <div id="aviso-todos-periodos" style="display:none;background:var(--azul-claro);border:1px solid var(--azul-medio);border-radius:8px;padding:0.6rem 1rem;margin-bottom:1rem;font-size:0.83rem;color:var(--azul)">
         🔎 Exibindo números somados de <strong>todos os períodos</strong> juntos. Para ver os números de um trimestre específico, troque o período no topo da tela.
+      </div>
+      <div id="aviso-transicao" style="display:none;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:0.6rem 1rem;margin-bottom:1rem;font-size:0.83rem;color:#92400e">
+        ↔ <strong>Modo transição ativo:</strong> período <span id="aviso-transicao-label" style="font-weight:700"></span> em encerramento aparece junto com o período principal. Domicílios desse período são listados como pendentes independentemente da semana (prazo até quarta-feira).
       </div>
 
       <div class="grid-cards" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin-bottom:1.25rem">
@@ -2821,11 +2830,21 @@ const PERIODOS = {
   mar_jun_set_dez: 'Mar / Jun / Set / Dez',
   todos: 'Todos os períodos'
 };
-let periodoAtual = localStorage.getItem('pnad_periodo_atual') || PERIODO_PADRAO;
+let periodoAtual     = localStorage.getItem('pnad_periodo_atual')     || PERIODO_PADRAO;
+let periodoTransicao = localStorage.getItem('pnad_periodo_transicao') || '';
 
 function pertencePeriodo(d) {
   if (periodoAtual === 'todos') return true;
-  return (d.periodo || PERIODO_PADRAO) === periodoAtual;
+  const p = d.periodo || PERIODO_PADRAO;
+  if (p === periodoAtual) return true;
+  if (periodoTransicao && p === periodoTransicao) return true;
+  return false;
+}
+
+// Retorna true se o doc pertence ao período em encerramento (transição).
+// Esses domicílios aparecem como pendentes independentemente da semana.
+function _ehPeriodoTransicao(d) {
+  return !!(periodoTransicao && (d.periodo || PERIODO_PADRAO) === periodoTransicao);
 }
 
 // Carrega a biblioteca do mapa (Leaflet) uma única vez e reaproveita a mesma
@@ -2889,6 +2908,16 @@ window.mudarPeriodo = async (valor) => {
   carregarSetores();
   carregarTentativas();
   mostrarToast('Período alterado para ' + PERIODOS[valor], 'sucesso');
+};
+
+window.mudarPeriodoTransicao = async (valor) => {
+  periodoTransicao = valor;
+  localStorage.setItem('pnad_periodo_transicao', valor);
+  await carregarDomicilios();
+  carregarDashboard();
+  carregarVisitas();
+  carregarTentativas();
+  mostrarToast(valor ? 'Transição ativada: ' + PERIODOS[valor] : 'Modo transição desativado', 'sucesso');
 };
 
 // ── MAPA DE STATUS ──
@@ -2976,6 +3005,13 @@ async function iniciarApp() {
 
   const selPeriodo = document.getElementById('periodo-atual-config');
   if (selPeriodo) selPeriodo.value = periodoAtual;
+
+  // Seletor de período em transição: visível apenas para supervisores e admins
+  const selTransicao = document.getElementById('periodo-transicao-config');
+  if (selTransicao && perfilLogado.perfil !== 'entrevistador') {
+    selTransicao.style.display = '';
+    selTransicao.value = periodoTransicao || '';
+  }
 
   precarregarLeaflet();
 
@@ -3094,13 +3130,21 @@ async function carregarDashboard() {
     const avisoTodos = document.getElementById('aviso-todos-periodos');
     if (avisoTodos) avisoTodos.style.display = periodoAtual === 'todos' ? '' : 'none';
 
+    const avisoTrans = document.getElementById('aviso-transicao');
+    const avisoTransLabel = document.getElementById('aviso-transicao-label');
+    if (avisoTrans) {
+      avisoTrans.style.display = periodoTransicao ? '' : 'none';
+      if (avisoTransLabel && periodoTransicao) avisoTransLabel.textContent = PERIODOS[periodoTransicao] || periodoTransicao;
+    }
+
     // Semana atual — lê do localStorage ou do select
     const semanaAtual = parseInt(localStorage.getItem('pnad_semana_atual') || '2');
     const selSem = document.getElementById('semana-atual-config');
     if (selSem) selSem.value = semanaAtual;
     const realizadas = docs.filter(d => d.status_atual === 'realizada').length;
     const pendentes = docs.filter(d =>
-      parseInt(d.semana) <= semanaAtual && STATUS_PENDENTES.includes(d.status_atual || 'nao_visitado')
+      STATUS_PENDENTES.includes(d.status_atual || 'nao_visitado') &&
+      (_ehPeriodoTransicao(d) || parseInt(d.semana) <= semanaAtual)
     ).length;
     const recusas = docs.filter(d => d.status_atual === 'recusa').length;
     const etapa5 = docs.filter(d => String(d.visita_etapa) === '5').length;
@@ -3119,7 +3163,8 @@ async function carregarDashboard() {
       const semReal = semDocs.filter(d => d.status_atual === 'realizada').length;
       const semPend = semDocs.filter(d => STATUS_PENDENTES.includes(d.status_atual || 'nao_visitado')).length;
       const pct = semDocs.length > 0 ? Math.round(semReal / semDocs.length * 100) : 0;
-      const isPast = s <= semanaAtual;
+      // Em modo transição, todas as semanas são relevantes (dois meses ativos)
+      const isPast = periodoTransicao ? true : s <= semanaAtual;
       htmlSem += `<tr style="${!isPast ? 'opacity:0.4' : ''}">
         <td><strong>Semana ${s}</strong>${!isPast ? ' <span style="font-size:0.72rem;color:var(--cinza)">(futura)</span>' : ''}</td>
         <td>${semDocs.length}</td>
@@ -3162,7 +3207,7 @@ async function carregarDashboard() {
 
     let html = '<div style="overflow-x:auto"><table style="min-width:600px"><thead><tr>' +
       '<th>Entrevistador</th><th>Total</th><th>Realizadas</th>' +
-      '<th>Pendentes (sem.1-' + semanaAtual + ')</th><th>Recusas</th><th>Progresso</th>' +
+      '<th>Pendentes' + (periodoTransicao ? ' (transição)' : ' (sem.1-' + semanaAtual + ')') + '</th><th>Recusas</th><th>Progresso</th>' +
       '</tr></thead><tbody>';
     for (const e of entrevistadores) {
       const meus = docs.filter(d =>
@@ -3170,7 +3215,10 @@ async function carregarDashboard() {
         nomesCorrespondem(e.nome, d.entrevistador_nome || '')
       );
       const real = meus.filter(d => d.status_atual === 'realizada').length;
-      const pend = meus.filter(d => parseInt(d.semana) <= semanaAtual && STATUS_PENDENTES.includes(d.status_atual || 'nao_visitado')).length;
+      const pend = meus.filter(d =>
+        STATUS_PENDENTES.includes(d.status_atual || 'nao_visitado') &&
+        (_ehPeriodoTransicao(d) || parseInt(d.semana) <= semanaAtual)
+      ).length;
       const rec = meus.filter(d => d.status_atual === 'recusa').length;
       const pct = meus.length > 0 ? Math.round(real / meus.length * 100) : 0;
       html += `<tr>
@@ -5783,7 +5831,10 @@ function renderizarDomicilios(lista) {
 
 function _filtrarPendentes(docs, semanaAtual) {
   return docs
-    .filter(d => parseInt(d.semana) <= semanaAtual && STATUS_PENDENTES.includes(d.status_atual || 'nao_visitado'))
+    .filter(d =>
+      STATUS_PENDENTES.includes(d.status_atual || 'nao_visitado') &&
+      (_ehPeriodoTransicao(d) || parseInt(d.semana) <= semanaAtual)
+    )
     .sort((a, b) => (parseInt(a.semana||0) - parseInt(b.semana||0)) || (parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0)));
 }
 
