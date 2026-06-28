@@ -1,10 +1,10 @@
-// Service worker do app de campo (PNAD-C Campo). Cobre só o "app shell": o próprio
+// Service worker do app de campo (PNAD-C Campos). Cobre só o "app shell": o próprio
 // campo.html, manifest, ícones e os pacotes externos fixos que ele carrega ao abrir
 // (SDK do Firebase, Leaflet). NÃO intercepta nada do Firestore/Auth/tiles de mapa —
 // eles têm sua própria persistência/cache e usam conexões (long-polling, streaming)
 // que um service worker genérico poderia quebrar se tentasse interceptar.
 
-const CACHE_NAME = 'campo-shell-v3';
+const CACHE_NAME = 'campo-shell-v4';
 
 const APP_SHELL_RELATIVE = [
   '/campo.html',
@@ -27,8 +27,9 @@ const APP_SHELL = [
   ...APP_SHELL_EXTERNAL,
 ];
 
-// URL completa do campo.html para comparação no fetch handler
-const CAMPO_HTML_URL = new URL('/campo.html', self.location.origin).href;
+// URLs que mudam com frequência e devem sempre ser revalidadas no servidor
+const CAMPO_HTML_URL  = new URL('/campo.html',   self.location.origin).href;
+const MANIFEST_URL    = new URL('/manifest.json', self.location.origin).href;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -57,7 +58,8 @@ self.addEventListener('fetch', (event) => {
   // com o servidor a cada acesso, ignorando o cache HTTP do navegador.
   // A requisição de navegação (mode:'navigate') é substituída por um GET simples
   // para garantir compatibilidade no contexto do service worker.
-  const fetchReq = request.url === CAMPO_HTML_URL
+  const revalidar = request.url === CAMPO_HTML_URL || request.url === MANIFEST_URL;
+  const fetchReq = revalidar
     ? new Request(request.url, { cache: 'no-cache' })
     : request;
 
