@@ -1,6 +1,6 @@
 {
-  "name": "PNAD-C - CAMPOS/RJ",
-  "short_name": "PNAD-C - CAMPOS/RJ",
+  "name": "PNAD-C Campos",
+  "short_name": "PNAD-C Campos",
   "description": "Aplicativo de campo dos entrevistadores da PNAD Contínua — Campos/RJ",
   "start_url": "/campo.html",
   "scope": "/campo.html",
