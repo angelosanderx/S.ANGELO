@@ -8144,10 +8144,8 @@ function _buildCronGrid() {
             const codeHtml = isLivre ? '<span class="cron-setor-code">✎</span>' : `<span class="cron-setor-code">${String(upa).slice(-4)}</span>`;
             const bgStyle = isPend ? 'background:#F5F2EE;border-left:3px solid #B8A898' : 'background:rgba(255,255,255,0.6)';
             const _podeEditarCron = ['supervisor','administrador'].includes(perfilLogado?.perfil);
-            const _diaEsc = d.replace(/"/g,'&quot;');
-            const _upaEsc = String(upa).replace(/"/g,'&quot;');
             const _delSetorBtn = (_podeEditarCron && !isLivre)
-              ? `<button class="cron-setor-del-btn" data-dia="${_diaEsc}" data-gk="${gkAttr}" data-upa="${_upaEsc}" onclick="event.stopPropagation();cronRemoverSetor(this.dataset.dia,this.dataset.gk,this.dataset.upa)" title="Remover setor">×</button>`
+              ? `<button class="cron-setor-del-btn" data-liidx="${m.liIdx}" data-eqidx="${m.eqIdx}" data-si="${si}" onclick="event.stopPropagation();cronRemoverSetor(+this.dataset.liidx,+this.dataset.eqidx,+this.dataset.si)" title="Remover setor">×</button>`
               : '';
             inner += `<div class="cron-setor-item" style="${bgStyle}">${etBadges}${codeHtml}<span class="cron-setor-nome" title="${loc}">${loc||(isLivre?'':upa)}</span>${_delSetorBtn}</div>`;
           });
@@ -8655,31 +8653,18 @@ window.cronDeleteEquipe = async () => {
   }
 };
 
-window.cronRemoverSetor = async (dia, gk, upa) => {
-  if (!_cronMes || !_cronSemana || !dia || !upa) return;
+window.cronRemoverSetor = async (liIdx, eqIdx, si) => {
+  if (!_cronMes || !_cronSemana) return;
+  if (liIdx < 0 || liIdx >= _cronLinhas.length) return;
 
   const linhasNova = JSON.parse(JSON.stringify(_cronLinhas));
-  let alterou = false;
+  const eq = (linhasNova[liIdx]?.equipes || [])[eqIdx];
+  if (!eq || !eq.upas || !eq.upas[si]) return;
 
-  linhasNova.forEach(ln => {
-    const startD = ln.data || '';
-    const endD   = (ln.data_fim && ln.data_fim > startD) ? ln.data_fim : startD;
-    if (dia < startD || dia > endD) return;
-    (ln.equipes || []).forEach(eq => {
-      const ns = (eq.entrevistadores||'').split(',').map(s=>s.trim()).filter(Boolean);
-      if (([...ns].sort().join('|')||'—') !== gk) return;
-      const idx = (eq.upas || []).indexOf(upa);
-      if (idx < 0) return;
-      eq.upas.splice(idx, 1);
-      if (eq.localidades) eq.localidades.splice(idx, 1);
-      if (eq.tipos) eq.tipos.splice(idx, 1);
-      // mantém a entrada vazia para preservar a equipe/dia (setores podem ser adicionados depois)
-      if (!eq.upas.length) { eq.upas = ['']; eq.localidades = ['']; eq.tipos = ['']; }
-      alterou = true;
-    });
-  });
-
-  if (!alterou) return;
+  eq.upas.splice(si, 1);
+  if (Array.isArray(eq.localidades) && eq.localidades.length > si) eq.localidades.splice(si, 1);
+  if (Array.isArray(eq.tipos) && eq.tipos.length > si) eq.tipos.splice(si, 1);
+  if (!eq.upas.length) { eq.upas = ['']; eq.localidades = ['']; eq.tipos = ['']; }
 
   try {
     await setDoc(doc(db, 'cronograma', `${_cronMes}_${_cronSemana}`), { linhas: linhasNova });
