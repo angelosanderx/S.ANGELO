@@ -750,6 +750,9 @@
   .card-filtrado { border-color: var(--laranja) !important; box-shadow: 0 0 0 3px rgba(251,146,60,0.18), var(--sombra); transition: border-color 0.2s, box-shadow 0.2s; }
   .card-filtrado > .card-tabela-header { background: #fff7ed; border-bottom-color: #fed7aa; }
   .filtro-ativo-ctrl { border-color: var(--laranja) !important; background: #fff7ed !important; }
+  /* ── Acompanhar Espécies — redimensionamento de colunas ─────────────────── */
+  .col-resizer { position:absolute;right:0;top:0;width:5px;height:100%;cursor:col-resize;z-index:1;border-radius:0 2px 2px 0; }
+  .col-resizer:hover, .col-resizer.ativo { background:var(--azul);opacity:0.4; }
   /* ── Cronograma — grade visual semanal ──────────────────────────────────── */
   .cron-sem-chip { padding:0.25rem 0.55rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.78rem;background:#fff;cursor:pointer;color:var(--cinza-escuro);font-family:var(--fonte);transition:background 0.12s,border-color 0.12s,color 0.12s; }
   .cron-sem-chip.ativo { background:var(--azul);border-color:var(--azul);color:#fff;font-weight:600; }
@@ -1066,6 +1069,9 @@
     </div>
     <div class="nav-item" onclick="irPara('ultimo-movimento')">
       <span class="icone">📋</span> Último Movimento
+    </div>
+    <div class="nav-item" onclick="irPara('acompanhar-especies')">
+      <span class="icone">📊</span> Acompanhar Espécies
     </div>
 
     <div class="nav-secao">Comunicação</div>
@@ -1947,6 +1953,53 @@
       <div id="card-um" class="card-tabela">
         <div class="card-tabela-header"><h3 id="um-contador">Último Movimento</h3></div>
         <div id="tabela-ultimo-movimento"><div class="loader">Carregando...</div></div>
+      </div>
+    </div>
+
+    <div class="pagina" id="pag-acompanhar-especies">
+      <div class="titulo-pagina">📊 Acompanhar Espécies</div>
+      <div class="card-tabela" style="margin-bottom:0.75rem;overflow:visible">
+        <div style="padding:0.85rem 1.25rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+          <select id="ae-upa" onchange="aeFiltrarPorUpa()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:180px">
+            <option value="">Todas as UPAs</option>
+          </select>
+          <select id="ae-setor" onchange="filtrarAcompanharEspecies()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:180px">
+            <option value="">Todos os setores</option>
+          </select>
+          <select id="ae-semana" onchange="filtrarAcompanharEspecies()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
+            <option value="">Todas as semanas</option>
+            <option value="1">Semana 1</option>
+            <option value="2">Semana 2</option>
+            <option value="3">Semana 3</option>
+            <option value="4">Semana 4</option>
+          </select>
+          <select id="ae-etapa" onchange="filtrarAcompanharEspecies()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro)">
+            <option value="">Todas as etapas</option>
+            <option value="1">Etapa 1</option>
+            <option value="2">Etapa 2</option>
+            <option value="3">Etapa 3</option>
+            <option value="4">Etapa 4</option>
+            <option value="5">Etapa 5</option>
+          </select>
+          <select id="ae-resultado" onchange="filtrarAcompanharEspecies()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:170px">
+            <option value="">Qualquer resultado</option>
+            <option value="Entrevista Realizada">Entrevista Realizada</option>
+            <option value="Recusa">Recusa</option>
+            <option value="Uso Ocasional">Uso Ocasional</option>
+            <option value="Vago">Vago</option>
+            <option value="Fechado">Fechado</option>
+            <option value="Ausente">Ausente</option>
+          </select>
+          <select id="ae-entrevistador" onchange="filtrarAcompanharEspecies()" style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:180px">
+            <option value="">Todos os entrevistadores</option>
+          </select>
+          <input type="text" id="ae-busca" placeholder="Buscar endereço, controle, resultado..." style="padding:0.4rem 0.7rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--cinza-claro);flex:1;min-width:160px" oninput="filtrarAcompanharEspecies()">
+          <button class="btn-acao secundario" onclick="limparFiltrosAE()">Limpar</button>
+        </div>
+      </div>
+      <div id="card-ae" class="card-tabela">
+        <div class="card-tabela-header"><h3 id="ae-contador">Acompanhar Espécies</h3></div>
+        <div id="tabela-ae"><div class="loader">Carregando...</div></div>
       </div>
     </div>
 
@@ -3052,6 +3105,7 @@ window.irPara = (pag) => {
   }
   if (pag === 'cnefe') carregarCnefe();
   if (pag === 'ultimo-movimento') filtrarUltimoMovimento();
+  if (pag === 'acompanhar-especies') filtrarAcompanharEspecies();
 };
 
 window.toggleSidebar = () => {
@@ -3854,6 +3908,263 @@ function renderizarUltimoMovimento(lista) {
       <td style="${S}">${esc(d.entrevistador_nome||'—')}</td>
     </tr>`).join('') +
     '</tbody></table></div>';
+}
+
+// ── ACOMPANHAR ESPÉCIES ──────────────────────────────────────────────────────
+
+let aeSort = { col: '', dir: 1 };
+
+window.aeOrdenar = (col) => {
+  if (aeSort.col === col) aeSort.dir *= -1;
+  else { aeSort.col = col; aeSort.dir = 1; }
+  filtrarAcompanharEspecies();
+};
+
+function _atualizarDropdownsAE() {
+  const upaAtual  = document.getElementById('ae-upa')?.value || '';
+  const setorAtual = document.getElementById('ae-setor')?.value || '';
+  const entrAtual = document.getElementById('ae-entrevistador')?.value || '';
+
+  const upas = [...new Set(todosdomicilios.map(d => d.upa).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  const selUpa = document.getElementById('ae-upa');
+  if (!selUpa) return;
+  selUpa.innerHTML = '<option value="">Todas as UPAs (' + upas.length + ')</option>';
+  upas.forEach(u => { const o = document.createElement('option'); o.value = u; o.textContent = 'UPA ' + u; selUpa.appendChild(o); });
+  selUpa.value = upas.includes(upaAtual) ? upaAtual : '';
+
+  const upaEfetiva = selUpa.value;
+  const setores = [...new Set(
+    todosdomicilios.filter(d => !upaEfetiva || d.upa === upaEfetiva)
+      .map(d => d.controle ? d.controle.slice(0,-1) : d.upa).filter(Boolean)
+  )].sort((a,b) => a.localeCompare(b));
+  const selSetor = document.getElementById('ae-setor');
+  if (selSetor) {
+    selSetor.innerHTML = '<option value="">Todos os setores (' + setores.length + ')</option>';
+    setores.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = 'Setor ' + s; selSetor.appendChild(o); });
+    selSetor.value = setores.includes(setorAtual) ? setorAtual : '';
+  }
+
+  const _nomesMapAe = new Map();
+  todosdomicilios.forEach(d => {
+    if (!d.entrevistador_nome) return;
+    const reg = (entrevistadoresCache||[]).find(u => nomesCorrespondem(u.nome, d.entrevistador_nome));
+    const canonical = toTitleCase(reg ? reg.nome : d.entrevistador_nome);
+    const key = _chaveNomeGlobal(canonical);
+    if (key && !_nomesMapAe.has(key)) _nomesMapAe.set(key, canonical);
+  });
+  const entrevistadores = [..._nomesMapAe.values()].sort((a,b) => a.localeCompare(b));
+  const selEntr = document.getElementById('ae-entrevistador');
+  if (selEntr) {
+    selEntr.innerHTML = '<option value="">Todos os entrevistadores (' + entrevistadores.length + ')</option>';
+    entrevistadores.forEach(e => { const o = document.createElement('option'); o.value = e; o.textContent = e; selEntr.appendChild(o); });
+    selEntr.value = entrevistadores.includes(entrAtual) ? entrAtual : '';
+  }
+}
+
+window.aeFiltrarPorUpa = () => {
+  const upa = document.getElementById('ae-upa')?.value || '';
+  const setores = [...new Set(
+    todosdomicilios.filter(d => !upa || d.upa === upa)
+      .map(d => d.controle ? d.controle.slice(0,-1) : d.upa).filter(Boolean)
+  )].sort((a,b) => a.localeCompare(b));
+  const sel = document.getElementById('ae-setor');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Todos os setores (' + setores.length + ')</option>';
+  setores.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = 'Setor ' + s; sel.appendChild(o); });
+  filtrarAcompanharEspecies();
+};
+
+window.filtrarAcompanharEspecies = () => {
+  _atualizarDropdownsAE();
+  const upa      = document.getElementById('ae-upa')?.value || '';
+  const setor    = document.getElementById('ae-setor')?.value || '';
+  const semana   = document.getElementById('ae-semana')?.value || '';
+  const etapa    = document.getElementById('ae-etapa')?.value || '';
+  const resultado = document.getElementById('ae-resultado')?.value || '';
+  const entr     = document.getElementById('ae-entrevistador')?.value || '';
+  const q        = (document.getElementById('ae-busca')?.value || '').toLowerCase();
+
+  const filtrados = todosdomicilios.filter(d => {
+    const setorDom = d.controle ? d.controle.slice(0,-1) : d.upa;
+    if (upa    && d.upa !== upa) return false;
+    if (setor  && setorDom !== setor) return false;
+    if (semana && String(d.semana || '') !== semana) return false;
+    if (etapa  && String(d.visita_etapa || '') !== etapa) return false;
+    if (entr   && !_entrevistadorCorresponde(d.entrevistador_nome, entr)) return false;
+    if (resultado) {
+      const hist = d.historico_especies || [];
+      if (!hist.some(h => (h.resultado||'').toLowerCase().includes(resultado.toLowerCase()))) return false;
+    }
+    if (q) {
+      const hist = d.historico_especies || [];
+      const histTxt = hist.map(h => [(h.resultado||''), (h.entrevistador||''), (h.mes_ano||'')].join(' ')).join(' ');
+      const hay = [d.upa, d.controle, String(d.domicilio_num||''), d.endereco, d.entrevistador_nome, histTxt]
+        .map(v => (v||'').toLowerCase()).join(' ');
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (aeSort.col) {
+    filtrados.sort((a, b) => {
+      let va, vb;
+      if (aeSort.col.startsWith('res')) {
+        const n = parseInt(aeSort.col.slice(3));
+        const ha = (a.historico_especies||[]).find(h => parseInt(h.entrevista) === n);
+        const hb = (b.historico_especies||[]).find(h => parseInt(h.entrevista) === n);
+        va = ha?.resultado||''; vb = hb?.resultado||'';
+      } else {
+        switch (aeSort.col) {
+          case 'upa':           va = a.upa||'';                    vb = b.upa||'';                    break;
+          case 'controle':      va = a.controle||'';               vb = b.controle||'';               break;
+          case 'dom':           va = parseInt(a.domicilio_num||0);  vb = parseInt(b.domicilio_num||0); break;
+          case 'semana':        va = parseInt(a.semana||0);         vb = parseInt(b.semana||0);        break;
+          case 'etapa':         va = parseInt(a.visita_etapa||0);   vb = parseInt(b.visita_etapa||0);  break;
+          case 'endereco':      va = a.endereco||'';               vb = b.endereco||'';               break;
+          case 'entrevistador': va = a.entrevistador_nome||'';      vb = b.entrevistador_nome||'';     break;
+          default: return 0;
+        }
+      }
+      if (typeof va === 'number') return (va - vb) * aeSort.dir;
+      return va.localeCompare(vb) * aeSort.dir;
+    });
+  } else {
+    filtrados.sort((a, b) => {
+      const upaDiff = (a.upa||'').localeCompare(b.upa||'');
+      if (upaDiff !== 0) return upaDiff;
+      const sa = a.controle ? a.controle.slice(0,-1) : (a.upa||'');
+      const sb = b.controle ? b.controle.slice(0,-1) : (b.upa||'');
+      const setDiff = sa.localeCompare(sb);
+      if (setDiff !== 0) return setDiff;
+      return parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0);
+    });
+  }
+
+  renderizarAcompanharEspecies(filtrados);
+  const _temFiltro = !!(upa || setor || semana || etapa || resultado || entr || q);
+  _indicarFiltroAtivo('card-ae', _temFiltro);
+  ['ae-upa','ae-setor','ae-semana','ae-etapa','ae-resultado','ae-entrevistador'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.classList.toggle('filtro-ativo-ctrl', !!el.value);
+  });
+  const _b = document.getElementById('ae-busca');
+  if (_b) _b.classList.toggle('filtro-ativo-ctrl', !!_b.value);
+};
+
+window.limparFiltrosAE = () => {
+  ['ae-upa','ae-setor','ae-semana','ae-etapa','ae-resultado','ae-entrevistador'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const b = document.getElementById('ae-busca'); if (b) b.value = '';
+  filtrarAcompanharEspecies();
+};
+
+const _aeCols = [
+  { id:'upa',           label:'UPA',       w:80  },
+  { id:'controle',      label:'CONTROLE',  w:115 },
+  { id:'dom',           label:'DOM',       w:48  },
+  { id:'semana',        label:'SEM',       w:48  },
+  { id:'etapa',         label:'ETAPA',     w:55  },
+  { id:'endereco',      label:'ENDEREÇO',  w:200 },
+  { id:'entrevistador', label:'ENTR.',     w:130 },
+  { id:'res1',          label:'1ª ET.',    w:130 },
+  { id:'res2',          label:'2ª ET.',    w:130 },
+  { id:'res3',          label:'3ª ET.',    w:130 },
+  { id:'res4',          label:'4ª ET.',    w:130 },
+  { id:'res5',          label:'5ª ET.',    w:130 },
+];
+
+function _corResultadoAE(r) {
+  const v = (r||'').toLowerCase();
+  if (v.includes('realizada') || v.includes('completa')) return 'var(--verde)';
+  if (v.includes('recusa')) return 'var(--vermelho)';
+  if (v.includes('ocasional')) return 'var(--laranja)';
+  return '';
+}
+
+function renderizarAcompanharEspecies(lista) {
+  const contador = document.getElementById('ae-contador');
+  if (contador) contador.textContent = lista.length + ' domicílio(s)';
+  const el = document.getElementById('tabela-ae');
+  if (!el) return;
+  if (lista.length === 0) {
+    el.innerHTML = '<div class="vazio"><div class="icone-vazio">📊</div>Nenhum domicílio encontrado.</div>';
+    return;
+  }
+
+  const S = 'padding:0.32rem 0.5rem;font-size:0.77rem;vertical-align:top';
+
+  const colgroup = '<colgroup>' +
+    _aeCols.map((c, i) => `<col id="ae-col-${i}" style="width:${c.w}px">`).join('') +
+    '</colgroup>';
+
+  const thead = '<thead><tr>' +
+    _aeCols.map((c, i) => {
+      const ativo = aeSort.col === c.id;
+      const arrow = ativo ? (aeSort.dir === 1 ? ' ↑' : ' ↓') : '';
+      const center = ['dom','semana','etapa'].includes(c.id) ? ';text-align:center' : '';
+      return `<th onclick="aeOrdenar('${c.id}')" style="position:relative;cursor:pointer;user-select:none;white-space:nowrap${ativo?';color:var(--azul)':''}${center}">` +
+        `${c.label}${arrow}` +
+        `<div class="col-resizer" data-colidx="${i}" onclick="event.stopPropagation()"></div>` +
+        `</th>`;
+    }).join('') +
+    '</tr></thead>';
+
+  const tbody = '<tbody>' + lista.map(d => {
+    const hist = (d.historico_especies || []).slice().sort((a,b) => parseInt(a.entrevista) - parseInt(b.entrevista));
+    const etapas = {};
+    hist.forEach(h => { etapas[parseInt(h.entrevista)] = h; });
+
+    const cellEt = (n) => {
+      const h = etapas[n];
+      if (!h) return `<td style="${S};color:var(--cinza-claro-2,#cbd5e1)">—</td>`;
+      const cor = _corResultadoAE(h.resultado);
+      const entr = (h.entrevistador && h.entrevistador !== 'Não informado' && h.entrevistador !== 'Não identificado')
+        ? `<div style="font-size:0.7rem;color:var(--cinza);margin-top:1px">${esc(h.entrevistador.split(' ')[0])}</div>` : '';
+      const mes = h.mes_ano ? `<div style="font-size:0.68rem;color:var(--cinza)">${esc(h.mes_ano)}</div>` : '';
+      return `<td style="${S}${cor?';color:'+cor+';font-weight:600':''}">${esc(h.resultado||'—')}${entr}${mes}</td>`;
+    };
+
+    return `<tr>
+      <td style="${S}">${esc(d.upa||'—')}</td>
+      <td style="${S};font-family:monospace;font-size:0.73rem">${esc(d.controle||'—')}</td>
+      <td style="${S};text-align:center;font-weight:700;color:var(--azul)">${esc(d.domicilio_num||'—')}</td>
+      <td style="${S};text-align:center">${esc(d.semana||'—')}</td>
+      <td style="${S};text-align:center;font-weight:700">${esc(d.visita_etapa||'—')}</td>
+      <td style="${S};font-size:0.75rem">${esc(d.endereco||'—')}</td>
+      <td style="${S};font-size:0.75rem">${esc(d.entrevistador_nome||'—')}</td>
+      ${cellEt(1)}${cellEt(2)}${cellEt(3)}${cellEt(4)}${cellEt(5)}
+    </tr>`;
+  }).join('') + '</tbody>';
+
+  el.innerHTML = '<div style="overflow-x:auto"><table id="ae-table" style="font-size:0.77rem;table-layout:fixed;border-collapse:collapse">' +
+    colgroup + thead + tbody + '</table></div>';
+
+  _iniciarResizeAE();
+}
+
+function _iniciarResizeAE() {
+  const table = document.getElementById('ae-table');
+  if (!table) return;
+  table.querySelectorAll('.col-resizer').forEach(handle => {
+    handle.addEventListener('mousedown', e => {
+      const idx = parseInt(handle.dataset.colidx);
+      const col = document.getElementById('ae-col-' + idx);
+      if (!col) return;
+      handle.classList.add('ativo');
+      const startX = e.clientX;
+      const startW = col.offsetWidth || _aeCols[idx]?.w || 100;
+      e.preventDefault();
+      const onMove = ev => {
+        const newW = Math.max(40, startW + ev.clientX - startX);
+        col.style.width = newW + 'px';
+      };
+      const onUp = () => {
+        handle.classList.remove('ativo');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
 }
 
 // ── ETIQUETAS DE ENDEREÇO (Pimaco 6181 — 2×7 = 14 por folha A4) ──
