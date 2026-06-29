@@ -8095,7 +8095,7 @@ function _buildCronGrid() {
   for (const g of groups) {
     const pal = _CRON_PALETAS[palIdx % _CRON_PALETAS.length];
     palIdx++;
-    const gkAttr = g.nomes.join('|').replace(/"/g,'&quot;');
+    const gkAttr = ([...g.nomes].sort().join('|') || '—').replace(/"/g,'&quot;');
 
     const avatarHtml = g.nomes.map(n => {
       const cor = corEntrevistador(n);
