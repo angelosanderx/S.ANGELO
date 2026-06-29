@@ -781,6 +781,9 @@
   .cron-hd-hora-fixa { font-size:13px;font-weight:800;color:var(--azul-med); }
   .cron-hd-pend { font-style:italic;color:#A32D2D; }
   .cron-setor-item { display:flex;align-items:center;gap:3px;background:rgba(255,255,255,0.6);border-radius:3px;padding:2px 4px;margin-bottom:2px; }
+  .cron-setor-del-btn { background:none;border:none;color:transparent;font-size:12px;font-weight:700;line-height:1;cursor:pointer;padding:0 1px;flex-shrink:0;transition:color 0.1s; }
+  .cron-setor-item:hover .cron-setor-del-btn { color:#c33; }
+  .cron-setor-del-btn:hover { color:#e33 !important; }
   .cron-etapa-badge { font-size:8px;font-weight:700;padding:1px 3px;border-radius:3px;flex-shrink:0;white-space:nowrap; }
   .cron-setor-code { font-family:monospace;font-size:9px;color:#666;flex-shrink:0;white-space:nowrap; }
   .cron-setor-nome { font-size:10px;font-weight:700;min-width:0;flex:1;white-space:normal;overflow-wrap:break-word;line-height:1.25; }
@@ -8140,7 +8143,13 @@ function _buildCronGrid() {
             const etBadges = isLivre ? '' : etapas.map(e => { const bd=_CRON_BADGE[e]||{bg:'#eee',c:'#333'}; return `<span class="cron-etapa-badge" style="background:${bd.bg};color:${bd.c}">E${e}</span>`; }).join('');
             const codeHtml = isLivre ? '<span class="cron-setor-code">✎</span>' : `<span class="cron-setor-code">${String(upa).slice(-4)}</span>`;
             const bgStyle = isPend ? 'background:#F5F2EE;border-left:3px solid #B8A898' : 'background:rgba(255,255,255,0.6)';
-            inner += `<div class="cron-setor-item" style="${bgStyle}">${etBadges}${codeHtml}<span class="cron-setor-nome" title="${loc}">${loc||(isLivre?'':upa)}</span></div>`;
+            const _podeEditarCron = ['supervisor','administrador'].includes(perfilLogado?.perfil);
+            const _diaEsc = d.replace(/"/g,'&quot;');
+            const _upaEsc = String(upa).replace(/"/g,'&quot;');
+            const _delSetorBtn = (_podeEditarCron && !isLivre)
+              ? `<button class="cron-setor-del-btn" data-dia="${_diaEsc}" data-gk="${gkAttr}" data-upa="${_upaEsc}" onclick="event.stopPropagation();cronRemoverSetor(this.dataset.dia,this.dataset.gk,this.dataset.upa)" title="Remover setor">×</button>`
+              : '';
+            inner += `<div class="cron-setor-item" style="${bgStyle}">${etBadges}${codeHtml}<span class="cron-setor-nome" title="${loc}">${loc||(isLivre?'':upa)}</span>${_delSetorBtn}</div>`;
           });
         });
 
@@ -8643,6 +8652,42 @@ window.cronDeleteEquipe = async () => {
   } catch(e) {
     mostrarToast('Erro ao excluir equipe', 'erro');
     if (btn) { btn.textContent = '🗑️ Excluir equipe'; btn.disabled = false; }
+  }
+};
+
+window.cronRemoverSetor = async (dia, gk, upa) => {
+  if (!_cronMes || !_cronSemana || !dia || !upa) return;
+
+  const linhasNova = JSON.parse(JSON.stringify(_cronLinhas));
+  let alterou = false;
+
+  linhasNova.forEach(ln => {
+    const startD = ln.data || '';
+    const endD   = (ln.data_fim && ln.data_fim > startD) ? ln.data_fim : startD;
+    if (dia < startD || dia > endD) return;
+    (ln.equipes || []).forEach(eq => {
+      const ns = (eq.entrevistadores||'').split(',').map(s=>s.trim()).filter(Boolean);
+      if (([...ns].sort().join('|')||'—') !== gk) return;
+      const idx = (eq.upas || []).indexOf(upa);
+      if (idx < 0) return;
+      eq.upas.splice(idx, 1);
+      if (eq.localidades) eq.localidades.splice(idx, 1);
+      if (eq.tipos) eq.tipos.splice(idx, 1);
+      // mantém a entrada vazia para preservar a equipe/dia (setores podem ser adicionados depois)
+      if (!eq.upas.length) { eq.upas = ['']; eq.localidades = ['']; eq.tipos = ['']; }
+      alterou = true;
+    });
+  });
+
+  if (!alterou) return;
+
+  try {
+    await setDoc(doc(db, 'cronograma', `${_cronMes}_${_cronSemana}`), { linhas: linhasNova });
+    _cronLinhas = linhasNova;
+    _buildCronSetores(_cronMes, _cronSemana);
+    document.getElementById('cron-tabela-wrap').innerHTML = _buildCronGrid();
+  } catch(e) {
+    mostrarToast('Erro ao remover setor', 'erro');
   }
 };
 
