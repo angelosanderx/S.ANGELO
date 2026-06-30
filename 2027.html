@@ -1965,7 +1965,7 @@ function fecharMenuTrilhaTarefa() {
 document.addEventListener('click', () => {
   fecharMenuTrilhaTarefa(); fecharTrilhaSemDD();
   fecharMenuTrilhaPortTarefa(); fecharTrilhaPortSemDD(); fecharMenuTopicoPort(); fecharPortColorDD();
-  Object.values(_TRILHA).forEach(m => { m.fecharMenuTarefa(); m.fecharSemDD(); });
+  Object.values(_TRILHA).forEach(m => { m.fecharMenuTarefa(); m.fecharSemDD(); m.fecharMenuSec?.(); m._fecharColorDD?.(); });
 });
 
 window.duplicarTarefaTrilha = async (id) => {
@@ -2849,6 +2849,7 @@ function _criarTrilha(cfg) {
     arr: [], carregada: false,
     secAberta: new Set(), subsAberto: new Set(),
     semDD: null, menuDD: null, addSecKey: null,
+    _dragSrcSec: null, _dragSrcTask: null, _dragOverEl: null, _menuSecDD: null,
 
     _gerarTemplate() {
       const ts = []; let ord = 0;
@@ -3033,14 +3034,49 @@ function _criarTrilha(cfg) {
       const ts = sec.tarefas, feitas = ts.filter(t=>t.feita).length;
       const isOpen = mgr.secAberta.has(sec.key), eRev = sec.tipo==='revisao';
       const dots = ts.map(t=>`<div class="trilha-dot ${t.feita?'feita':''}"></div>`).join('');
-      return `<div class="trilha-secao ${eRev?'revisao-geral':''}">
-        <div class="trilha-secao-header" onclick="_TRILHA['${id}'].toggleSecao('${sec.key}')">
+      const cfg2 = _carregarCfgTrilha(id), colors = cfg2.colors||{};
+      const cor = !eRev ? (colors[sec.topicoNum]||null) : null;
+      const corStyle = cor ? `border-left:3px solid ${cor};` : '';
+      const corHdr   = cor ? `background:${cor}12;` : '';
+      const dragHandle = !eRev
+        ? `<span class="drag-handle" draggable="true" onclick="event.stopPropagation()"
+             ondragstart="_TRILHA['${id}'].secDragStart(${sec.topicoNum},event)"
+             ondragend="_TRILHA['${id}'].secDragEnd(event)" title="Arrastar">⠿</span>`
+        : `<span style="width:1.2rem;flex-shrink:0"></span>`;
+      const secMenu = !eRev ? `
+        <div style="position:relative;flex-shrink:0" onclick="event.stopPropagation()">
+          <button onclick="_TRILHA['${id}'].toggleMenuSec(${sec.topicoNum},event)"
+            style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:.1rem .3rem;opacity:.5;transition:opacity .15s"
+            onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.5'" title="Opções">⋮</button>
+          <div id="${prefix}smdd-${sec.topicoNum}" style="display:none;position:fixed;right:0;top:0;z-index:9999;background:var(--bg-card);border:1px solid var(--border2);border-radius:8px;padding:.4rem;box-shadow:0 8px 24px rgba(0,0,0,.4);min-width:170px">
+            <div class="trilha-menu-opt" onclick="_TRILHA['${id}'].duplicarTopico(${sec.topicoNum})">⎘ Duplicar tópico</div>
+            <div class="trilha-menu-sep"></div>
+            <div class="trilha-menu-opt" onclick="_TRILHA['${id}'].abrirColorPicker(${sec.topicoNum})">${cor?`<span style="display:inline-block;width:.7rem;height:.7rem;border-radius:50%;background:${cor};margin-right:.35rem;vertical-align:middle"></span>`:''}🎨 Mudar cor</div>
+            <div class="trilha-menu-sep"></div>
+            <div class="trilha-menu-opt danger" onclick="_TRILHA['${id}'].excluirTopico(${sec.topicoNum})">✕ Excluir tópico</div>
+          </div>
+          <div id="${prefix}clr-${sec.topicoNum}" style="display:none;position:fixed;right:0;top:0;z-index:9999;background:var(--bg-card);border:1px solid var(--border2);border-radius:8px;padding:.6rem;box-shadow:0 8px 24px rgba(0,0,0,.4);min-width:170px">
+            <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem;font-weight:600;letter-spacing:.03em">COR DO TÓPICO</div>
+            <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.5rem">
+              ${_PORT_CORES.map(c=>`<button onclick="_TRILHA['${id}'].setTopicoCor(${sec.topicoNum},'${c}')" style="width:1.5rem;height:1.5rem;border-radius:50%;border:2px solid ${cor===c?'#fff':'transparent'};background:${c};cursor:pointer;transition:border-color .1s" onmouseover="this.style.borderColor='#fff'" onmouseout="this.style.borderColor='${cor===c?'#fff':'transparent'}'" title="${c}"></button>`).join('')}
+            </div>
+            <div class="trilha-menu-sep"></div>
+            <div class="trilha-menu-opt" onclick="_TRILHA['${id}'].setTopicoCor(${sec.topicoNum},null)">× Remover cor</div>
+          </div>
+        </div>` : '';
+      const secAttrs = !eRev
+        ? `id="${prefix}sec-${sec.topicoNum}" ondragover="_TRILHA['${id}'].secDragOver(${sec.topicoNum},event)" ondrop="_TRILHA['${id}'].secDrop(${sec.topicoNum},event)"`
+        : '';
+      return `<div class="trilha-secao ${eRev?'revisao-geral':''}" style="${corStyle}" ${secAttrs}>
+        <div class="trilha-secao-header" style="${corHdr}" onclick="_TRILHA['${id}'].toggleSecao('${sec.key}')">
+          ${dragHandle}
           <span class="trilha-secao-toggle ${isOpen?'aberto':''}" id="${prefix}sec-tog-${sec.key}">▶</span>
           <span class="trilha-secao-titulo">${eRev?'🔄 '+esc(sec.label):`<span class="aula-titulo-link" onclick="event.stopPropagation();abrirNotasSecao('${id}','${sec.key}')">${esc(sec.label)}<span class="aula-info-icon">ℹ</span></span>`}</span>
           <div class="trilha-secao-prog">
             <div class="trilha-dots">${dots}</div>
             <span class="trilha-secao-count">${feitas}/${ts.length}</span>
           </div>
+          ${secMenu}
         </div>
         <div class="trilha-secao-body ${isOpen?'aberto':''}" id="${prefix}sec-body-${sec.key}">
           ${ts.map(t=>mgr._renderRow(t)).join('')}
@@ -3078,7 +3114,10 @@ function _criarTrilha(cfg) {
             </div>`).join('')}
         </div>` : '';
       return `<div>
-        <div class="trilha-row">
+        <div class="trilha-row" ondragover="_TRILHA['${id}'].taskDragOver('${t.id}',event)" ondrop="_TRILHA['${id}'].taskDrop('${t.id}',event)">
+          <span class="drag-handle" draggable="true" onclick="event.stopPropagation()"
+            ondragstart="_TRILHA['${id}'].taskDragStart('${t.id}',event)"
+            ondragend="_TRILHA['${id}'].taskDragEnd(event)" title="Arrastar para reordenar">⠿</span>
           <input type="checkbox" class="trilha-check" ${t.feita?'checked':''}
             onchange="_TRILHA['${id}'].toggleTarefa('${t.id}')">
           <span class="trilha-row-label ${t.feita?'feita':''}" onclick="toggleNotaTarefa('${t.id}')" title="Clique para anotações">${esc(t.label)}${t.nota?'<span class="nota-dot"></span>':''}</span>
@@ -3338,6 +3377,121 @@ function _criarTrilha(cfg) {
         mgr.renderizar(); if (_paginaAtual==='tarefas') renderizarTarefas();
         mostrarToast(semana ? 'Tarefa agendada!' : 'Semana removida', 'sucesso');
       } catch(e) { mostrarToast('Erro: '+e.message,'erro'); }
+    },
+
+    _clearDragOver() { if (mgr._dragOverEl){mgr._dragOverEl.style.borderTop='';mgr._dragOverEl.style.background='';mgr._dragOverEl=null;} },
+
+    secDragStart(topicoNum, e) { mgr._dragSrcSec=topicoNum; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',String(topicoNum)); },
+    secDragOver(topicoNum, e) {
+      if (mgr._dragSrcSec===null||mgr._dragSrcSec===topicoNum) return;
+      e.preventDefault(); e.dataTransfer.dropEffect='move';
+      const el=document.getElementById(`${prefix}sec-${topicoNum}`);
+      if (el!==mgr._dragOverEl){mgr._clearDragOver();mgr._dragOverEl=el;if(el){el.style.borderTop='2px solid var(--azul)';el.style.background='rgba(59,130,246,.05)';}}
+    },
+    secDrop(topicoNum, e) {
+      e.preventDefault(); mgr._clearDragOver();
+      if (mgr._dragSrcSec===null||mgr._dragSrcSec===topicoNum){mgr._dragSrcSec=null;return;}
+      const cfg=_carregarCfgTrilha(id), extras=cfg.extras||[], hidden=cfg.hidden||[];
+      const N=topicos.length, extNums=extras.map(x=>x.num);
+      const allNums=[...Array.from({length:N},(_,i)=>i),...extNums].filter(n=>!hidden.includes(n));
+      const order=cfg.order?[...cfg.order.filter(n=>allNums.includes(n)),...allNums.filter(n=>!cfg.order.includes(n))]:[...allNums];
+      const from=order.indexOf(mgr._dragSrcSec), to=order.indexOf(topicoNum);
+      if (from!==-1&&to!==-1){order.splice(from,1);order.splice(to,0,mgr._dragSrcSec);cfg.order=order;_salvarCfgTrilha(id,cfg);}
+      mgr._dragSrcSec=null; mgr.renderizar();
+    },
+    secDragEnd(e) { mgr._dragSrcSec=null; mgr._clearDragOver(); },
+
+    taskDragStart(tid, e) { mgr._dragSrcTask=tid; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',tid); },
+    taskDragOver(tid, e) {
+      if (!mgr._dragSrcTask||mgr._dragSrcTask===tid) return;
+      e.preventDefault(); e.dataTransfer.dropEffect='move';
+      const el=document.querySelector(`[ondrop="_TRILHA['${id}'].taskDrop('${tid}',event)"]`);
+      if (el!==mgr._dragOverEl){mgr._clearDragOver();mgr._dragOverEl=el;if(el){el.style.borderTop='2px solid var(--azul)';el.style.background='rgba(59,130,246,.05)';}}
+    },
+    taskDrop(tid, e) {
+      e.preventDefault(); mgr._clearDragOver();
+      if (!mgr._dragSrcTask||mgr._dragSrcTask===tid){mgr._dragSrcTask=null;return;}
+      const src=mgr.arr.find(x=>x.id===mgr._dragSrcTask), dst=mgr.arr.find(x=>x.id===tid);
+      if (!src||!dst||(src.topicoNum!==dst.topicoNum||src.grupoRevisao!==dst.grupoRevisao)){mgr._dragSrcTask=null;return;}
+      const inSec=mgr.arr.filter(t=>t.topicoNum===src.topicoNum&&t.grupoRevisao===src.grupoRevisao).sort((a,b)=>a.ordem-b.ordem);
+      const si=inSec.findIndex(t=>t.id===src.id), di=inSec.findIndex(t=>t.id===dst.id);
+      inSec.splice(si,1); inSec.splice(di,0,src);
+      const updates=[]; inSec.forEach((t,i)=>{if(t.ordem!==i){t.ordem=i;updates.push({id:t.id,ordem:i});}});
+      mgr._dragSrcTask=null; mgr.renderizar();
+      if (updates.length){(async()=>{try{const bat=writeBatch(db);updates.forEach(u=>bat.update(doc(db,colecao,u.id),{ordem:u.ordem}));await bat.commit();}catch(err){mostrarToast('Erro ao salvar ordem','erro');}})();}
+    },
+    taskDragEnd(e) { mgr._dragSrcTask=null; mgr._clearDragOver(); },
+
+    toggleMenuSec(topicoNum, e) {
+      e.stopPropagation();
+      const el=document.getElementById(`${prefix}smdd-${topicoNum}`); if (!el) return;
+      const aberto=el.style.display==='block'; mgr.fecharMenuSec(); mgr._fecharColorDD();
+      if (!aberto){const rect=e.currentTarget.getBoundingClientRect();el.style.top=(rect.bottom+4)+'px';el.style.right=(window.innerWidth-rect.right)+'px';el.style.left='auto';el.style.display='block';mgr._menuSecDD=topicoNum;}
+    },
+    fecharMenuSec() { if (mgr._menuSecDD!==null){const el=document.getElementById(`${prefix}smdd-${mgr._menuSecDD}`);if(el)el.style.display='none';mgr._menuSecDD=null;} },
+    _fecharColorDD() { document.querySelectorAll(`[id^="${prefix}clr-"]`).forEach(el=>el.style.display='none'); },
+
+    abrirColorPicker(topicoNum) {
+      const menu=document.getElementById(`${prefix}smdd-${topicoNum}`);
+      const clr=document.getElementById(`${prefix}clr-${topicoNum}`); if (!clr) return;
+      const top=menu?.style.top||'4rem', right=menu?.style.right||'1rem';
+      mgr.fecharMenuSec(); mgr._fecharColorDD(); clr.style.top=top; clr.style.right=right; clr.style.left='auto'; clr.style.display='block';
+    },
+    setTopicoCor(topicoNum, cor) {
+      mgr._fecharColorDD();
+      const cfg=_carregarCfgTrilha(id); if (!cfg.colors) cfg.colors={};
+      if (cor) cfg.colors[topicoNum]=cor; else delete cfg.colors[topicoNum];
+      _salvarCfgTrilha(id,cfg); mgr.renderizar();
+    },
+
+    async duplicarTopico(topicoNum) {
+      mgr.fecharMenuSec();
+      const cfg=_carregarCfgTrilha(id), labels=cfg.labels||{}, extras=cfg.extras||[];
+      const N=topicos.length, extNums=extras.map(x=>x.num);
+      const allNums=[...Array.from({length:N},(_,i)=>i),...extNums];
+      const maxNum=allNums.length?Math.max(...allNums):-1, novoNum=maxNum+1;
+      const origLabel=labels[topicoNum]!==undefined?labels[topicoNum]:(topicoNum<N?topicos[topicoNum].label:(extras.find(x=>x.num===topicoNum)?.label||`Tópico ${topicoNum}`));
+      if (!cfg.labels) cfg.labels={};
+      cfg.labels[novoNum]=origLabel+' (cópia)';
+      const hidden=cfg.hidden||[];
+      const orderedAll=cfg.order?[...cfg.order.filter(n=>allNums.includes(n)),...allNums.filter(n=>!cfg.order.includes(n))]:[...allNums];
+      const filteredAll=orderedAll.filter(n=>!hidden.includes(n));
+      const posOrig=filteredAll.indexOf(topicoNum);
+      filteredAll.splice(posOrig+1,0,novoNum);
+      cfg.order=[...filteredAll,...orderedAll.filter(n=>hidden.includes(n))];
+      cfg.extras=[...extras,{num:novoNum,label:origLabel+' (cópia)'}];
+      if (cfg.colors&&cfg.colors[topicoNum]) { if (!cfg.colors) cfg.colors={}; cfg.colors[novoNum]=cfg.colors[topicoNum]; }
+      const origTarefas=mgr.arr.filter(t=>t.topicoNum===topicoNum).sort((a,b)=>a.ordem-b.ordem);
+      const baseOrd=mgr.arr.length?Math.max(...mgr.arr.map(t=>t.ordem||0))+1:0;
+      const copia=origTarefas.map((t,i)=>({tipo:t.tipo,topicoNum:novoNum,grupoRevisao:null,label:t.label,ordem:baseOrd+i,feita:false,semana:null,planoRef:null,concluidoEm:null,subtarefas:(t.subtarefas||[]).map(s=>({...s,feita:false})),temQuestoes:t.temQuestoes,certas:0,erradas:0,tempoMin:t.tempoMin||90}));
+      try {
+        const bat=writeBatch(db); const refs=copia.map(()=>doc(collection(db,colecao)));
+        copia.forEach((t,i)=>bat.set(refs[i],{...t,criadoEm:serverTimestamp()})); await bat.commit();
+        copia.forEach((t,i)=>mgr.arr.push({id:refs[i].id,...t}));
+        _salvarCfgTrilha(id,cfg); mgr.renderizar(); mostrarToast(`"${origLabel}" duplicado!`,'sucesso');
+      } catch(e){mostrarToast('Erro: '+e.message,'erro');}
+    },
+
+    async excluirTopico(topicoNum) {
+      mgr.fecharMenuSec();
+      const cfg=_carregarCfgTrilha(id), labels=cfg.labels||{}, extras=cfg.extras||[];
+      const N=topicos.length;
+      const label=labels[topicoNum]!==undefined?labels[topicoNum]:(topicoNum<N?topicos[topicoNum].label:(extras.find(x=>x.num===topicoNum)?.label||`Tópico ${topicoNum}`));
+      if (!confirm(`Excluir o tópico "${label}" e TODAS as suas tarefas?\n\nEssa ação não pode ser desfeita.`)) return;
+      const toDelete=mgr.arr.filter(t=>t.topicoNum===topicoNum);
+      try {
+        if (toDelete.length){const bat=writeBatch(db);toDelete.forEach(t=>{bat.delete(doc(db,colecao,t.id));if(t.planoRef)bat.delete(doc(db,'plano_tarefas',t.planoRef));});await bat.commit();toDelete.forEach(t=>{if(t.planoRef)tarefasCache=tarefasCache.filter(x=>x.id!==t.planoRef);});}
+        mgr.arr=mgr.arr.filter(t=>t.topicoNum!==topicoNum);
+        const extNums=extras.map(x=>x.num), hidden=cfg.hidden||[];
+        const allNums=[...Array.from({length:N},(_,i)=>i),...extNums];
+        const ordCur=cfg.order?[...cfg.order.filter(n=>allNums.includes(n)),...allNums.filter(n=>!cfg.order.includes(n))]:[...allNums];
+        cfg.order=ordCur.filter(n=>n!==topicoNum);
+        if (!hidden.includes(topicoNum)) hidden.push(topicoNum); cfg.hidden=hidden;
+        if (cfg.labels) delete cfg.labels[topicoNum]; if (cfg.colors) delete cfg.colors[topicoNum];
+        cfg.extras=extras.filter(x=>x.num!==topicoNum);
+        _salvarCfgTrilha(id,cfg); mgr.renderizar(); if (_paginaAtual==='tarefas') renderizarTarefas();
+        mostrarToast('Tópico excluído.','sucesso');
+      } catch(e){mostrarToast('Erro: '+e.message,'erro');}
     },
 
     async selecionarTempoCallback(min, tid) {
