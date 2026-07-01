@@ -1546,6 +1546,8 @@
             </select>
             <input type="text" id="am-filtro-upa" placeholder="Buscar UPA ou setor..." oninput="renderAmostraMestra()" style="padding:0.35rem 0.6rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:180px">
             <button class="btn-acao secundario" onclick="limparFiltrosAM()" style="font-size:0.82rem">Limpar</button>
+            <button class="btn-acao secundario" onclick="enviarAmostraMestraEmail()" style="font-size:0.82rem" title="Enviar por e-mail">📧 E-mail</button>
+            <button class="btn-acao secundario" onclick="enviarAmostraMestraWhatsApp()" style="font-size:0.82rem" title="Copiar para WhatsApp">💬 WhatsApp</button>
           </div>
         </div>
         <div id="tabela-am-calendario"><div class="loader">Carregando...</div></div>
@@ -7941,6 +7943,121 @@ window.renderAmostraMestra = () => {
   }
   html += '</div>';
   el.innerHTML = html;
+};
+
+// ── ENVIO DA AMOSTRA MESTRA POR E-MAIL / WHATSAPP ────────────────────────────
+
+function _montarAmostraMestraGrupos() {
+  if (!_amCache) return [];
+  const filtroMeses  = new Set([...document.querySelectorAll('#am-filtro-mes-dropdown input:checked')].map(c => parseInt(c.value)));
+  const filtroSemana = parseInt(document.getElementById('am-filtro-semana')?.value)  || null;
+  const filtroTexto  = (document.getElementById('am-filtro-upa')?.value || '').trim().toLowerCase();
+
+  let lista = _amCache;
+  if (filtroMeses.size > 0) lista = lista.filter(r => filtroMeses.has(r.mes));
+  if (filtroSemana) lista = lista.filter(r => r.semana === filtroSemana);
+  if (filtroTexto)  lista = lista.filter(r =>
+    (r.upa||'').toLowerCase().includes(filtroTexto) ||
+    (r.codigo_controle||'').toLowerCase().includes(filtroTexto)
+  );
+  if (!lista.length) return [];
+
+  const grupos = {};
+  lista.forEach(r => {
+    const m = r.mes ?? 0, s = r.semana ?? 0;
+    if (!grupos[m]) grupos[m] = {};
+    if (!grupos[m][s]) grupos[m][s] = [];
+    grupos[m][s].push(r);
+  });
+
+  const ctrl4 = c => String(c||'').slice(-4);
+  const saida = [];
+  for (const mes of Object.keys(grupos).map(Number).sort((a,b)=>a-b)) {
+    if (!_NOMES_MES[mes]) continue;
+    const semanasOut = [];
+    for (const sem of Object.keys(grupos[mes]).map(Number).sort((a,b)=>a-b)) {
+      const seen = new Map();
+      grupos[mes][sem].forEach(r => {
+        const k = `${r.upa||''}|${r.codigo_controle||''}`;
+        if (!seen.has(k)) seen.set(k, r);
+      });
+      const regs = [...seen.values()].sort((a,b) =>
+        (a.upa||'').localeCompare(b.upa||'') || (a.codigo_controle||'').localeCompare(b.codigo_controle||'')
+      );
+      const porUpa = new Map();
+      regs.forEach(r => {
+        const k = r.upa||'—';
+        if (!porUpa.has(k)) porUpa.set(k, []);
+        porUpa.get(k).push(r);
+      });
+      const inf = _SEMANAS_CAL[mes]?.[sem];
+      const linhas = [...porUpa.entries()].sort().map(([upa, setores]) => {
+        const upaSufixo = ctrl4(upa);
+        const extras = setores.filter(r => ctrl4(r.codigo_controle) !== upaSufixo);
+        const upaTxt = extras.length === 0 ? upa : `${upa}/${extras.map(r => ctrl4(r.codigo_controle)).join('/')}`;
+        const etapasUnicas = [...new Set(setores.map(r => r.numero_entrevista).filter(Boolean))].sort();
+        const etapasTxt = etapasUnicas.length === 0 ? '—' : etapasUnicas.map(et => `${et}ª`).join(', ');
+        return {
+          upaTxt,
+          municipio: setores[0]?.nome_municipio || '—',
+          localidade: (_localidadesCache||{})[upa] || '—',
+          etapasTxt,
+        };
+      });
+      semanasOut.push({ semana: sem, dataInfo: inf ? `${inf.cod} · ${inf.de} a ${inf.ate}` : '', linhas });
+    }
+    saida.push({ mes, mesLabel: _NOMES_MES[mes], ptAviso: _PT_MES[mes] || '', semanas: semanasOut });
+  }
+  return saida;
+}
+
+window.enviarAmostraMestraEmail = () => {
+  const grupos = _montarAmostraMestraGrupos();
+  if (!grupos.length) { mostrarToast('Nenhum setor para os filtros selecionados', 'erro'); return; }
+
+  let corpo = `AMOSTRA MESTRA — CALENDÁRIO DE SETORES\r\nIBGE | PNAD-Contínua | Campos/RJ\r\n\r\n`;
+  grupos.forEach(g => {
+    corpo += `${g.mesLabel.toUpperCase()}\r\n`;
+    if (g.ptAviso) corpo += `${g.ptAviso}\r\n`;
+    g.semanas.forEach(s => {
+      corpo += `\r\n-- Semana ${s.semana}${s.dataInfo ? ' (' + s.dataInfo + ')' : ''} --\r\n`;
+      s.linhas.forEach(l => {
+        corpo += `${l.upaTxt} · ${l.municipio} · ${l.localidade} · Etapa ${l.etapasTxt}\r\n`;
+      });
+    });
+    corpo += `\r\n`;
+  });
+
+  const subject = encodeURIComponent('Amostra Mestra — Calendário de Setores');
+  window.open(`mailto:?subject=${subject}&body=${encodeURIComponent(corpo)}`);
+};
+
+window.enviarAmostraMestraWhatsApp = () => {
+  const grupos = _montarAmostraMestraGrupos();
+  if (!grupos.length) { mostrarToast('Nenhum setor para os filtros selecionados', 'erro'); return; }
+
+  let txt = `*AMOSTRA MESTRA — CALENDÁRIO DE SETORES*\n📍 IBGE | PNAD-Contínua | Campos/RJ\n\n`;
+  grupos.forEach(g => {
+    txt += `*📆 ${g.mesLabel}*\n`;
+    if (g.ptAviso) txt += `_${g.ptAviso}_\n`;
+    g.semanas.forEach(s => {
+      txt += `\n*Semana ${s.semana}*${s.dataInfo ? ` _(${s.dataInfo})_` : ''}\n`;
+      s.linhas.forEach(l => {
+        txt += `• ${l.upaTxt} · ${l.municipio} · ${l.localidade} · Etapa ${l.etapasTxt}\n`;
+      });
+    });
+    txt += `\n`;
+  });
+
+  navigator.clipboard.writeText(txt)
+    .then(() => mostrarToast('Copiado! Cole no WhatsApp.', 'sucesso'))
+    .catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      mostrarToast('Copiado! Cole no WhatsApp.', 'sucesso');
+    });
 };
 
 window.limparFiltrosAM = () => {
