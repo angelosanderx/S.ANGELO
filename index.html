@@ -1804,6 +1804,10 @@
             <div class="card-tabela-header" style="flex-wrap:wrap;gap:0.5rem">
               <h3>📊 Relatório de Setores CNEFE</h3>
               <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+                <div style="display:flex;gap:0.3rem">
+                  <button id="cnefe-relmodo-composicao" class="filtro-chip ativo" onclick="setCnefeRelModo('composicao')">📊 Composição</button>
+                  <button id="cnefe-relmodo-coleta" class="filtro-chip" onclick="setCnefeRelModo('coleta')">📅 Coleta PNAD</button>
+                </div>
                 <select id="cnefe-rel-mes-sel" onchange="gerarCnefeRelatorio()"
                   style="padding:0.35rem 0.65rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.83rem;font-family:var(--fonte);background:var(--fundo);color:var(--texto)">
                   <option value="">— Selecione o mês —</option>
@@ -12396,6 +12400,14 @@ window.renderCnefeSetores = () => {
 
 // ── RELATÓRIO DE SETORES CNEFE ──────────────────────────────────────────────
 
+let _cnefeRelModo = 'composicao';
+window.setCnefeRelModo = (modo) => {
+  _cnefeRelModo = modo;
+  document.getElementById('cnefe-relmodo-composicao').classList.toggle('ativo', modo === 'composicao');
+  document.getElementById('cnefe-relmodo-coleta').classList.toggle('ativo', modo === 'coleta');
+  gerarCnefeRelatorio();
+};
+
 window.abrirCnefeRelatorio = () => {
   const wrap = document.getElementById('cnefe-relatorio-wrap');
   const sel  = document.getElementById('cnefe-rel-mes-sel');
@@ -12459,6 +12471,12 @@ window.gerarCnefeRelatorio = async () => {
     window._cnefe_relatorio_dados = null;
     return;
   }
+
+  if (_cnefeRelModo === 'coleta') {
+    _gerarCnefeRelatorioColeta(mesLabel, pesqFiltro, setores);
+    return;
+  }
+
   corpo.innerHTML = '<div class="loader" style="padding:2rem">Carregando composições...</div>';
 
   // Carrega cnefe_enderecos para setores sem cache
@@ -12481,9 +12499,80 @@ window.gerarCnefeRelatorio = async () => {
     return { setor: s.setor, pesquisa: s.pesquisa || '—', localidade: s.localidade, contEsp, total: docs.length };
   });
 
-  window._cnefe_relatorio_dados = { mesLabel, pesqFiltro, relDados };
+  window._cnefe_relatorio_dados = { modo: 'composicao', mesLabel, pesqFiltro, relDados };
   _renderCnefeRelatorio(mesLabel, pesqFiltro, relDados);
 };
+
+// ── RELATÓRIO DE COLETA PNAD (por semana) ────────────────────────────────────
+
+function _gerarCnefeRelatorioColeta(mesLabel, pesqFiltro, setores) {
+  const corpo = document.getElementById('cnefe-relatorio-corpo');
+  const locPorSetor = {};
+  setores.forEach(s => { locPorSetor[s.setor] = s.localidade || ''; });
+  const setorCodes = new Set(setores.map(s => s.setor));
+
+  const doms = (todosdomicilios || []).filter(d => d.upa && setorCodes.has(d.upa) && pertencePeriodo(d));
+
+  if (!doms.length) {
+    corpo.innerHTML = '<div class="vazio" style="padding:2rem"><div class="icone-vazio">🏠</div>Nenhum domicílio encontrado para os setores deste mês.</div>';
+    window._cnefe_relatorio_dados = { modo: 'coleta', mesLabel, pesqFiltro, gruposSemana: [] };
+    return;
+  }
+
+  const porSemana = {};
+  doms.forEach(d => {
+    const sem = d.semana || 0;
+    if (!porSemana[sem]) porSemana[sem] = [];
+    porSemana[sem].push({
+      upaControle: `${d.upa || ''}/${d.controle || ''}`,
+      municipio: d.municipio || '—',
+      localidade: locPorSetor[d.upa] || '',
+      etapa: d.visita_etapa || '',
+    });
+  });
+
+  const gruposSemana = Object.keys(porSemana)
+    .sort((a, b) => parseInt(a) - parseInt(b))
+    .map(sem => ({
+      semana: parseInt(sem) || 0,
+      itens: porSemana[sem].sort((a, b) => a.upaControle.localeCompare(b.upaControle, undefined, {numeric:true})),
+    }));
+
+  window._cnefe_relatorio_dados = { modo: 'coleta', mesLabel, pesqFiltro, gruposSemana };
+  _renderCnefeRelatorioColeta(mesLabel, pesqFiltro, gruposSemana);
+}
+
+function _renderCnefeRelatorioColeta(mesLabel, pesqFiltro, gruposSemana) {
+  const corpo = document.getElementById('cnefe-relatorio-corpo');
+  const totalDoms = gruposSemana.reduce((s, g) => s + g.itens.length, 0);
+
+  const subtitulo = pesqFiltro
+    ? `${mesLabel} &mdash; ${pesqFiltro} &mdash; ${totalDoms} domicílio${totalDoms !== 1 ? 's' : ''}`
+    : `${mesLabel} &mdash; ${totalDoms} domicílio${totalDoms !== 1 ? 's' : ''}`;
+
+  let html = `<div style="padding:0.6rem 1rem 0.3rem;font-size:0.78rem;color:var(--cinza)">${subtitulo}</div>`;
+
+  gruposSemana.forEach(g => {
+    let rows = '';
+    g.itens.forEach(it => {
+      const etapaStr = it.etapa ? `${it.etapa}ª` : '—';
+      rows += `<tr>
+        <td><code style="font-size:0.8rem;color:var(--azul-medio)">${it.upaControle}</code></td>
+        <td style="font-size:0.82rem">${it.municipio}</td>
+        <td style="font-size:0.82rem">${it.localidade || '<span style="color:var(--cinza);font-style:italic">—</span>'}</td>
+        <td style="text-align:center;font-size:0.82rem">${etapaStr}</td>
+      </tr>`;
+    });
+    html += `<div style="padding:0.55rem 1rem 0.2rem;font-size:0.82rem;font-weight:700;color:var(--azul-medio);border-top:1px solid var(--borda);margin-top:0.5rem">
+      📅 Semana ${g.semana || '—'} <span style="font-weight:400;color:var(--cinza);font-size:0.75rem">${g.itens.length} domicílio${g.itens.length !== 1 ? 's' : ''}</span>
+    </div>
+    <div style="overflow-x:auto"><table><thead><tr>
+      <th>UPA/Controle</th><th>Município</th><th>Localidade</th><th style="text-align:center">Etapa</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>`;
+  });
+
+  corpo.innerHTML = html;
+}
 
 function _renderCnefeRelatorio(mesLabel, pesqFiltro, relDados) {
   const corpo = document.getElementById('cnefe-relatorio-corpo');
@@ -12563,6 +12652,7 @@ function _renderCnefeRelatorio(mesLabel, pesqFiltro, relDados) {
 window.enviarRelatorioEmail = () => {
   const dados = window._cnefe_relatorio_dados;
   if (!dados) { mostrarToast('Gere o relatório primeiro.', 'aviso'); return; }
+  if (dados.modo === 'coleta') { _enviarColetaEmail(dados); return; }
   const { mesLabel, pesqFiltro, relDados } = dados;
   const pesqLabel = pesqFiltro || 'Todas as pesquisas';
   const IBGE_LABEL = 'IBGE | PNAD-Contínua | Campos/RJ';
@@ -12599,6 +12689,7 @@ window.enviarRelatorioEmail = () => {
 window.enviarRelatorioWhatsApp = () => {
   const dados = window._cnefe_relatorio_dados;
   if (!dados) { mostrarToast('Gere o relatório primeiro.', 'aviso'); return; }
+  if (dados.modo === 'coleta') { _enviarColetaWhatsApp(dados); return; }
   const { mesLabel, pesqFiltro, relDados } = dados;
   const pesqLabel = pesqFiltro || 'Todas as pesquisas';
   let txt = `*RELATÓRIO CNEFE — ${mesLabel}*\n`;
@@ -12639,6 +12730,57 @@ window.enviarRelatorioWhatsApp = () => {
       mostrarToast('Relatório copiado! Cole no WhatsApp.', 'sucesso');
     });
 };
+
+function _enviarColetaEmail(dados) {
+  const { mesLabel, pesqFiltro, gruposSemana } = dados;
+  const pesqLabel = pesqFiltro || 'Todas as pesquisas';
+  const IBGE_LABEL = 'IBGE | PNAD-Contínua | Campos/RJ';
+  const totalDoms = gruposSemana.reduce((s, g) => s + g.itens.length, 0);
+  let corpo = `RELATÓRIO DE COLETA PNAD — SETORES CNEFE\r\n${IBGE_LABEL}\r\nMês: ${mesLabel} | Pesquisa: ${pesqLabel}\r\n${totalDoms} domicílio(s)\r\n\r\n`;
+
+  gruposSemana.forEach(g => {
+    corpo += `── Semana ${g.semana || '—'} (${g.itens.length} domicílio${g.itens.length !== 1 ? 's' : ''}) ──\r\n\r\n`;
+    g.itens.forEach(it => {
+      corpo += `UPA/Controle: ${it.upaControle}\r\n`;
+      corpo += `Município: ${it.municipio}\r\n`;
+      corpo += `Localidade: ${it.localidade || '—'}\r\n`;
+      corpo += `Etapa: ${it.etapa ? it.etapa + 'ª' : '—'}\r\n\r\n`;
+    });
+  });
+
+  const subject = encodeURIComponent(`Coleta PNAD — ${mesLabel}${pesqFiltro ? ' — ' + pesqFiltro : ''}`);
+  window.open(`mailto:?subject=${subject}&body=${encodeURIComponent(corpo)}`);
+}
+
+function _enviarColetaWhatsApp(dados) {
+  const { mesLabel, pesqFiltro, gruposSemana } = dados;
+  const pesqLabel = pesqFiltro || 'Todas as pesquisas';
+  const totalDoms = gruposSemana.reduce((s, g) => s + g.itens.length, 0);
+  let txt = `*COLETA PNAD — SETORES CNEFE — ${mesLabel}*\n`;
+  txt += `📍 IBGE | PNAD-Contínua | Campos/RJ\n`;
+  txt += `🔬 Pesquisa: ${pesqLabel}\n`;
+  txt += `${totalDoms} domicílio${totalDoms !== 1 ? 's' : ''}\n\n`;
+
+  gruposSemana.forEach(g => {
+    txt += `*── Semana ${g.semana || '—'} (${g.itens.length} domicílio${g.itens.length !== 1 ? 's' : ''}) ──*\n\n`;
+    g.itens.forEach(it => {
+      txt += `*UPA/Controle:* ${it.upaControle}\n`;
+      txt += `*Município:* ${it.municipio}\n`;
+      txt += `*Localidade:* ${it.localidade || '—'}\n`;
+      txt += `*Etapa:* ${it.etapa ? it.etapa + 'ª' : '—'}\n\n`;
+    });
+  });
+
+  navigator.clipboard.writeText(txt)
+    .then(() => mostrarToast('Relatório copiado! Cole no WhatsApp.', 'sucesso'))
+    .catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      mostrarToast('Relatório copiado! Cole no WhatsApp.', 'sucesso');
+    });
+}
 
 window.cnefeEditarLocalidade = (td, setor, docIdAtual) => {
   const span = td.querySelector('.cnefe-loc-val');
