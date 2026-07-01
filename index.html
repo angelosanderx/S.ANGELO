@@ -1546,8 +1546,8 @@
             </select>
             <input type="text" id="am-filtro-upa" placeholder="Buscar UPA ou setor..." oninput="renderAmostraMestra()" style="padding:0.35rem 0.6rem;border:1.5px solid var(--borda);border-radius:6px;font-size:0.82rem;font-family:var(--fonte);background:var(--cinza-claro);min-width:180px">
             <button class="btn-acao secundario" onclick="limparFiltrosAM()" style="font-size:0.82rem">Limpar</button>
-            <button class="btn-acao secundario" onclick="enviarAmostraMestraEmail()" style="font-size:0.82rem" title="Enviar por e-mail">📧 E-mail</button>
-            <button class="btn-acao secundario" onclick="enviarAmostraMestraWhatsApp()" style="font-size:0.82rem" title="Copiar para WhatsApp">💬 WhatsApp</button>
+            <button class="btn-acao secundario" onclick="enviarAmostraMestraEmail()" style="font-size:0.82rem" title="Copiar tabela para colar no e-mail">📧 E-mail</button>
+            <button class="btn-acao secundario" onclick="enviarAmostraMestraWhatsApp()" style="font-size:0.82rem" title="Copiar tabela para colar no WhatsApp">💬 WhatsApp</button>
           </div>
         </div>
         <div id="tabela-am-calendario"><div class="loader">Carregando...</div></div>
@@ -8011,53 +8011,72 @@ function _montarAmostraMestraGrupos() {
   return saida;
 }
 
-window.enviarAmostraMestraEmail = () => {
-  const grupos = _montarAmostraMestraGrupos();
-  if (!grupos.length) { mostrarToast('Nenhum setor para os filtros selecionados', 'erro'); return; }
+// Achata os grupos mês→semana em linhas por mês, já incluindo a coluna Semana
+function _linhasAmostraMestraPorMes() {
+  return _montarAmostraMestraGrupos().map(g => ({
+    mesLabel: g.mesLabel,
+    ptAviso: g.ptAviso,
+    linhas: g.semanas.flatMap(s => s.linhas.map(l => ({ semana: s.semana, ...l }))),
+  }));
+}
 
-  let corpo = `AMOSTRA MESTRA — CALENDÁRIO DE SETORES\r\nIBGE | PNAD-Contínua | Campos/RJ\r\n\r\n`;
-  grupos.forEach(g => {
-    corpo += `${g.mesLabel.toUpperCase()}\r\n`;
-    if (g.ptAviso) corpo += `${g.ptAviso}\r\n`;
-    g.semanas.forEach(s => {
-      corpo += `\r\n-- Semana ${s.semana}${s.dataInfo ? ' (' + s.dataInfo + ')' : ''} --\r\n`;
-      s.linhas.forEach(l => {
-        corpo += `${l.upaTxt} · ${l.municipio} · ${l.localidade} · Etapa ${l.etapasTxt}\r\n`;
-      });
-    });
-    corpo += `\r\n`;
-  });
+// Monta uma tabela alinhada (largura de coluna calculada pelo maior valor de cada uma)
+function _tabelaMonospace(linhas) {
+  const cols = [
+    { h: 'SEM',           v: l => String(l.semana) },
+    { h: 'UPA/CONTROLE',  v: l => l.upaTxt },
+    { h: 'MUNICÍPIO',     v: l => l.municipio },
+    { h: 'LOCALIDADE',    v: l => l.localidade },
+    { h: 'ETAPA',         v: l => l.etapasTxt },
+  ];
+  const widths = cols.map(c => Math.max(c.h.length, ...linhas.map(l => c.v(l).length)));
+  const montaLinha = vals => vals.map((v, i) => v.padEnd(widths[i])).join('  ').trimEnd();
+  const linhasTxt = [
+    montaLinha(cols.map(c => c.h)),
+    widths.map(w => '-'.repeat(w)).join('  '),
+    ...linhas.map(l => montaLinha(cols.map(c => c.v(l)))),
+  ];
+  return linhasTxt.join('\n');
+}
 
-  const subject = encodeURIComponent('Amostra Mestra — Calendário de Setores');
-  window.open(`mailto:?subject=${subject}&body=${encodeURIComponent(corpo)}`);
-};
-
-window.enviarAmostraMestraWhatsApp = () => {
-  const grupos = _montarAmostraMestraGrupos();
-  if (!grupos.length) { mostrarToast('Nenhum setor para os filtros selecionados', 'erro'); return; }
-
-  let txt = `*AMOSTRA MESTRA — CALENDÁRIO DE SETORES*\n📍 IBGE | PNAD-Contínua | Campos/RJ\n\n`;
-  grupos.forEach(g => {
-    txt += `*📆 ${g.mesLabel}*\n`;
-    if (g.ptAviso) txt += `_${g.ptAviso}_\n`;
-    g.semanas.forEach(s => {
-      txt += `\n*Semana ${s.semana}*${s.dataInfo ? ` _(${s.dataInfo})_` : ''}\n`;
-      s.linhas.forEach(l => {
-        txt += `• ${l.upaTxt} · ${l.municipio} · ${l.localidade} · Etapa ${l.etapasTxt}\n`;
-      });
-    });
-    txt += `\n`;
-  });
-
+function _copiarTextoAM(txt, msgSucesso) {
   navigator.clipboard.writeText(txt)
-    .then(() => mostrarToast('Copiado! Cole no WhatsApp.', 'sucesso'))
+    .then(() => mostrarToast(msgSucesso, 'sucesso'))
     .catch(() => {
       const ta = document.createElement('textarea');
       ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
       document.body.appendChild(ta); ta.select(); document.execCommand('copy');
       document.body.removeChild(ta);
-      mostrarToast('Copiado! Cole no WhatsApp.', 'sucesso');
+      mostrarToast(msgSucesso, 'sucesso');
     });
+}
+
+window.enviarAmostraMestraEmail = () => {
+  const meses = _linhasAmostraMestraPorMes();
+  if (!meses.length) { mostrarToast('Nenhum setor para os filtros selecionados', 'erro'); return; }
+
+  let txt = 'AMOSTRA MESTRA — CALENDÁRIO DE SETORES\nIBGE | PNAD-Contínua | Campos/RJ\n\n';
+  meses.forEach(m => {
+    txt += `${m.mesLabel.toUpperCase()}\n`;
+    if (m.ptAviso) txt += `${m.ptAviso}\n`;
+    txt += _tabelaMonospace(m.linhas) + '\n\n';
+  });
+
+  _copiarTextoAM(txt.trimEnd() + '\n', 'Tabela copiada! Cole no e-mail.');
+};
+
+window.enviarAmostraMestraWhatsApp = () => {
+  const meses = _linhasAmostraMestraPorMes();
+  if (!meses.length) { mostrarToast('Nenhum setor para os filtros selecionados', 'erro'); return; }
+
+  let txt = '*AMOSTRA MESTRA — CALENDÁRIO DE SETORES*\n📍 IBGE | PNAD-Contínua | Campos/RJ\n\n';
+  meses.forEach(m => {
+    txt += `*📆 ${m.mesLabel}*\n`;
+    if (m.ptAviso) txt += `_${m.ptAviso}_\n`;
+    txt += '```\n' + _tabelaMonospace(m.linhas) + '\n```\n\n';
+  });
+
+  _copiarTextoAM(txt.trimEnd() + '\n', 'Tabela copiada! Cole no WhatsApp.');
 };
 
 window.limparFiltrosAM = () => {
