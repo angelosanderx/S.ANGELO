@@ -5134,6 +5134,10 @@ window.copiarPendenciasWhatsApp = (tableId) => {
   lista.sort((a, b) => {
     const e = (a._nomeCanonical||'').localeCompare(b._nomeCanonical||'');
     if (e !== 0) return e;
+    const setorA = a.controle ? a.controle.slice(0,-1) : (a.upa||'');
+    const setorB = b.controle ? b.controle.slice(0,-1) : (b.upa||'');
+    const s = setorA.localeCompare(setorB, undefined, {numeric:true});
+    if (s !== 0) return s;
     return parseInt(a.domicilio_num||0) - parseInt(b.domicilio_num||0);
   });
 
